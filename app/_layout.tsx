@@ -12,7 +12,32 @@ export default function RootLayout() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    runMigrations()
+    // TODO: quitar este reset cuando el schema esté estable
+    // Solo resetea si venimos del schema viejo (no tiene event_types)
+    const migrate = async () => {
+      const SQLite = await import('expo-sqlite');
+      const db = SQLite.openDatabaseSync('cielo.db');
+      try {
+        await db.execAsync(`SELECT * FROM event_types LIMIT 1`);
+      } catch {
+        // Tabla no existe → schema viejo, borrar todo
+        await db.execAsync(`
+          DROP TABLE IF EXISTS diaper_logs;
+          DROP TABLE IF EXISTS feeding_logs;
+          DROP TABLE IF EXISTS growth_logs;
+          DROP TABLE IF EXISTS timeline_events;
+          DROP TABLE IF EXISTS feeding_status_events;
+          DROP TABLE IF EXISTS feeding_sessions;
+          DROP TABLE IF EXISTS diaper_observations;
+          DROP TABLE IF EXISTS event_types;
+          DROP TABLE IF EXISTS babies;
+          DROP TABLE IF EXISTS profiles;
+        `);
+      }
+    };
+
+    migrate()
+      .then(() => runMigrations())
       .then(() => setReady(true))
       .catch((e: any) => {
         console.error('Migration error:', e);

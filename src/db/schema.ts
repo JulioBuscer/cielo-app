@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
 // ─── PERFILES DE CUIDADORES ───────────────────────────────────────────────────
 export const profiles = sqliteTable('profiles', {
@@ -21,60 +21,111 @@ export const babies = sqliteTable('babies', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
-// ─── REGISTROS DE PAÑAL ───────────────────────────────────────────────────────
-export const diaperLogs = sqliteTable('diaper_logs', {
-  id:            text('id').primaryKey(),
-  babyId:        text('baby_id').notNull().references(() => babies.id),
-  profileId:     text('profile_id').notNull().references(() => profiles.id),
-  timestamp:     integer('timestamp', { mode: 'timestamp' }).notNull(),
-  peeIntensity:  integer('pee_intensity').default(0),   // 0 = no hubo
-  poopIntensity: integer('poop_intensity').default(0),  // 0 = no hubo
-  hasBlood:      integer('has_blood', { mode: 'boolean' }).default(false),
-  hasMucus:      integer('has_mucus', { mode: 'boolean' }).default(false),
-  hasDiarrhea:   integer('has_diarrhea', { mode: 'boolean' }).default(false),
-  color:         text('color'),        // 'amarillo','verde','café','negro','rojo'
-  consistency:   text('consistency'), // 'líquida','pastosa','sólida','granulada'
-  imageUri:      text('image_uri'),
-  imageThumbUri: text('image_thumb_uri'),
-  notes:         text('notes'),
+// ─── CATÁLOGO DE TIPOS DE EVENTO (default + custom) ───────────────────────────
+export const eventTypes = sqliteTable('event_types', {
+  id:        text('id').primaryKey(),
+  emoji:     text('emoji').notNull(),
+  label:     text('label').notNull(),
+  category:  text('category', {
+               enum: ['diaper', 'feeding', 'health', 'growth', 'other']
+             }).notNull(),
+  isSystem:  integer('is_system', { mode: 'boolean' }).default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
-// ─── REGISTROS DE ALIMENTACIÓN ────────────────────────────────────────────────
-export const feedingLogs = sqliteTable('feeding_logs', {
+// ─── CATÁLOGO DE OBSERVACIONES DE PAÑAL (default + custom) ────────────────────
+export const diaperObservations = sqliteTable('diaper_observations', {
+  id:        text('id').primaryKey(),
+  emoji:     text('emoji').notNull(),
+  label:     text('label').notNull(),
+  isSystem:  integer('is_system', { mode: 'boolean' }).default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+// ─── SESIONES DE TOMA ─────────────────────────────────────────────────────────
+// Una sesión = un evento de alimentación completo (puede durar minutos con pausas)
+// Una sola sesión activa/pausada por bebé a la vez
+export const feedingSessions = sqliteTable('feeding_sessions', {
+  id:             text('id').primaryKey(),
+  babyId:         text('baby_id').notNull().references(() => babies.id),
+  profileId:      text('profile_id').notNull().references(() => profiles.id), // quien inició
+  type:           text('type', {
+                    enum: ['breast_left', 'breast_right', 'bottle']
+                  }).notNull(),
+  bottleSubtype:  text('bottle_subtype', {
+                    enum: ['breast_milk', 'formula', 'mixed', 'other']
+                  }),                         // solo si type = 'bottle'
+  status:         text('status', {
+                    enum: ['active', 'paused', 'finished']
+                  }).notNull().default('active'),
+  startedAt:      integer('started_at', { mode: 'timestamp' }).notNull(),
+  endedAt:        integer('ended_at', { mode: 'timestamp' }),   // null si no terminó
+  durationSec:    integer('duration_sec'),                      // calculado al terminar
+  notes:          text('notes'),
+  createdAt:      integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+// ─── EVENTOS DE ESTADO DE TOMA ────────────────────────────────────────────────
+// Cada cambio de estado genera un registro aquí
+// profile_id = quién hizo el cambio (auditoría)
+export const feedingStatusEvents = sqliteTable('feeding_status_events', {
   id:          text('id').primaryKey(),
-  babyId:      text('baby_id').notNull().references(() => babies.id),
+  sessionId:   text('session_id').notNull().references(() => feedingSessions.id),
   profileId:   text('profile_id').notNull().references(() => profiles.id),
-  timestamp:   integer('timestamp', { mode: 'timestamp' }).notNull(),
   type:        text('type', {
-                 enum: ['breast_left', 'breast_right', 'formula', 'mixed']
+                 enum: ['start', 'pause', 'resume', 'finish']
                }).notNull(),
-  durationMin: integer('duration_min'),  // Para lactancia (minutos)
-  amountMl:    real('amount_ml'),        // Para fórmula (ml)
-  notes:       text('notes'),
+  timestamp:   integer('timestamp', { mode: 'timestamp' }).notNull(),
 });
 
-// ─── REGISTROS DE CRECIMIENTO ─────────────────────────────────────────────────
-// Peso en gramos (ej: 3500 = 3.5 kg) — entero para evitar errores de punto flotante
-// Altura en milímetros (ej: 500 = 50.0 cm) — mismo motivo
-// La UI muestra kg/cm con conversión, pero la DB guarda enteros exactos
-export const growthLogs = sqliteTable('growth_logs', {
-  id:           text('id').primaryKey(),
-  babyId:       text('baby_id').notNull().references(() => babies.id),
-  profileId:    text('profile_id').notNull().references(() => profiles.id),
-  timestamp:    integer('timestamp', { mode: 'timestamp' }).notNull(),
-  weightGrams:  integer('weight_grams'),    // null si solo se midió estatura
-  heightMm:     integer('height_mm'),       // null si solo se pesó
-  headCircMm:   integer('head_circ_mm'),    // Circunferencia cefálica (opcional)
-  notes:        text('notes'),
+// ─── EVENTOS DE TIMELINE ──────────────────────────────────────────────────────
+// TODO lo que sucede queda aquí: pañales, eructos, medicamentos, peso, notas, etc.
+// Pueden estar o no vinculados a una sesión de toma
+export const timelineEvents = sqliteTable('timeline_events', {
+  id:               text('id').primaryKey(),
+  babyId:           text('baby_id').notNull().references(() => babies.id),
+  profileId:        text('profile_id').notNull().references(() => profiles.id),
+  feedingSessionId: text('feeding_session_id').references(() => feedingSessions.id), // nullable
+  eventTypeId:      text('event_type_id').notNull().references(() => eventTypes.id),
+  timestamp:        integer('timestamp', { mode: 'timestamp' }).notNull(),
+  notes:            text('notes'),
+  metadata:         text('metadata'),   // JSON string con datos extra según tipo
+  createdAt:        integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
 // ─── TIPOS DERIVADOS ──────────────────────────────────────────────────────────
-export type Profile    = typeof profiles.$inferSelect;
-export type Baby       = typeof babies.$inferSelect;
-export type DiaperLog  = typeof diaperLogs.$inferSelect;
-export type FeedingLog = typeof feedingLogs.$inferSelect;
-export type GrowthLog  = typeof growthLogs.$inferSelect;
+export type Profile           = typeof profiles.$inferSelect;
+export type Baby              = typeof babies.$inferSelect;
+export type EventType         = typeof eventTypes.$inferSelect;
+export type DiaperObservation = typeof diaperObservations.$inferSelect;
+export type FeedingSession    = typeof feedingSessions.$inferSelect;
+export type FeedingStatusEvent = typeof feedingStatusEvents.$inferSelect;
+export type TimelineEvent     = typeof timelineEvents.$inferSelect;
 
-export type NewDiaperLog  = typeof diaperLogs.$inferInsert;
-export type NewFeedingLog = typeof feedingLogs.$inferInsert;
-export type NewGrowthLog  = typeof growthLogs.$inferInsert;
+export type NewFeedingSession    = typeof feedingSessions.$inferInsert;
+export type NewFeedingStatusEvent = typeof feedingStatusEvents.$inferInsert;
+export type NewTimelineEvent     = typeof timelineEvents.$inferInsert;
+
+// ─── METADATA TIPADA POR EVENTO ───────────────────────────────────────────────
+export interface DiaperMetadata {
+  peeIntensity:    number;   // 0-5
+  poopIntensity:   number;   // 0-5
+  observationIds:  string[]; // IDs de diaper_observations
+  imageUri?:       string;
+  imageThumbUri?:  string;
+}
+
+export interface MedicationMetadata {
+  medicineName: string;
+  dose?:        string;
+}
+
+export interface GrowthMetadata {
+  weightGrams?: number;   // null si solo estatura
+  heightMm?:    number;   // null si solo peso
+  headCircMm?:  number;   // opcional siempre
+}
+
+export interface TemperatureMetadata {
+  celsius: number;
+}
