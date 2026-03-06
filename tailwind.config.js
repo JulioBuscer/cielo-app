@@ -4,6 +4,7 @@ module.exports = {
     "./app/**/*.{js,jsx,ts,tsx}",
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
+  darkMode: 'class', // ← Requerido por NativeWind v4
   presets: [require("nativewind/preset")],
   theme: {
     extend: {

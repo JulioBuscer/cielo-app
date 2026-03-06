@@ -9,7 +9,7 @@
 
 Cielo App es desarrollada por **Buscer** (en adelante "el desarrollador"). Esta aplicación fue creada para ayudar a cuidadores a registrar el bienestar de bebés de forma privada y sin conexión a internet.
 
-Contacto: [TU EMAIL AQUÍ]
+Contacto: juliobuscer@gmail.com
 
 ---
 
@@ -23,17 +23,17 @@ Cielo App fue construida desde cero con privacidad como principio rector, no com
 
 ### 3.1 Datos que TÚ introduces en la app
 
-| Dato | Dónde se guarda | Sale del dispositivo |
-|---|---|---|
-| Nombre y rol del cuidador | SQLite local | ❌ Nunca |
-| Nombre y fecha de nacimiento del bebé | SQLite local | ❌ Nunca |
-| Registros de pañal (intensidad, color, alertas) | SQLite local | ❌ Nunca |
-| Registros de alimentación | SQLite local | ❌ Nunca |
-| Registros de peso y estatura | SQLite local | ❌ Nunca |
-| Fotografías de pañales | Sandbox privado del dispositivo | ❌ Nunca* |
-| Notas de texto libre | SQLite local | ❌ Nunca |
+| Dato                                            | Dónde se guarda                 | Sale del dispositivo |
+| ----------------------------------------------- | ------------------------------- | -------------------- |
+| Nombre y rol del cuidador                       | SQLite local                    | ❌ Nunca             |
+| Nombre y fecha de nacimiento del bebé           | SQLite local                    | ❌ Nunca             |
+| Registros de pañal (intensidad, color, alertas) | SQLite local                    | ❌ Nunca             |
+| Registros de alimentación                       | SQLite local                    | ❌ Nunca             |
+| Registros de peso y estatura                    | SQLite local                    | ❌ Nunca             |
+| Fotografías de pañales                          | Sandbox privado del dispositivo | ❌ Nunca\*           |
+| Notas de texto libre                            | SQLite local                    | ❌ Nunca             |
 
-*Las fotografías solo salen del dispositivo si **tú** decides compartir un reporte manualmente usando el botón "Compartir".
+\*Las fotografías solo salen del dispositivo si **tú** decides compartir un reporte manualmente usando el botón "Compartir".
 
 ### 3.2 Datos que NO recopilamos
 
@@ -69,11 +69,11 @@ Cuando usas la función "Compartir Reporte":
 
 ## 6. Permisos que solicitamos
 
-| Permiso | Para qué | Cuándo |
-|---|---|---|
-| `CAMERA` | Tomar foto del pañal | Solo cuando presionas "Agregar Evidencia" |
-| `MEDIA_LIBRARY` (lectura) | NO se solicita | Nunca |
-| `INTERNET` | NO se solicita en MVP offline | Nunca en versión offline |
+| Permiso                   | Para qué                      | Cuándo                                    |
+| ------------------------- | ----------------------------- | ----------------------------------------- |
+| `CAMERA`                  | Tomar foto del pañal          | Solo cuando presionas "Agregar Evidencia" |
+| `MEDIA_LIBRARY` (lectura) | NO se solicita                | Nunca                                     |
+| `INTERNET`                | NO se solicita en MVP offline | Nunca en versión offline                  |
 
 ---
 
@@ -108,4 +108,4 @@ Para reporte de vulnerabilidades de seguridad, ver `SECURITY.md`.
 
 ---
 
-*Esta política está escrita en lenguaje claro y sin términos legales innecesarios. Cielo App no tiene abogados corporativos porque no los necesita: simplemente no recopilamos tus datos.*
+_Esta política está escrita en lenguaje claro y sin términos legales innecesarios. Cielo App no tiene abogados corporativos porque no los necesita: simplemente no recopilamos tus datos._

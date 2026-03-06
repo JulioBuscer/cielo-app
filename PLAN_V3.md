@@ -15,7 +15,7 @@
 | `npx tailwindcss init` no funciona con NativeWind v4 | Crear todos los archivos de config a mano |
 | PowerShell no soporta `&&` | Usar `cmd` con `cd /d` |
 | `nativewind` sin versión → puede traer v5 preview | Pinear: `nativewind@^4.2.0 tailwindcss@^3.4.17` |
-| `babel.config.js` sin plugin de Reanimated → error en runtime | Agregar `react-native-reanimated/plugin` en plugins |
+| `create-expo-app` instala SDK 55, Expo Go en Play Store solo soporta SDK 54 | Usar SDK 54 (LTS). React 18.3.2, RN 0.76.7, Reanimated ~3.16.1 |
 | TypeScript no reconoce clases de NativeWind | Agregar `nativewind-env.d.ts` en la raíz |
 
 ---
