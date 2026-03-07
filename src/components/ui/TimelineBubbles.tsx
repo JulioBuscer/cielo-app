@@ -15,6 +15,7 @@ import type {
 } from "@/src/hooks/useFeedingSessions";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+import { useDiaperObservations } from "@/src/hooks/useTimeline";
 
 function formatTime(date: Date | string | number) {
   return new Date(date).toLocaleTimeString("es-MX", {
@@ -65,6 +66,7 @@ export function TimelineBubble({
   profileName?: string;
   onPress?: () => void;
 }) {
+  const { data: observations } = useDiaperObservations();
   const meta = event.metadata
     ? (() => {
         try {
@@ -177,11 +179,13 @@ export function TimelineBubble({
             {meta.observationIds?.length > 0 ? (
               <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
                 {(meta.observationIds as string[]).map((id: string) => {
+                  const obs = observations?.find((o) => o.id === id);
                   const isAlert = ["blood", "mucus", "diarrhea"].includes(id);
+                  const label = obs ? `${obs.emoji} ${obs.label}` : id;
                   return (
                     <MetaTag
                       key={id}
-                      label={id}
+                      label={label}
                       color={isAlert ? "#DC2626" : "#9B7A88"}
                       bg={isAlert ? "#FEE2E2" : "#FFF0F5"}
                     />
