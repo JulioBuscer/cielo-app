@@ -69,6 +69,7 @@ export function useSaveTimelineEvent() {
       notes?: string;
       timestamp?: Date;
       feedingSessionId?: string;
+      sleepSessionId?: string;
     }) => {
       const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
       const now = input.timestamp ?? new Date();
@@ -77,6 +78,7 @@ export function useSaveTimelineEvent() {
         babyId:           input.babyId,
         profileId,
         feedingSessionId: input.feedingSessionId ?? null,
+        sleepSessionId:   input.sleepSessionId ?? null,
         eventTypeId:      input.eventTypeId,
         timestamp:        now,
         notes:            input.notes ?? null,

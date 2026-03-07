@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, Image } from "react-native";
 import { formatDuration } from "@/src/db/client";
 import {
   FEEDING_LABELS,
@@ -241,6 +241,21 @@ export function TimelineBubble({
           >
             {event.notes}
           </Text>
+        )}
+
+        {/* Foto adjunta */}
+        {meta?.imageUri && (
+          <Image
+            source={{ uri: meta.imageUri }}
+            style={{
+              alignSelf: "stretch",
+              height: 150,
+              borderRadius: 12,
+              marginTop: 6,
+              backgroundColor: "#FFF0F5",
+            }}
+            resizeMode="cover"
+          />
         )}
 
         {/* Timestamp + autor */}
