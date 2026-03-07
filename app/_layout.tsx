@@ -47,11 +47,11 @@ export default function RootLayout() {
 
   if (error) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#0A0A0F', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text style={{ color: '#FF4757', fontSize: 16, fontWeight: 'bold', marginBottom: 12 }}>
+      <View style={{ flex: 1, backgroundColor: '#FF8AB3', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 12 }}>
           Error al iniciar
         </Text>
-        <Text style={{ color: '#F0EFF5', fontSize: 12, textAlign: 'center' }}>
+        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, textAlign: 'center' }}>
           {error}
         </Text>
       </View>
@@ -60,10 +60,10 @@ export default function RootLayout() {
 
   if (!ready) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#0A0A0F', alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: '#FF8AB3', alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ color: '#7C5CBF', fontSize: 24, marginBottom: 16 }}>🌙</Text>
-        <ActivityIndicator color="#7C5CBF" size="large" />
-        <Text style={{ color: '#6B6880', marginTop: 12, fontSize: 14 }}>
+        <ActivityIndicator color="#FFFFFF" size="large" />
+        <Text style={{ color: 'rgba(255,255,255,0.85)', marginTop: 12, fontSize: 14 }}>
           Iniciando Cielo...
         </Text>
       </View>

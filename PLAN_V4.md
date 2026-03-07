@@ -344,6 +344,52 @@ const DEFAULT_DIAPER_OBSERVATIONS = [
 
 ---
 
+## 11. IMPLEMENTACIÓN UI V1 — ESTILO WHATSAPP (Completada)
+
+### Paleta de colores
+| Token         | Valor     | Uso                              |
+|--------------|-----------|----------------------------------|
+| bg            | #FFF0F5   | Fondo general (rosa muy suave)   |
+| bgCard        | #FFFFFF   | Cards y burbujas "in"            |
+| bgElevated    | #FFE4EE   | Inputs y chips                   |
+| cielo         | #FF5C9A   | Acento principal                 |
+| header        | #FF8AB3   | Header y StatusBar               |
+| bubbleOut     | #FFB7D5   | Burbujas propias                 |
+| bubbleIn      | #FFFFFF   | Burbujas del otro cuidador       |
+| bottle        | #A855F7   | Botón biberón                    |
+| diaper        | #F59E0B   | Botón pañal                      |
+| tomaActive    | #FFF3E0   | Fondo tarjeta toma activa        |
+| whatsGreen    | #25D366   | Botón enviar (WhatsApp)          |
+| textPrimary   | #2D1B26   | Texto principal                  |
+| textMuted     | #9B7A88   | Texto secundario/labels          |
+
+### Arquitectura de pantallas
+- `app/dashboard/index.tsx` → **Timeline/Chat** (pantalla principal)
+- `app/logs/diaper/new.tsx` → Registro pañal (estilo rosa)
+- `app/logs/event/new.tsx` → Evento genérico (recibe `preselect` param)
+- `app/onboarding/*.tsx` → Todo el onboarding con header rosa
+
+### Componentes nuevos
+| Archivo | Descripción |
+|---------|-------------|
+| `TimelineBubbles.tsx` | `TimelineBubble`, `FeedingSessionBubble`, `DateSeparator`, `SystemBubble` |
+| `ActiveFeedingCard.tsx` | Tarjeta fija de toma activa con timer en vivo |
+| `BottleSubtypeModal.tsx` | Sheet de selección de subtipo de biberón |
+
+### Lógica de burbujas
+- Derecha (rosa `#FFB7D5`): registros del usuario activo (`profileId === profile.id`)
+- Izquierda (blanco `#FFFFFF`): registros del otro cuidador
+- Tomas terminadas: burbuja especial con borde izquierdo rosa + pill de duración
+- Separadores de fecha: centrados, fondo rosa semi-transparente
+
+### Barra de acciones
+- 5 botones circulares: 🤱 Izq · 🤱 Der · ＋ Evento · 🍼 Biberón · 🍑 Pañal
+- ＋ central (62px, rosa intenso) abre EventPickerModal inline
+- Input de notas rápidas + botón verde WhatsApp
+- Biberón abre BottleSubtypeModal antes de iniciar sesión
+
+---
+
 ## 10. NOTAS DE DISEÑO UX
 
 - La **hora es crítica** — siempre mostrar hora exacta en cada evento
