@@ -42,6 +42,7 @@ import {
   SleepSessionBubble,
   DateSeparator,
 } from "@/src/components/ui/TimelineBubbles";
+import { InlineEventTypeModal } from "@/src/components/ui/CatalogModals";
 
 // ─── Botón circular de acción rápida ─────────────────────────────────────────
 
@@ -110,10 +111,12 @@ function EventPickerModal({
   visible,
   onClose,
   onSelect,
+  onNewEvent,
 }: {
   visible: boolean;
   onClose: () => void;
   onSelect: (id: string) => void;
+  onNewEvent: () => void;
 }) {
   const { data: types } = useEventTypes();
   const available = (types ?? []).filter((t) => t.id !== "diaper");
@@ -184,6 +187,26 @@ function EventPickerModal({
               </Text>
             </TouchableOpacity>
           ))}
+          <TouchableOpacity
+            onPress={onNewEvent}
+            style={{
+              backgroundColor: "#FFF0F5",
+              borderRadius: 14,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+              borderWidth: 1.5,
+              borderColor: "transparent",
+              borderStyle: "dashed",
+            }}
+          >
+            <Text style={{ fontSize: 20 }}>➕</Text>
+            <Text style={{ fontWeight: "800", fontSize: 13, color: "#9B7A88" }}>
+              Nuevo
+            </Text>
+          </TouchableOpacity>
         </View>
         <TouchableOpacity
           onPress={onClose}
@@ -196,23 +219,10 @@ function EventPickerModal({
   );
 }
 
-// ─── PANTALLA PRINCIPAL ───────────────────────────────────────────────────────
-
-const TYPE_MAP: Record<string, { emoji: string; label: string }> = {
-  diaper: { emoji: "🍑", label: "Pañal" },
-  burp: { emoji: "💨", label: "Eructo" },
-  regurgitation: { emoji: "🤧", label: "Regurgitación" },
-  vomit: { emoji: "🤮", label: "Vómito" },
-  medication: { emoji: "💊", label: "Medicamento" },
-  weight: { emoji: "⚖️", label: "Peso" },
-  height: { emoji: "📏", label: "Estatura" },
-  temperature: { emoji: "🌡️", label: "Temperatura" },
-  note: { emoji: "📝", label: "Nota" },
-};
-
 export default function TimelineScreen() {
   const [showBottleModal, setShowBottleModal] = useState(false);
   const [showEventPicker, setShowEventPicker] = useState(false);
+  const [showNewEventTypeModal, setShowNewEventTypeModal] = useState(false);
   const [loadingType, setLoadingType] = useState<FeedingType | null>(null);
   const [sleepLoading, setSleepLoading] = useState(false);
   const [note, setNote] = useState("");
@@ -225,6 +235,7 @@ export default function TimelineScreen() {
   const { data: tlEvents } = useTimeline(baby?.id, 60);
   const { data: sessions } = useFeedingHistory(baby?.id, 30);
   const { data: sleepHistory } = useSleepHistory(baby?.id, 20);
+  const { data: eventTypes } = useEventTypes();
   const startFeeding = useStartFeeding();
   const startSleep = useStartSleep();
   const finishSleep = useFinishSleep();
@@ -255,14 +266,18 @@ export default function TimelineScreen() {
         .map((s) => ({
           kind: "session" as const,
           data: s,
-          ts: new Date(s.startedAt).getTime(),
+          ts: s.endedAt
+            ? new Date(s.endedAt).getTime()
+            : new Date(s.startedAt).getTime(),
         })),
       ...(sleepHistory ?? [])
         .filter((s) => s.status === "finished")
         .map((s) => ({
           kind: "sleep" as const,
           data: s,
-          ts: new Date(s.startedAt).getTime(),
+          ts: s.endedAt
+            ? new Date(s.endedAt).getTime()
+            : new Date(s.startedAt).getTime(),
         })),
     ].sort((a, b) => a.ts - b.ts);
 
@@ -342,7 +357,7 @@ export default function TimelineScreen() {
           session={item.data}
           isOwn={isOwn}
           profileName={!isOwn ? "Otro cuidador" : undefined}
-          onPress={() => {}}
+          onPress={() => router.push(`/logs/feeding/${item.data.id}`)}
         />
       );
     }
@@ -353,15 +368,15 @@ export default function TimelineScreen() {
           session={item.data}
           isOwn={isOwn}
           profileName={!isOwn ? "Otro cuidador" : undefined}
-          onPress={() => {}}
+          onPress={() => router.push(`/logs/sleep/${item.data.id}`)}
         />
       );
     }
     const isOwn = item.data.profileId === profile?.id;
-    const { emoji, label } = TYPE_MAP[item.data.eventTypeId] ?? {
-      emoji: "📝",
-      label: item.data.eventTypeId,
-    };
+    const evType = eventTypes?.find((t) => t.id === item.data.eventTypeId);
+    const emoji = evType?.emoji ?? "📝";
+    const label = evType?.label ?? item.data.eventTypeId;
+
     return (
       <TimelineBubble
         event={item.data}
@@ -369,6 +384,7 @@ export default function TimelineScreen() {
         eventTypeLabel={label}
         isOwn={isOwn}
         profileName={!isOwn ? "Otro cuidador" : undefined}
+        onPress={() => router.push(`/logs/event/${item.data.id}`)}
       />
     );
   };
@@ -589,7 +605,7 @@ export default function TimelineScreen() {
                 disabled={!!loadingType}
               />
               <QuickBtn
-                emoji="+"
+                emoji="➕"
                 label="Evento"
                 bgColor="#FF5C9A"
                 onPress={() => setShowEventPicker(true)}
@@ -656,6 +672,17 @@ export default function TimelineScreen() {
         visible={showEventPicker}
         onClose={() => setShowEventPicker(false)}
         onSelect={handleEventSelect}
+        onNewEvent={() => {
+          setShowEventPicker(false);
+          setShowNewEventTypeModal(true);
+        }}
+      />
+      <InlineEventTypeModal
+        visible={showNewEventTypeModal}
+        onClose={() => setShowNewEventTypeModal(false)}
+        onSelect={(id: string) => {
+          handleEventSelect(id);
+        }}
       />
     </SafeAreaView>
   );

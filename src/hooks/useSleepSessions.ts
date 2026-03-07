@@ -30,6 +30,24 @@ export function useActiveSleepSession(babyId?: string) {
   });
 }
 
+// ─── QUERY: Sesión individual por ID ──────────────────────────────────────────
+
+export function useSleepSession(sessionId?: string) {
+  return useQuery({
+    queryKey: ['sleep_session', 'detail', sessionId],
+    enabled:  !!sessionId,
+    queryFn: async () => {
+      if (!sessionId) return null;
+      const res = await getDb()
+        .select()
+        .from(sleepSessions)
+        .where(eq(sleepSessions.id, sessionId))
+        .limit(1);
+      return res[0] ?? null;
+    },
+  });
+}
+
 // ─── QUERY: Eventos de estado de sueño (timer preciso) ───────────────────────
 
 export function useSleepStatusEvents(sessionId?: string) {
@@ -221,4 +239,40 @@ export function useSleepPreciseElapsed(session: SleepSession): number {
     accumulated += (Date.now() - lastActiveTs) / 1000;
   }
   return Math.floor(accumulated);
+}
+
+// ─── MUTATION: Actualizar sueño ───────────────────────────────────────────────
+
+export function useUpdateSleepSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      babyId: string;
+      startedAt?: Date;
+      endedAt?: Date | null;
+      notes?: string;
+    }) => {
+      const db = getDb();
+      await db.update(sleepSessions)
+        .set({
+          startedAt: input.startedAt,
+          endedAt:   input.endedAt,
+          notes:     input.notes,
+        })
+        .where(eq(sleepSessions.id, input.id));
+
+      if (input.startedAt && input.endedAt) {
+        const durationSec = Math.round((input.endedAt.getTime() - input.startedAt.getTime()) / 1000);
+        await db.update(sleepSessions)
+          .set({ durationSec })
+          .where(eq(sleepSessions.id, input.id));
+      }
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['sleep_session', 'detail', vars.id] });
+      qc.invalidateQueries({ queryKey: ['sleep_session', 'history', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['timeline'] });
+    },
+  });
 }

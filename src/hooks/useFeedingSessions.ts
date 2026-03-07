@@ -109,6 +109,24 @@ export function useLastFeedingSession(babyId?: string) {
   });
 }
 
+// ─── QUERY: Sesión individual por ID ──────────────────────────────────────────
+
+export function useFeedingSession(sessionId?: string) {
+  return useQuery({
+    queryKey: ['feeding_session', 'detail', sessionId],
+    enabled:  !!sessionId,
+    queryFn: async () => {
+      if (!sessionId) return null;
+      const res = await getDb()
+        .select()
+        .from(feedingSessions)
+        .where(eq(feedingSessions.id, sessionId))
+        .limit(1);
+      return res[0] ?? null;
+    },
+  });
+}
+
 // ─── MUTATION: Iniciar nueva toma ─────────────────────────────────────────────
 
 export function useStartFeeding() {
@@ -258,4 +276,44 @@ async function _finishSession(sessionId: string, profileId: string, now: Date) {
   await db.update(feedingSessions)
     .set({ status: 'finished', endedAt: now, durationSec })
     .where(eq(feedingSessions.id, sessionId));
+}
+
+// ─── MUTATION: Actualizar toma ────────────────────────────────────────────────
+
+export function useUpdateFeedingSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      babyId: string;
+      type?: FeedingType;
+      bottleSubtype?: BottleSubtype | null;
+      startedAt?: Date;
+      endedAt?: Date | null;
+      notes?: string;
+    }) => {
+      const db = getDb();
+      await db.update(feedingSessions)
+        .set({
+          type:          input.type,
+          bottleSubtype: input.bottleSubtype,
+          startedAt:     input.startedAt,
+          endedAt:       input.endedAt,
+          notes:         input.notes,
+        })
+        .where(eq(feedingSessions.id, input.id));
+
+      if (input.startedAt && input.endedAt) {
+        const durationSec = Math.round((input.endedAt.getTime() - input.startedAt.getTime()) / 1000);
+        await db.update(feedingSessions)
+          .set({ durationSec })
+          .where(eq(feedingSessions.id, input.id));
+      }
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['feeding_session', 'detail', vars.id] });
+      qc.invalidateQueries({ queryKey: ['feeding_session', 'history', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['timeline'] });
+    },
+  });
 }

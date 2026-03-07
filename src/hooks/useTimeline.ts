@@ -26,6 +26,22 @@ export function useTimeline(babyId?: string, limit = 30) {
   });
 }
 
+export function useTimelineEvent(eventId?: string) {
+  return useQuery({
+    queryKey: ['timeline_event', 'detail', eventId],
+    enabled:  !!eventId,
+    queryFn: async () => {
+      if (!eventId) return null;
+      const res = await getDb()
+        .select()
+        .from(timelineEvents)
+        .where(eq(timelineEvents.id, eventId))
+        .limit(1);
+      return res[0] ?? null;
+    },
+  });
+}
+
 export function useLastTimelineEventByType(babyId?: string, eventTypeId?: string) {
   return useQuery({
     queryKey: ['timeline', 'last', babyId, eventTypeId],
@@ -93,18 +109,46 @@ export function useSaveTimelineEvent() {
   });
 }
 
+export function useUpdateTimelineEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      babyId: string;
+      timestamp?: Date;
+      notes?: string | null;
+      metadata?: Record<string, unknown> | null;
+    }) => {
+      await getDb().update(timelineEvents)
+        .set({
+          timestamp: input.timestamp,
+          notes:     input.notes,
+          metadata:  input.metadata ? JSON.stringify(input.metadata) : null,
+        })
+        .where(eq(timelineEvents.id, input.id));
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['timeline_event', 'detail', vars.id] });
+      qc.invalidateQueries({ queryKey: ['timeline', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['timeline', 'last', vars.babyId] });
+    },
+  });
+}
+
 export function useCreateEventType() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { emoji: string; label: string; category: string }) => {
+      const id = generateId();
       await getDb().insert(eventTypes).values({
-        id:        generateId(),
+        id,
         emoji:     input.emoji,
         label:     input.label,
         category:  input.category as any,
         isSystem:  false,
         createdAt: new Date(),
       });
+      return id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['event_types'] }),
   });
@@ -114,13 +158,15 @@ export function useCreateDiaperObservation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { emoji: string; label: string }) => {
+      const id = generateId();
       await getDb().insert(diaperObservations).values({
-        id:        generateId(),
+        id,
         emoji:     input.emoji,
         label:     input.label,
         isSystem:  false,
         createdAt: new Date(),
       });
+      return id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['diaper_observations'] }),
   });
