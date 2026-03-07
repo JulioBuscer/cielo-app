@@ -1,4 +1,6 @@
-# PLAN V4 — CIELO APP: REDISEÑO COMPLETO DE TOMAS Y TIMELINE
+# PLAN V4.1 — CIELO APP: REDISEÑO COMPLETO DE TOMAS Y TIMELINE
+
+> **Última actualización:** Sesión 5 — Timer preciso, perfil de bebé expandido, ficha de contacto estilo WhatsApp
 
 ## CONTEXTO
 El modelo original de "feeding_logs" era demasiado simple. La nueva visión nace de una necesidad real:
@@ -341,6 +343,10 @@ const DEFAULT_DIAPER_OBSERVATIONS = [
 | `expo-file-system` API legacy deprecada | Importar desde `expo-file-system/legacy` |
 | `router.replace` en useEffect antes del mount | Mover la redirección al `app/index.tsx` con `<Redirect>` |
 | EAS Build sin `--legacy-peer-deps` | Agregar `"npm": { "npmFlags": "--legacy-peer-deps" }` en eas.json |
+| `openDatabaseSync` a nivel de módulo con New Architecture | Mover apertura de DB dentro de `runMigrations()`, exportar `getDb()` lazy |
+| Timer de toma calcula desde `startedAt` ignorando pausas | Usar `useFeedingStatusEvents` + sumar segmentos activos reales |
+| Botones de toma no responden tras pausa larga | Quitar `refetchInterval`, usar `staleTime: 0` + invalidateQueries por mutation |
+| `ALTER TABLE` falla si columna ya existe | Usar try/catch por cada statement — SQLite no tiene IF NOT EXISTS para columnas |
 
 ---
 

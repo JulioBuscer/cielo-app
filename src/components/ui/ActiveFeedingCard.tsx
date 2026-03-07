@@ -1,38 +1,76 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { formatDuration } from '@/src/db/client';
+import { formatDuration, calcDurationSec } from '@/src/db/client';
 import {
   usePauseFeeding,
   useResumeFeeding,
   useFinishFeeding,
+  useFeedingStatusEvents,
   FEEDING_LABELS,
   BOTTLE_SUBTYPE_LABELS,
 } from '@/src/hooks/useFeedingSessions';
 import type { FeedingSession } from '@/src/db/schema';
 
-function useLiveElapsed(session: FeedingSession) {
-  const [secs, setSecs] = useState(0);
+/**
+ * Hook de timer preciso.
+ *
+ * Lógica:
+ * - Carga los feedingStatusEvents reales de la sesión desde la DB.
+ * - Calcula el tiempo ACTIVO acumulado hasta ahora:
+ *     activoAcumulado = suma de intervalos (start/resume → pause/finish)
+ * - Si la sesión está ACTIVA en este momento, agrega el tiempo transcurrido
+ *   desde el último start/resume hasta ahora, actualizado cada segundo.
+ * - Si está PAUSADA, muestra solo el acumulado fijo (sin ticker).
+ */
+function usePreciseElapsed(session: FeedingSession): number {
+  const { data: events } = useFeedingStatusEvents(session.id);
+  const [tick, setTick]  = useState(0);
+  const intervalRef      = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Arrancar/detener el ticker según status
   useEffect(() => {
-    const update = () => {
-      const elapsed = Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 1000);
-      setSecs(elapsed);
-    };
-    update();
     if (session.status === 'active') {
-      const id = setInterval(update, 1000);
-      return () => clearInterval(id);
+      intervalRef.current = setInterval(() => setTick(t => t + 1), 1000);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     }
-  }, [session.startedAt, session.status]);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [session.status]);
 
-  return secs;
+  if (!events || events.length === 0) return 0;
+
+  // Calcular tiempo acumulado en segmentos cerrados (start/resume → pause/finish)
+  let accumulated = 0;
+  let lastActiveTs: number | null = null;
+
+  for (const ev of events) {
+    const ts = ev.timestamp instanceof Date ? ev.timestamp.getTime() : Number(ev.timestamp);
+    if (ev.type === 'start' || ev.type === 'resume') {
+      lastActiveTs = ts;
+    } else if ((ev.type === 'pause' || ev.type === 'finish') && lastActiveTs !== null) {
+      accumulated += (ts - lastActiveTs) / 1000;
+      lastActiveTs = null;
+    }
+  }
+
+  // Si la sesión está activa ahora, el segmento abierto sigue corriendo
+  if (session.status === 'active' && lastActiveTs !== null) {
+    accumulated += (Date.now() - lastActiveTs) / 1000;
+  }
+
+  return Math.floor(accumulated);
 }
 
 export function ActiveFeedingCard({ session }: { session: FeedingSession }) {
   const pause   = usePauseFeeding();
   const resume  = useResumeFeeding();
   const finish  = useFinishFeeding();
-  const elapsed = useLiveElapsed(session);
+  const elapsed = usePreciseElapsed(session);
 
   const isActive = session.status === 'active';
   const { emoji, label } = FEEDING_LABELS[session.type as keyof typeof FEEDING_LABELS];
@@ -72,7 +110,7 @@ export function ActiveFeedingCard({ session }: { session: FeedingSession }) {
           </View>
         </View>
 
-        {/* Timer */}
+        {/* Timer — muestra solo tiempo activo real */}
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={{ fontSize: 28, fontWeight: '900', color: '#E65100', letterSpacing: -0.5 }}>
             {formatDuration(elapsed)}
@@ -97,11 +135,12 @@ export function ActiveFeedingCard({ session }: { session: FeedingSession }) {
         {isActive && (
           <TouchableOpacity
             onPress={() => pause.mutate(session)}
-            disabled={pause.isPending}
+            disabled={pause.isPending || resume.isPending || finish.isPending}
             style={{
               flex: 1, backgroundColor: '#FFF3CD',
               borderRadius: 12, paddingVertical: 10,
               alignItems: 'center',
+              opacity: pause.isPending ? 0.6 : 1,
             }}
           >
             {pause.isPending
@@ -114,11 +153,12 @@ export function ActiveFeedingCard({ session }: { session: FeedingSession }) {
         {!isActive && (
           <TouchableOpacity
             onPress={() => resume.mutate(session)}
-            disabled={resume.isPending}
+            disabled={pause.isPending || resume.isPending || finish.isPending}
             style={{
               flex: 1, backgroundColor: '#D4EDDA',
               borderRadius: 12, paddingVertical: 10,
               alignItems: 'center',
+              opacity: resume.isPending ? 0.6 : 1,
             }}
           >
             {resume.isPending
@@ -130,12 +170,12 @@ export function ActiveFeedingCard({ session }: { session: FeedingSession }) {
 
         <TouchableOpacity
           onPress={() => finish.mutate(session)}
-          disabled={finish.isPending}
+          disabled={pause.isPending || resume.isPending || finish.isPending}
           style={{
             flex: 1, backgroundColor: '#FEE2E2',
             borderRadius: 12, paddingVertical: 10,
             alignItems: 'center',
-            opacity: finish.isPending ? 0.7 : 1,
+            opacity: finish.isPending ? 0.6 : 1,
           }}
         >
           {finish.isPending

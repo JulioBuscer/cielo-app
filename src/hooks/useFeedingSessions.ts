@@ -1,15 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db } from '@/src/db/client';
+import { getDb, calcDurationSec } from '@/src/db/client';
 import { feedingSessions, feedingStatusEvents } from '@/src/db/schema';
 import { eq, and, inArray, desc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
-import { calcDurationSec } from '@/src/db/client';
 import type { FeedingSession } from '@/src/db/schema';
 
 // ─── TIPOS ────────────────────────────────────────────────────────────────────
 
-export type FeedingType = 'breast_left' | 'breast_right' | 'bottle';
+export type FeedingType   = 'breast_left' | 'breast_right' | 'bottle';
 export type BottleSubtype = 'breast_milk' | 'formula' | 'mixed' | 'other';
 
 export const FEEDING_LABELS: Record<FeedingType, { emoji: string; label: string }> = {
@@ -30,11 +29,11 @@ export const BOTTLE_SUBTYPE_LABELS: Record<BottleSubtype, { emoji: string; label
 export function useActiveFeedingSession(babyId?: string) {
   return useQuery({
     queryKey: ['feeding_session', 'active', babyId],
-    enabled: !!babyId,
-    refetchInterval: 5000, // Actualiza cada 5s para el timer en vivo
+    enabled:  !!babyId,
+    staleTime: 0,
     queryFn: async () => {
       if (!babyId) return null;
-      const res = await db
+      const res = await getDb()
         .select()
         .from(feedingSessions)
         .where(
@@ -50,15 +49,33 @@ export function useActiveFeedingSession(babyId?: string) {
   });
 }
 
+// ─── QUERY: Eventos de estado de una sesión (para el timer preciso) ───────────
+
+export function useFeedingStatusEvents(sessionId?: string) {
+  return useQuery({
+    queryKey: ['feeding_status_events', sessionId],
+    enabled:  !!sessionId,
+    staleTime: 0,
+    queryFn: async () => {
+      if (!sessionId) return [];
+      return getDb()
+        .select()
+        .from(feedingStatusEvents)
+        .where(eq(feedingStatusEvents.sessionId, sessionId))
+        .orderBy(feedingStatusEvents.timestamp);
+    },
+  });
+}
+
 // ─── QUERY: Historial de sesiones ─────────────────────────────────────────────
 
 export function useFeedingHistory(babyId?: string, limit = 20) {
   return useQuery({
     queryKey: ['feeding_session', 'history', babyId],
-    enabled: !!babyId,
+    enabled:  !!babyId,
     queryFn: async () => {
       if (!babyId) return [];
-      return db
+      return getDb()
         .select()
         .from(feedingSessions)
         .where(eq(feedingSessions.babyId, babyId))
@@ -73,10 +90,10 @@ export function useFeedingHistory(babyId?: string, limit = 20) {
 export function useLastFeedingSession(babyId?: string) {
   return useQuery({
     queryKey: ['feeding_session', 'last', babyId],
-    enabled: !!babyId,
+    enabled:  !!babyId,
     queryFn: async () => {
       if (!babyId) return null;
-      const res = await db
+      const res = await getDb()
         .select()
         .from(feedingSessions)
         .where(
@@ -93,7 +110,6 @@ export function useLastFeedingSession(babyId?: string) {
 }
 
 // ─── MUTATION: Iniciar nueva toma ─────────────────────────────────────────────
-// Si hay una toma activa/pausada, la termina automáticamente primero
 
 export function useStartFeeding() {
   const qc = useQueryClient();
@@ -103,10 +119,11 @@ export function useStartFeeding() {
       type: FeedingType;
       bottleSubtype?: BottleSubtype;
     }) => {
+      const db = getDb();
       const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
       const now = new Date();
 
-      // 1. Auto-terminar toma activa/pausada existente
+      // Auto-terminar toma activa/pausada existente
       const existing = await db
         .select()
         .from(feedingSessions)
@@ -122,7 +139,7 @@ export function useStartFeeding() {
         await _finishSession(existing[0].id, profileId, now);
       }
 
-      // 2. Crear nueva sesión
+      // Crear nueva sesión
       const sessionId = generateId();
       await db.insert(feedingSessions).values({
         id:            sessionId,
@@ -135,7 +152,7 @@ export function useStartFeeding() {
         createdAt:     now,
       });
 
-      // 3. Evento de inicio
+      // Registrar evento start
       await db.insert(feedingStatusEvents).values({
         id:        generateId(),
         sessionId,
@@ -160,6 +177,7 @@ export function usePauseFeeding() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (session: FeedingSession) => {
+      const db = getDb();
       const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
       const now = new Date();
       await db.insert(feedingStatusEvents).values({
@@ -172,6 +190,7 @@ export function usePauseFeeding() {
     },
     onSuccess: (_, session) => {
       qc.invalidateQueries({ queryKey: ['feeding_session', 'active', session.babyId] });
+      qc.invalidateQueries({ queryKey: ['feeding_status_events', session.id] });
     },
   });
 }
@@ -182,6 +201,7 @@ export function useResumeFeeding() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (session: FeedingSession) => {
+      const db = getDb();
       const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
       const now = new Date();
       await db.insert(feedingStatusEvents).values({
@@ -194,6 +214,7 @@ export function useResumeFeeding() {
     },
     onSuccess: (_, session) => {
       qc.invalidateQueries({ queryKey: ['feeding_session', 'active', session.babyId] });
+      qc.invalidateQueries({ queryKey: ['feeding_status_events', session.id] });
     },
   });
 }
@@ -216,16 +237,16 @@ export function useFinishFeeding() {
   });
 }
 
-// ─── HELPER INTERNO: terminar sesión ─────────────────────────────────────────
+// ─── HELPER: terminar sesión (interno) ───────────────────────────────────────
 
 async function _finishSession(sessionId: string, profileId: string, now: Date) {
-  // Agregar evento finish
+  const db = getDb();
+
   await db.insert(feedingStatusEvents).values({
     id: generateId(), sessionId,
     profileId, type: 'finish', timestamp: now,
   });
 
-  // Calcular duración total
   const events = await db
     .select()
     .from(feedingStatusEvents)
@@ -234,7 +255,6 @@ async function _finishSession(sessionId: string, profileId: string, now: Date) {
 
   const durationSec = calcDurationSec(events);
 
-  // Actualizar sesión
   await db.update(feedingSessions)
     .set({ status: 'finished', endedAt: now, durationSec })
     .where(eq(feedingSessions.id, sessionId));

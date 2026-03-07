@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db } from '@/src/db/client';
+import { getDb } from '@/src/db/client';
 import { timelineEvents, eventTypes, diaperObservations } from '@/src/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
@@ -13,10 +13,10 @@ export type { DiaperMetadata, MedicationMetadata, GrowthMetadata, TemperatureMet
 export function useTimeline(babyId?: string, limit = 30) {
   return useQuery({
     queryKey: ['timeline', babyId],
-    enabled: !!babyId,
+    enabled:  !!babyId,
     queryFn: async () => {
       if (!babyId) return [];
-      return db
+      return getDb()
         .select()
         .from(timelineEvents)
         .where(eq(timelineEvents.babyId, babyId))
@@ -29,10 +29,10 @@ export function useTimeline(babyId?: string, limit = 30) {
 export function useLastTimelineEventByType(babyId?: string, eventTypeId?: string) {
   return useQuery({
     queryKey: ['timeline', 'last', babyId, eventTypeId],
-    enabled: !!babyId && !!eventTypeId,
+    enabled:  !!babyId && !!eventTypeId,
     queryFn: async () => {
       if (!babyId || !eventTypeId) return null;
-      const res = await db
+      const res = await getDb()
         .select()
         .from(timelineEvents)
         .where(eq(timelineEvents.babyId, babyId))
@@ -46,14 +46,14 @@ export function useLastTimelineEventByType(babyId?: string, eventTypeId?: string
 export function useEventTypes() {
   return useQuery({
     queryKey: ['event_types'],
-    queryFn: () => db.select().from(eventTypes).orderBy(eventTypes.label),
+    queryFn: () => getDb().select().from(eventTypes).orderBy(eventTypes.label),
   });
 }
 
 export function useDiaperObservations() {
   return useQuery({
     queryKey: ['diaper_observations'],
-    queryFn: () => db.select().from(diaperObservations).orderBy(diaperObservations.label),
+    queryFn: () => getDb().select().from(diaperObservations).orderBy(diaperObservations.label),
   });
 }
 
@@ -72,7 +72,7 @@ export function useSaveTimelineEvent() {
     }) => {
       const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
       const now = input.timestamp ?? new Date();
-      await db.insert(timelineEvents).values({
+      await getDb().insert(timelineEvents).values({
         id:               generateId(),
         babyId:           input.babyId,
         profileId,
@@ -95,7 +95,7 @@ export function useCreateEventType() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { emoji: string; label: string; category: string }) => {
-      await db.insert(eventTypes).values({
+      await getDb().insert(eventTypes).values({
         id:        generateId(),
         emoji:     input.emoji,
         label:     input.label,
@@ -112,7 +112,7 @@ export function useCreateDiaperObservation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { emoji: string; label: string }) => {
-      await db.insert(diaperObservations).values({
+      await getDb().insert(diaperObservations).values({
         id:        generateId(),
         emoji:     input.emoji,
         label:     input.label,
