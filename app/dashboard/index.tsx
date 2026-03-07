@@ -473,6 +473,17 @@ export default function TimelineScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          onPress={() => router.push("/stats")}
+          style={{
+            backgroundColor: "rgba(255,255,255,0.2)",
+            borderRadius: 99,
+            paddingHorizontal: 10,
+            paddingVertical: 5,
+          }}
+        >
+          <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "800" }}>📊</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           onPress={() => router.push("/logs/feeding/retro")}
           style={{
             backgroundColor: "rgba(255,255,255,0.2)",
