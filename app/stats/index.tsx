@@ -601,6 +601,144 @@ export default function StatsScreen() {
               </SectionCard>
             )}
 
+            {/* ── Comportamiento entre tomas ── */}
+            {curr.interFeedingEvents.length > 0 && (
+              <SectionCard>
+                <SectionHeader emoji="🔄" title="Entre tomas" />
+                <Text style={[subLabel, { marginBottom: 10 }]}>
+                  Eventos que ocurren tras una toma
+                </Text>
+                {curr.interFeedingEvents.map(ev => {
+                  const labels: Record<string, string> = {
+                    burp: '💨 Eructos', regurgitation: '🤧 Regurgitaciones',
+                    vomit: '🤢 Vómitos', medication: '💊 Medicamentos',
+                    temperature: '🌡️ Temperatura', note: '📝 Notas',
+                  };
+                  const prevEv = prev.interFeedingEvents.find(e => e.typeId === ev.typeId);
+                  return (
+                    <View key={ev.typeId} style={{
+                      paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border,
+                      flexDirection: 'row', alignItems: 'center', gap: 10,
+                    }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: C.text }}>
+                          {labels[ev.typeId] ?? ev.typeId}
+                        </Text>
+                        {ev.avgMinAfterFeeding != null && (
+                          <Text style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                            ⤵️ ~{ev.avgMinAfterFeeding} min después de una toma
+                          </Text>
+                        )}
+                      </View>
+                      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                        <Text style={{ fontSize: 18, fontWeight: '900', color: C.other }}>{ev.count}</Text>
+                        <DeltaBadge curr={ev.count} prev={prevEv?.count ?? 0} />
+                      </View>
+                    </View>
+                  );
+                })}
+              </SectionCard>
+            )}
+
+            {/* ── Crecimiento ── */}
+            {(curr.latestGrowth || curr.growthHistory.length > 0) && (
+              <SectionCard>
+                <SectionHeader
+                  emoji="📈" title="Crecimiento"
+                  count={curr.growthHistory.length || undefined}
+                  countUnit={curr.growthHistory.length > 0 ? 'mediciones' : undefined}
+                />
+
+                {/* Último registro — tarjetas */}
+                {curr.latestGrowth && (
+                  <>
+                    <Text style={subLabel}>Registro más reciente</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                      {curr.latestGrowth.weightGrams != null && (
+                        <View style={{
+                          flex: 1, backgroundColor: '#F0FDF4', borderRadius: 14,
+                          padding: 12, alignItems: 'center',
+                          borderLeftWidth: 3, borderLeftColor: '#10B981',
+                        }}>
+                          <Text style={{ fontSize: 20 }}>⚖️</Text>
+                          <Text style={{ fontSize: 18, fontWeight: '900', color: '#065F46', marginTop: 4 }}>
+                            {(curr.latestGrowth.weightGrams / 1000).toFixed(3)}
+                          </Text>
+                          <Text style={{ fontSize: 10, color: '#059669', fontWeight: '700' }}>kg</Text>
+                        </View>
+                      )}
+                      {curr.latestGrowth.heightMm != null && (
+                        <View style={{
+                          flex: 1, backgroundColor: '#EFF6FF', borderRadius: 14,
+                          padding: 12, alignItems: 'center',
+                          borderLeftWidth: 3, borderLeftColor: '#3B82F6',
+                        }}>
+                          <Text style={{ fontSize: 20 }}>📏</Text>
+                          <Text style={{ fontSize: 18, fontWeight: '900', color: '#1D4ED8', marginTop: 4 }}>
+                            {(curr.latestGrowth.heightMm / 10).toFixed(1)}
+                          </Text>
+                          <Text style={{ fontSize: 10, color: '#3B82F6', fontWeight: '700' }}>cm</Text>
+                        </View>
+                      )}
+                      {curr.latestGrowth.headCircMm != null && (
+                        <View style={{
+                          flex: 1, backgroundColor: '#F5F3FF', borderRadius: 14,
+                          padding: 12, alignItems: 'center',
+                          borderLeftWidth: 3, borderLeftColor: '#8B5CF6',
+                        }}>
+                          <Text style={{ fontSize: 20 }}>🔵</Text>
+                          <Text style={{ fontSize: 18, fontWeight: '900', color: '#5B21B6', marginTop: 4 }}>
+                            {(curr.latestGrowth.headCircMm / 10).toFixed(1)}
+                          </Text>
+                          <Text style={{ fontSize: 10, color: '#8B5CF6', fontWeight: '700' }}>cm cráneo</Text>
+                        </View>
+                      )}
+                    </View>
+                  </>
+                )}
+
+                {/* Historial en el período */}
+                {curr.growthHistory.length > 1 && (
+                  <>
+                    <Text style={subLabel}>Historial en el período</Text>
+                    {curr.growthHistory.map((pt, idx) => (
+                      <View key={idx} style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 10,
+                        paddingVertical: 8,
+                        borderBottomWidth: idx < curr.growthHistory.length - 1 ? 1 : 0,
+                        borderBottomColor: C.border,
+                      }}>
+                        <Text style={{ fontSize: 11, color: C.muted, width: 70, fontWeight: '600' }}>
+                          {pt.timestamp.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                        </Text>
+                        {pt.weightGrams != null && (
+                          <Text style={{ flex: 1, fontSize: 13, color: '#065F46', fontWeight: '800' }}>
+                            ⚖️ {(pt.weightGrams / 1000).toFixed(3)} kg
+                          </Text>
+                        )}
+                        {pt.heightMm != null && (
+                          <Text style={{ flex: 1, fontSize: 13, color: '#1D4ED8', fontWeight: '800' }}>
+                            📏 {(pt.heightMm / 10).toFixed(1)} cm
+                          </Text>
+                        )}
+                        {pt.headCircMm != null && (
+                          <Text style={{ flex: 1, fontSize: 13, color: '#5B21B6', fontWeight: '800' }}>
+                            🔵 {(pt.headCircMm / 10).toFixed(1)} cm
+                          </Text>
+                        )}
+                      </View>
+                    ))}
+                  </>
+                )}
+
+                {curr.growthHistory.length === 0 && (
+                  <Text style={{ color: '#D1D5DB', fontWeight: '600', textAlign: 'center', paddingVertical: 8 }}>
+                    Sin mediciones en este período
+                  </Text>
+                )}
+              </SectionCard>
+            )}
+
             {/* ── Botón compartir grande ── */}
             <TouchableOpacity
               onPress={handleShare}

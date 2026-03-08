@@ -149,6 +149,18 @@ export async function runMigrations() {
       timestamp INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS growth_logs (
+      id TEXT PRIMARY KEY NOT NULL,
+      baby_id TEXT NOT NULL REFERENCES babies(id),
+      profile_id TEXT NOT NULL REFERENCES profiles(id),
+      timestamp INTEGER NOT NULL,
+      weight_grams INTEGER,
+      height_mm INTEGER,
+      head_circ_mm INTEGER,
+      notes TEXT,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS timeline_events (
       id TEXT PRIMARY KEY NOT NULL,
       baby_id TEXT NOT NULL REFERENCES babies(id),
@@ -209,6 +221,7 @@ export async function resetAllData() {
     DELETE FROM feeding_sessions;
     DELETE FROM sleep_status_events;
     DELETE FROM sleep_sessions;
+    DELETE FROM growth_logs;
     DELETE FROM babies;
     DELETE FROM profiles;
   `);

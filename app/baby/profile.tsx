@@ -24,6 +24,7 @@ import { resetAllData } from "@/src/db/client";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { AvatarPicker } from "@/src/components/ui/AvatarPicker";
+import { useLastGrowthLog, gramsToKg, mmToCm } from "@/src/hooks/useGrowthLogs";
 
 type Sex = "male" | "female" | "unknown";
 type Status = "healthy" | "sick" | "unknown";
@@ -88,20 +89,20 @@ function StatCard({
     <View
       style={{
         flex: 1,
-        backgroundColor: "#FFF0F5",
+        backgroundColor: "rgba(255,255,255,0.25)",
         borderRadius: 16,
         padding: 14,
         alignItems: "center",
       }}
     >
       <Text style={{ fontSize: 22, marginBottom: 4 }}>{emoji}</Text>
-      <Text style={{ fontSize: 15, fontWeight: "900", color: "#2D1B26" }}>
+      <Text style={{ fontSize: 15, fontWeight: "900", color: "#FFF" }}>
         {value}
       </Text>
       <Text
         style={{
           fontSize: 10,
-          color: "#9B7A88",
+          color: "rgba(255,255,255,0.8)",
           fontWeight: "600",
           marginTop: 2,
           textAlign: "center",
@@ -113,9 +114,64 @@ function StatCard({
   );
 }
 
+// Tarjeta de medida con actual vs nacimiento
+function GrowthCard({
+  emoji, label, current, birth, diffGrams, diffMm,
+}: {
+  emoji: string;
+  label: string;
+  current: string | null;
+  birth: string | null;
+  diffGrams?: number | null;
+  diffMm?: number | null;
+}) {
+  const diff = diffGrams ?? diffMm ?? null;
+  const diffLabel = diff != null && diff > 0
+    ? `+${ diffGrams != null
+        ? (diff / 1000).toFixed(2) + ' kg'
+        : (diff / 10).toFixed(1) + ' cm'
+      }`
+    : null;
+
+  return (
+    <View style={{
+      flex: 1,
+      backgroundColor: "rgba(255,255,255,0.25)",
+      borderRadius: 16,
+      padding: 12,
+      alignItems: "center",
+    }}>
+      <Text style={{ fontSize: 18, marginBottom: 2 }}>{emoji}</Text>
+      {/* Valor actual — grande y prominente */}
+      <Text style={{ fontSize: 15, fontWeight: "900", color: "#FFF" }}>
+        {current ?? "—"}
+      </Text>
+      {/* Delta en verde */}
+      {diffLabel && (
+        <Text style={{ fontSize: 10, fontWeight: "900", color: "#A7F3D0", marginTop: 1 }}>
+          {diffLabel} ↑
+        </Text>
+      )}
+      {/* Nacimiento — más pequeño, debajo */}
+      {birth && (
+        <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", marginTop: 3, fontWeight: "600" }}>
+          nacer: {birth}
+        </Text>
+      )}
+      <Text style={{
+        fontSize: 9, color: "rgba(255,255,255,0.7)",
+        fontWeight: "700", textTransform: "uppercase", marginTop: 3,
+      }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 export default function BabyProfile() {
   const { data: baby } = useActiveBaby();
   const update = useUpdateBaby();
+  const { data: lastGrowth } = useLastGrowthLog(baby?.id);
   const [editing, setEditing] = useState(false);
 
   const [formName, setFormName] = useState("");
@@ -285,25 +341,43 @@ export default function BabyProfile() {
           keyboardDismissMode="on-drag"
         >
           {/* Stats en el header rosa */}
-          <View
-            style={{
-              backgroundColor: "#FF8AB3",
-              paddingHorizontal: 16,
-              paddingBottom: 20,
-              paddingTop: 4,
-            }}
-          >
-            <View style={{ flexDirection: "row", gap: 8 }}>
+          <View style={{ backgroundColor: "#FF8AB3", paddingHorizontal: 16, paddingBottom: 20, paddingTop: 4 }}>
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
               <StatCard emoji="🎂" label="Edad" value={age.label} />
-              <StatCard emoji="📅" label="Días" value={`${age.days}`} />
-              {baby.weightBirthGrams ? (
-                <StatCard
-                  emoji="⚖️"
-                  label="Al nacer"
-                  value={`${(baby.weightBirthGrams / 1000).toFixed(3)} kg`}
+              <StatCard emoji="📅" label="Días de vida" value={`${age.days}`} />
+            </View>
+            {/* Peso actual vs nacimiento */}
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <GrowthCard
+                emoji="⚖️"
+                label="Peso"
+                current={lastGrowth?.weightGrams != null ? `${gramsToKg(lastGrowth.weightGrams)} kg` : null}
+                birth={baby.weightBirthGrams != null ? `${gramsToKg(baby.weightBirthGrams)} kg` : null}
+                diffGrams={
+                  lastGrowth?.weightGrams != null && baby.weightBirthGrams != null
+                    ? lastGrowth.weightGrams - baby.weightBirthGrams
+                    : null
+                }
+              />
+              <GrowthCard
+                emoji="📏"
+                label="Talla"
+                current={lastGrowth?.heightMm != null ? `${mmToCm(lastGrowth.heightMm)} cm` : null}
+                birth={baby.heightBirthMm != null ? `${mmToCm(baby.heightBirthMm)} cm` : null}
+                diffMm={
+                  lastGrowth?.heightMm != null && baby.heightBirthMm != null
+                    ? lastGrowth.heightMm - baby.heightBirthMm
+                    : null
+                }
+              />
+              {lastGrowth?.headCircMm != null && (
+                <GrowthCard
+                  emoji="🔵"
+                  label="Cráneo"
+                  current={`${mmToCm(lastGrowth.headCircMm)} cm`}
+                  birth={null}
+                  diffMm={null}
                 />
-              ) : (
-                <StatCard emoji="⚖️" label="Al nacer" value="—" />
               )}
             </View>
           </View>

@@ -1,60 +1,74 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db } from '@/src/db/client';
+import { getDb } from '@/src/db/client';
 import { growthLogs } from '@/src/db/schema';
 import { desc, eq } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 
-// Helpers de conversión — la UI trabaja en kg/cm, la DB en g/mm
-export const kgToGrams = (kg: number) => Math.round(kg * 1000);
-export const gramsToKg = (g: number) => (g / 1000).toFixed(2);
-export const cmToMm = (cm: number) => Math.round(cm * 10);
-export const mmToCm = (mm: number) => (mm / 10).toFixed(1);
+// ─── Helpers de conversión (UI en kg/cm, DB en g/mm) ─────────────────────────
+export const kgToGrams  = (kg: number)  => Math.round(kg * 1000);
+export const gramsToKg  = (g: number)   => (g / 1000).toFixed(3);
+export const cmToMm     = (cm: number)  => Math.round(cm * 10);
+export const mmToCm     = (mm: number)  => (mm / 10).toFixed(1);
 
+// ─── MUTATION: guardar registro de crecimiento ────────────────────────────────
 export function useSaveGrowthLog() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
-      weightKg?: number;   // Opcional: puede medir solo estatura
-      heightCm?: number;   // Opcional: puede pesar solo
-      headCircCm?: number; // Opcional: circunferencia cefálica
-      notes?: string;
+      babyId:     string;
+      weightKg?:  number;
+      heightCm?:  number;
+      headCircCm?: number;
+      notes?:     string;
+      timestamp?: Date;
     }) => {
-      const babyId    = await AsyncStorage.getItem('active_baby_id') ?? '';
-      const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
-      await db.insert(growthLogs).values({
-        id:           generateId(),
-        babyId, profileId,
-        timestamp:    new Date(),
-        weightGrams:  input.weightKg != null ? kgToGrams(input.weightKg) : null,
-        heightMm:     input.heightCm != null ? cmToMm(input.heightCm) : null,
-        headCircMm:   input.headCircCm != null ? cmToMm(input.headCircCm) : null,
-        notes:        input.notes ?? null,
+      const profileId = (await AsyncStorage.getItem('active_profile_id')) ?? '';
+      await getDb().insert(growthLogs).values({
+        id:          generateId(),
+        babyId:      input.babyId,
+        profileId,
+        timestamp:   input.timestamp ?? new Date(),
+        weightGrams: input.weightKg  != null ? kgToGrams(input.weightKg)  : null,
+        heightMm:    input.heightCm  != null ? cmToMm(input.heightCm)     : null,
+        headCircMm:  input.headCircCm != null ? cmToMm(input.headCircCm)  : null,
+        notes:       input.notes ?? null,
+        createdAt:   new Date(),
       });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['growth_logs'] }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
+    },
   });
 }
 
+// ─── QUERY: historial completo ────────────────────────────────────────────────
 export function useGrowthHistory(babyId?: string) {
   return useQuery({
-    queryKey: ['growth_logs', 'history', babyId],
-    enabled: !!babyId,
+    queryKey: ['growth_logs', babyId, 'history'],
+    enabled:  !!babyId,
     queryFn: async () => {
-      return db.select().from(growthLogs)
-        .where(eq(growthLogs.babyId, babyId!))
+      if (!babyId) return [];
+      return getDb()
+        .select()
+        .from(growthLogs)
+        .where(eq(growthLogs.babyId, babyId))
         .orderBy(desc(growthLogs.timestamp));
     },
   });
 }
 
+// ─── QUERY: último registro ───────────────────────────────────────────────────
 export function useLastGrowthLog(babyId?: string) {
   return useQuery({
-    queryKey: ['growth_logs', 'last', babyId],
-    enabled: !!babyId,
+    queryKey: ['growth_logs', babyId, 'last'],
+    enabled:  !!babyId,
     queryFn: async () => {
-      const res = await db.select().from(growthLogs)
-        .where(eq(growthLogs.babyId, babyId!))
+      if (!babyId) return null;
+      const res = await getDb()
+        .select()
+        .from(growthLogs)
+        .where(eq(growthLogs.babyId, babyId))
         .orderBy(desc(growthLogs.timestamp))
         .limit(1);
       return res[0] ?? null;
