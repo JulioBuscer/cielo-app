@@ -105,6 +105,11 @@ export function useSaveTimelineEvent() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['timeline', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['timeline', 'last', vars.babyId] });
+      // Peso/estatura guardados como timeline_event deben refrescar el perfil del bebé
+      if (vars.eventTypeId === 'weight' || vars.eventTypeId === 'height') {
+        qc.invalidateQueries({ queryKey: ['growth_last', vars.babyId] });
+        qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
+      }
     },
   });
 }
@@ -131,6 +136,8 @@ export function useUpdateTimelineEvent() {
       qc.invalidateQueries({ queryKey: ['timeline_event', 'detail', vars.id] });
       qc.invalidateQueries({ queryKey: ['timeline', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['timeline', 'last', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['growth_last', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
     },
   });
 }
