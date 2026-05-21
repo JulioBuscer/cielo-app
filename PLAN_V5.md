@@ -150,18 +150,32 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
   - Tabla cronológica con últimos registros
   - Mini estadísticas (progreso desde el nacimiento)
 
-### FASE 1.5: REDISEÑO PAÑAL — Pipímetro + Popómetro + Multi-métrica
+### FASE 1.5: REDISEÑO PAÑAL — Pipímetro + Popómetro + Multi-métrica ✅
 > 📄 **[Plan detallado → DIAPER-REDESIGN.md](./DIAPER-REDESIGN.md)**
 
-- [ ] **Schema**: columna `metrics` en `diaper_observations`, migrar datos viejos
-- [ ] **Metadata**: `peeHealth`/`poopHealth` + multi-métrica `observationValues`
-- [ ] **Settings**: secciones Pipí y Popó (intensidad + salud) + editor multi-métrica
-- [ ] **Formulario pañal**: pipímetro, popómetro, métricas inline, peso
-- [ ] **Event detail**: mostrar salud con colores/emojis resueltos
-- [ ] **Share/Stats**: actualizar reportes y estadísticas
+- [x] **Schema**: columna `metrics` en `diaper_observations`, migrar datos viejos
+- [x] **Metadata**: `peeHealth`/`poopHealth` + multi-métrica `observationValues`
+- [x] **Settings**: secciones Pipí y Popó (intensidad + salud) + editor multi-métrica
+- [x] **Formulario pañal**: pipímetro, popómetro, métricas inline, peso
+- [x] **Event detail**: mostrar salud con colores/emojis resueltos
+- [x] **Share/Stats**: actualizar reportes y estadísticas
 
-### FASE 2: REFINAMIENTO UX
+### FASE 2: SISTEMA DE TEMA + REFINAMIENTO UX
+> 📄 **[Plan detallado → THEME-SYSTEM.md](./THEME-SYSTEM.md)**
 
+**Objetivo:** Unificar todos los colores hardcodeados en un sistema de tokens semánticos con soporte claro/oscuro, detectando automáticamente la preferencia del SO con toggle manual en settings.
+
+- [ ] **Infraestructura de tema**
+  - Tokens semánticos en `tailwind.config.js` con variantes light/dark
+  - `ThemeProvider` con detección automática (`useColorScheme`) + toggle manual (AsyncStorage)
+  - Wrapper en `_layout.tsx`
+  - Toggle en settings
+- [ ] **Migración progresiva de componentes** (por orden de impacto):
+  - `src/components/ui/` — componentes base
+  - `app/dashboard/` — timeline principal
+  - `app/settings/` — settings completo
+  - `app/logs/` — pantallas de registro
+  - `app/stats/` — estadísticas
 - [ ] **Curva de crecimiento** — Gráfica simple con `react-native-svg` (ya instalado)
 - [ ] **Tab bar** — Navegación principal con tabs (💬 Chat · 📊 Stats · ⚙️ Settings)
 - [ ] **Nombre real del cuidador en burbujas** — Reemplazar "Otro cuidador" por nombre real
@@ -190,7 +204,7 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 - [ ] **Múltiples cuidadores** — schema lo soporta, falta sync
 - [ ] **Notificaciones** — recordar cada X horas si no hay toma
 - [ ] **Export CSV/PDF** del historial completo
-- [ ] **Tema oscuro** (ya es dark, pero tener variante light opcional)
+- [ ] **Export CSV/PDF** del historial completo
 - [ ] **Compartir múltiples imágenes** vía react-native-share
 - [ ] **Estadísticas: curvas OMS** con percentiles
 - [ ] **Onboarding segundo cuidador** vía QR
@@ -261,12 +275,13 @@ cielo-app/
 ## 🔢 ORDEN DE IMPLEMENTACIÓN
 
 1. ✅ **Fase 1: Pantallas faltantes** — growth/new, growth/history, feeding/[id], sleep/[id], event/[id], feeding/retro, diaper/new, event/new
-2. **Fase 1.5: [Rediseño Pañal](./DIAPER-REDESIGN.md)** — pipímetro/popómetro + observaciones multi-métrica
-3. **Tab bar** — navegación con tabs en lugar de header lleno de botones
-4. **Dead code** — eliminar useDiaperLogs, useFeedingLogs, reportGenerator v3
-5. **Migración no-destructiva** — _layout.tsx sin DROP TABLE
-6. **Refinamientos** — curvas de crecimiento, gráficas tendencia
-7. **Multi-bebé y sync** — fases v2.0+
+2. ✅ **Fase 1.5: [Rediseño Pañal](./DIAPER-REDESIGN.md)** — pipímetro/popómetro + observaciones multi-métrica
+3. **Fase 2: [Sistema de Tema](./THEME-SYSTEM.md)** — tokens semánticos, ThemeProvider, migración progresiva
+4. **Tab bar** — navegación con tabs en lugar de header lleno de botones
+5. **Refinamientos UX** — curvas de crecimiento, gráficas tendencia, nombre cuidador
+6. **Dead code** — eliminar useDiaperLogs, useFeedingLogs, reportGenerator v3
+7. **Migración no-destructiva** — _layout.tsx sin DROP TABLE
+8. **Multi-bebé y sync** — fases v2.0+
 
 ---
 
