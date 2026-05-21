@@ -58,9 +58,9 @@ supabase/.temp
 # Archivos de build de EAS
 eas-build*
 
-# Logs locales
+# Logs locales (solo raíz, no app/logs/)
 *.log
-logs/
+/logs/
 
 # Cache de drizzle-kit
 drizzle/meta

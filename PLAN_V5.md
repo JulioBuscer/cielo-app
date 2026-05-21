@@ -76,6 +76,7 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 - [x] Auto-pausa de toma activa al registrar pañal
 - [x] Vinculación a sesión de toma activa
 - [x] Foto del pañal (cámara o galería) con preview
+- [x] `app/logs/event/new.tsx` — Evento genérico con selector de tipo, notas, datetime
 
 ### Otros Eventos
 - [x] Modal de selección de tipo de evento
@@ -125,29 +126,26 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 
 ## 🔴 PENDIENTE — Lo que falta
 
-### FASE 1: PANTALLAS FALTANTES (Stack navigation)
+### FASE 1: PANTALLAS FALTANTES (Stack navigation) ✅
 
-- [ ] **`app/logs/feeding/retro.tsx`** — Toma rezagada
+- [x] **`app/logs/diaper/new.tsx`** — Pañal con PoopOMeter, observaciones, foto (antes marcado ✅ pero no existía)
+- [x] **`app/logs/event/new.tsx`** — Evento genérico con preselect param (antes marcado ✅ pero no existía)
+- [x] **`app/logs/feeding/retro.tsx`** — Toma rezagada
   - Picker de tipo + subtipo + DateTimePicker inicio/fin
   - Calcular y guardar `durationSec`
-  - Insertar en timeline en posición correcta
-
-- [ ] **`app/logs/feeding/[id].tsx`** — Detalle de toma
+  - Inserta feeding_session con status 'finished'
+- [x] **`app/logs/feeding/[id].tsx`** — Detalle de toma
   - Header con tipo, hora inicio→fin, duración
   - Timeline interna de eventos durante la toma
   - Botón editar hora inicio/fin
-
-- [ ] **`app/logs/sleep/[id].tsx`** — Detalle de siesta
+- [x] **`app/logs/sleep/[id].tsx`** — Detalle de siesta
   - Similar al detalle de toma
-
-- [ ] **`app/logs/event/[id].tsx`** — Detalle de evento genérico
+- [x] **`app/logs/event/[id].tsx`** — Detalle de evento genérico
   - Mostrar metadata según tipo de evento
-
-- [ ] **`app/logs/growth/new.tsx`** — Registro de crecimiento
+- [x] **`app/logs/growth/new.tsx`** — Registro de crecimiento
   - Peso (kg), estatura (cm), circunferencia cefálica (cm)
   - Al menos un campo requerido
-
-- [ ] **`app/logs/growth/history.tsx`** — Historial de crecimiento
+- [x] **`app/logs/growth/history.tsx`** — Historial de crecimiento
   - Tabla cronológica con últimos registros
   - Mini estadísticas (progreso desde el nacimiento)
 
@@ -209,12 +207,12 @@ cielo-app/
 │   ├── logs/
 │   │   ├── diaper/new.tsx       ← ✅ Pañal + foto
 │   │   ├── event/new.tsx        ← ✅ Evento genérico
-│   │   ├── event/[id].tsx       ← ⏳ Detalle evento
-│   │   ├── feeding/retro.tsx    ← ⏳ Toma rezagada
-│   │   ├── feeding/[id].tsx     ← ⏳ Detalle toma
-│   │   ├── growth/new.tsx       ← ⏳ Peso/estatura
-│   │   ├── growth/history.tsx   ← ⏳ Historial crecimiento
-│   │   └── sleep/[id].tsx       ← ⏳ Detalle siesta
+│   │   ├── event/[id].tsx       ← ✅ Detalle evento
+│   │   ├── feeding/retro.tsx    ← ✅ Toma rezagada
+│   │   ├── feeding/[id].tsx     ← ✅ Detalle toma
+│   │   ├── growth/new.tsx       ← ✅ Peso/estatura
+│   │   ├── growth/history.tsx   ← ✅ Historial crecimiento
+│   │   └── sleep/[id].tsx       ← ✅ Detalle siesta
 │   ├── onboarding/              ← ✅ Flujo completo
 │   ├── settings/catalogs.tsx    ← ✅ Catálogos custom
 │   ├── stats/index.tsx          ← ✅ Stats completas
@@ -251,14 +249,12 @@ cielo-app/
 
 ## 🔢 ORDEN DE IMPLEMENTACIÓN
 
-1. **Pantallas faltantes** — growth/new, growth/history (mayor impacto)
-2. **Detalles** — feeding/[id], sleep/[id], event/[id] (UX completa)
-3. **Toma rezagada** — feeding/retro (muy pedida en la vida real)
-4. **Tab bar** — navegación con tabs en lugar de header lleno de botones
-5. **Dead code** — eliminar useDiaperLogs, useFeedingLogs, reportGenerator v3
-6. **Migración no-destructiva** — _layout.tsx sin DROP TABLE
-7. **Refinamientos** — curvas de crecimiento, gráficas tendencia
-8. **Multi-bebé y sync** — fases v2.0+
+1. ✅ **Fase 1: Pantallas faltantes** — growth/new, growth/history, feeding/[id], sleep/[id], event/[id], feeding/retro, diaper/new, event/new
+2. **Tab bar** — navegación con tabs en lugar de header lleno de botones
+3. **Dead code** — eliminar useDiaperLogs, useFeedingLogs, reportGenerator v3
+4. **Migración no-destructiva** — _layout.tsx sin DROP TABLE
+5. **Refinamientos** — curvas de crecimiento, gráficas tendencia
+6. **Multi-bebé y sync** — fases v2.0+
 
 ---
 
