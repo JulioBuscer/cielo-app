@@ -4,9 +4,19 @@ import { View, Text, ActivityIndicator } from "react-native";
 import { Slot } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { runMigrations } from "@/src/db/client";
+import { ThemeProvider, useThemeContext } from "@/src/hooks/useTheme";
 import packageJson from "@/package.json";
 
 const queryClient = new QueryClient();
+
+function AppContent({ children }: { children: React.ReactNode }) {
+  const { isDark } = useThemeContext();
+  return (
+    <View className={`flex-1 ${isDark ? 'dark' : ''}`}>
+      {children}
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
@@ -97,7 +107,11 @@ export default function RootLayout() {
   // QueryClientProvider solo se monta DESPUÉS de que la DB está lista
   return (
     <QueryClientProvider client={queryClient}>
-      <Slot />
+      <ThemeProvider>
+        <AppContent>
+          <Slot />
+        </AppContent>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

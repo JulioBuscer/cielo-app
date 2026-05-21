@@ -9,45 +9,46 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // ── Fondo general (rosa muy suave)
-        bg:          '#FFF0F5',
-        bgCard:      '#FFFFFF',
-        bgElevated:  '#FFE4EE',
-        bgInput:     '#FFE4EE',
+        // ── Superficies ────────────────────────────────────────────────────
+        surface:  { DEFAULT: '#FFF0F5', dark: '#1A1A2E' },
+        card:     { DEFAULT: '#FFFFFF', dark: '#2A2A3E' },
+        elevated: { DEFAULT: '#FFE4EE', dark: '#3A3A4E' },
+        inputBg:  { DEFAULT: '#FFF0F5', dark: '#1A1A2E' },
 
-        // ── Texto
-        textPrimary: '#2D1B26',
-        textMuted:   '#9B7A88',
+        // ── Texto ──────────────────────────────────────────────────────────
+        textBody:  { DEFAULT: '#2D1B26', dark: '#FFFFFF' },
+        textMuted: { DEFAULT: '#9B7A88', dark: '#BBBBBB' },
+        textDim:   { DEFAULT: '#9B7A88', dark: '#666666' },
+        textOnAccent: { DEFAULT: '#FFFFFF', dark: '#FFFFFF' },
 
-        // ── Marca
-        cielo:       '#FF5C9A',   // rosa fuerte — acento principal
-        cieloLight:  '#FFB7D5',   // rosa suave — burbujas propias
-        header:      '#FF8AB3',   // rosa medio — header/barra
+        // ── Acento ─────────────────────────────────────────────────────────
+        accent:       { DEFAULT: '#FF8AB3', dark: '#FF8AB3' },
+        accentStrong: { DEFAULT: '#FF5C9A', dark: '#FF5C9A' },
+        accentLight:  { DEFAULT: '#FFB7D5', dark: '#3A1A2E' },
 
-        // ── Burbujas
-        bubbleOut:   '#FFB7D5',   // burbujas del usuario activo
-        bubbleIn:    '#FFFFFF',   // burbujas del otro cuidador
+        // ── Header / Nav ───────────────────────────────────────────────────
+        headerBg: { DEFAULT: '#FF8AB3', dark: '#1A1A2E' },
 
-        // ── Acciones rápidas
-        bottle:      '#A855F7',   // morado — biberón
-        diaper:      '#F59E0B',   // ámbar — pañal
+        // ── Burbujas de timeline ───────────────────────────────────────────
+        bubbleOwn:   { DEFAULT: '#FFB7D5', dark: '#3A1A2E' },
+        bubbleOther: { DEFAULT: '#FFFFFF', dark: '#2A2A3E' },
 
-        // ── Toma activa
-        tomaActive:  '#FFF3E0',
-        tomaBorder:  '#FFB74D',
-        tomaText:    '#E65100',
+        // ── Estados ────────────────────────────────────────────────────────
+        danger:  '#DC2626',
+        safe:    '#16A34A',
+        warning: '#F59E0B',
+        whatsGreen: '#25D366',
 
-        // ── Estados
-        danger:      '#DC2626',
-        safe:        '#16A34A',
-        whatsGreen:  '#25D366',   // verde de WhatsApp para enviar
-
-        // ── Biológicos
-        pee:         '#F5C842',
-        poop:        '#8B5E3C',
-
-        // ── Crecimiento
-        growth:      '#0EA5E9',
+        // ── Contextuales ────────────────────────────────────────────────────
+        biological: {
+          pee:   '#F5C842',
+          poop:  '#8B5E3C',
+        },
+        feeding: {
+          bottle:    '#A855F7',
+          breast:    '#FF8AB3',
+        },
+        growth: '#0EA5E9',
       },
     },
   },

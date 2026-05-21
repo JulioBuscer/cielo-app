@@ -26,6 +26,7 @@ import { getDb } from "@/src/db/client";
 import { eventTypes, diaperObservations } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
 import { useQueryClient } from "@tanstack/react-query";
+import { useThemeContext } from "@/src/hooks/useTheme";
 import type { DiaperObservation, ObservationMetric, ObservationZone } from "@/src/db/schema";
 import { generateId } from "@/src/utils/id";
 
@@ -752,6 +753,43 @@ function PoopConfigSection({
   );
 }
 
+function ThemeToggle() {
+  const { mode, isDark, setMode } = useThemeContext();
+  return (
+    <View
+      className="flex-row items-center justify-center bg-headerBg dark:bg-surface-dark pb-2"
+      style={{ gap: 8 }}
+    >
+      {(["system", "light", "dark"] as const).map((m) => {
+        const active = mode === m;
+        const label = m === "system" ? "📱 Auto" : m === "light" ? "☀️ Claro" : "🌙 Oscuro";
+        return (
+          <TouchableOpacity
+            key={m}
+            onPress={() => setMode(m)}
+            style={{
+              paddingHorizontal: 14,
+              paddingVertical: 6,
+              borderRadius: 99,
+              backgroundColor: active ? "rgba(255,255,255,0.3)" : "transparent",
+            }}
+          >
+            <Text
+              style={{
+                color: active ? "#FFFFFF" : "rgba(255,255,255,0.7)",
+                fontWeight: active ? "800" : "600",
+                fontSize: 13,
+              }}
+            >
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function CatalogsScreen() {
   const { data: events } = useEventTypes();
   const { data: diaperObs } = useDiaperObservations();
@@ -904,17 +942,11 @@ export default function CatalogsScreen() {
   };
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: "#FF8AB3" }}
-      edges={["top"]}
-    >
+    <SafeAreaView className="bg-headerBg dark:bg-surface-dark" style={{ flex: 1 }} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor="#FF8AB3" />
       <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          padding: 16,
-        }}
+        className="flex-row items-center px-4"
+        style={{ padding: 16 }}
       >
         <TouchableOpacity
           onPress={() => router.back()}
@@ -929,6 +961,9 @@ export default function CatalogsScreen() {
         </Text>
       </View>
 
+      {/* Theme toggle */}
+      <ThemeToggle />
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -936,11 +971,7 @@ export default function CatalogsScreen() {
       >
         {/* ─── Tabs ─── */}
         <View
-          style={{
-            flexDirection: "row",
-            backgroundColor: "#FF8AB3",
-            paddingHorizontal: 16,
-          }}
+          className="flex-row bg-headerBg dark:bg-surface-dark px-4"
         >
           {[
             { key: "events" as const, label: "📝 Eventos" },
@@ -994,7 +1025,7 @@ export default function CatalogsScreen() {
           </View>
         ) : (
           <ScrollView
-            style={{ flex: 1, backgroundColor: "#FFF0F5" }}
+            className="bg-surface dark:bg-surface-dark flex-1"
             contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
