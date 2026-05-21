@@ -164,16 +164,50 @@ export function useCreateEventType() {
 export function useCreateDiaperObservation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { emoji: string; label: string }) => {
+    mutationFn: async (input: {
+      emoji: string;
+      label: string;
+      scaleMin?: number | null;
+      scaleMax?: number | null;
+      zones?: string | null;
+    }) => {
       const id = generateId();
       await getDb().insert(diaperObservations).values({
         id,
         emoji:     input.emoji,
         label:     input.label,
         isSystem:  false,
+        scaleMin:  input.scaleMin ?? null,
+        scaleMax:  input.scaleMax ?? null,
+        zones:     input.zones ?? null,
         createdAt: new Date(),
       });
       return id;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['diaper_observations'] }),
+  });
+}
+
+export function useUpdateDiaperObservation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      emoji?: string;
+      label?: string;
+      scaleMin?: number | null;
+      scaleMax?: number | null;
+      zones?: string | null;
+    }) => {
+      await getDb().update(diaperObservations)
+        .set({
+          emoji:     input.emoji,
+          label:     input.label,
+          scaleMin:  input.scaleMin,
+          scaleMax:  input.scaleMax,
+          zones:     input.zones,
+        })
+        .where(eq(diaperObservations.id, input.id));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['diaper_observations'] }),
   });

@@ -14,11 +14,13 @@ import {
   useTimelineEvent,
   useEventTypes,
   useUpdateTimelineEvent,
+  useDiaperObservations,
 } from "@/src/hooks/useTimeline";
 import { useActiveProfile } from "@/src/hooks/useProfile";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
+import { getZoneColor, getZoneLabel } from "@/src/db/schema";
 
 function formatDateTime(ts: Date | string | number | undefined | null): string {
   if (!ts) return "--";
@@ -78,14 +80,16 @@ export default function EventDetailScreen() {
     );
   }
 
-  let metadataDisplay: { label: string; value: string }[] = [];
+  const { data: diaperObs } = useDiaperObservations();
+
+  let metadataDisplay: { label: string; value: string; color?: string }[] = [];
   if (event.metadata) {
     try {
       const meta = JSON.parse(event.metadata);
       if (meta.weightGrams != null)
         metadataDisplay.push({
-          label: "Peso",
-          value: `${(meta.weightGrams / 1000).toFixed(3)} kg`,
+          label: "Peso pañal",
+          value: `${meta.weightGrams}g`,
         });
       if (meta.heightMm != null)
         metadataDisplay.push({
@@ -109,13 +113,34 @@ export default function EventDetailScreen() {
             ? `${meta.medicineName} (${meta.dose})`
             : meta.medicineName,
         });
-      if (meta.peeIntensity != null || meta.poopIntensity != null) {
+      if (meta.peeIntensity > 0 || meta.poopIntensity > 0) {
         const parts: string[] = [];
         if (meta.peeIntensity > 0)
-          parts.push(`💦 ${meta.peeIntensity}/5`);
+          parts.push(`💦 ${meta.peeIntensity}`);
         if (meta.poopIntensity > 0)
-          parts.push(`💩 ${meta.poopIntensity}/5`);
+          parts.push(`💩 ${meta.poopIntensity}`);
         metadataDisplay.push({ label: "Pañal", value: parts.join(" · ") });
+      }
+      if (meta.observationValues && typeof meta.observationValues === "object") {
+        for (const [obsId, val] of Object.entries(meta.observationValues)) {
+          const obs = diaperObs?.find((o) => o.id === obsId);
+          const color = getZoneColor(obs?.zones ?? null, val as number);
+          const label = getZoneLabel(obs?.zones ?? null, val as number);
+          metadataDisplay.push({
+            label: obs ? `${obs.emoji} ${obs.label}` : obsId,
+            value: `${val}${label ? ` · ${label}` : ""}`,
+            color,
+          });
+        }
+      }
+      if (meta.observationIds?.length > 0) {
+        const names = meta.observationIds
+          .map((id: string) => {
+            const o = diaperObs?.find((x) => x.id === id);
+            return o ? `${o.emoji} ${o.label}` : id;
+          })
+          .join(", ");
+        if (names) metadataDisplay.push({ label: "Tags", value: names });
       }
     } catch {}
   }
@@ -267,7 +292,7 @@ export default function EventDetailScreen() {
                 </Text>
                 <Text
                   style={{
-                    color: "#FFFFFF",
+                    color: m.color ?? "#FFFFFF",
                     fontWeight: "700",
                     fontSize: 14,
                   }}

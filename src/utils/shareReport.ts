@@ -96,14 +96,14 @@ export interface DiaperShareData {
   timestamp:          Date | number;
   peeIntensity:       number;
   poopIntensity:      number;
-  // IDs de observaciones + sus labels resueltos desde el catálogo
   observationIds:     string[];
   observationLabels:  { id: string; emoji: string; label: string; isAlert: boolean }[];
+  observationValues:  Record<string, number> | null;  // valores de observaciones con escala
+  weightGrams?:       number | null;
   imageUri?:          string | null;
   notes?:             string | null;
-  // Contexto: ¿durante qué sesión ocurrió?
-  duringFeedingType?: string | null;    // 'breast_left' | 'breast_right' | 'bottle'
-  duringFeedingMin?:  number | null;    // minutos transcurridos de la toma al guardar
+  duringFeedingType?: string | null;
+  duringFeedingMin?:  number | null;
   duringSleep?:       boolean;
 }
 
@@ -190,6 +190,17 @@ export function buildRecordMessage(record: AnyShareData): string {
       L.push(`💩 Popó:   ${stars(poop)}  ${poop}/5`);
       L.push('');
 
+      // Observaciones con escala
+      if (record.observationValues && Object.keys(record.observationValues).length > 0) {
+        for (const [obsId, val] of Object.entries(record.observationValues)) {
+          const obs = record.observationLabels.find(o => o.id === obsId);
+          if (obs) {
+            L.push(`${obs.emoji} ${obs.label}: ${val}`);
+          }
+        }
+        L.push('');
+      }
+
       // Observaciones — separadas en alertas y normales
       const alerts  = record.observationLabels.filter(o => o.isAlert);
       const normals = record.observationLabels.filter(o => !o.isAlert);
@@ -201,6 +212,11 @@ export function buildRecordMessage(record: AnyShareData): string {
       }
       if (record.observationLabels.length === 0) {
         L.push(`✅ Sin observaciones especiales`);
+      }
+
+      // Peso del pañal
+      if (record.weightGrams) {
+        L.push(`⚖️ Peso:   ${record.weightGrams}g`);
       }
       L.push('');
 

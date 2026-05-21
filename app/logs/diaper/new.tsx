@@ -7,10 +7,11 @@ import {
   StatusBar,
   Alert,
   Image,
-  ActivityIndicator,
+  TextInput,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import { useActiveProfile } from "@/src/hooks/useProfile";
 import {
@@ -18,10 +19,100 @@ import {
   usePauseFeeding,
 } from "@/src/hooks/useFeedingSessions";
 import { useDiaperObservations, useSaveTimelineEvent } from "@/src/hooks/useTimeline";
-import { PoopOMeter } from "@/src/components/ui/PoopOMeter";
-import { BigButton } from "@/src/components/ui/BigButton";
 import { useCamera } from "@/src/hooks/useCamera";
-import { useQueryClient } from "@tanstack/react-query";
+import { getZoneColor, getZoneLabel } from "@/src/db/schema";
+import type { DiaperObservation } from "@/src/db/schema";
+
+const PEE_CONFIG_KEY = "pee_config";
+const DEFAULT_PEE_CONFIG = {
+  scaleMin: 1,
+  scaleMax: 8,
+  zones: [
+    { min: 1, max: 3, color: "#4CAF50", label: "Saludable" },
+    { min: 4, max: 6, color: "#FFC107", label: "Precaución" },
+    { min: 7, max: 8, color: "#F44336", label: "Alerta" },
+  ],
+};
+
+function ScaleMeter({
+  value,
+  onChange,
+  min,
+  max,
+  zonesJson,
+  emoji,
+  label,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min: number;
+  max: number;
+  zonesJson: string | null;
+  emoji: string;
+  label?: string;
+}) {
+  const steps = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+  return (
+    <View style={{ gap: 6 }}>
+      {label && (
+        <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 12 }}>
+          {label}
+        </Text>
+      )}
+      <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+        <TouchableOpacity
+          onPress={() => onChange(0)}
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            backgroundColor: value === 0 ? "#3A3A4E" : "#2A2A3E",
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: value === 0 ? 2 : 1,
+            borderColor: value === 0 ? "#FF8AB3" : "#3A3A4E",
+          }}
+        >
+          <Text style={{ fontSize: 14, color: "#888" }}>✕</Text>
+        </TouchableOpacity>
+        {steps.map((n) => {
+          const active = n <= value;
+          const zoneColor = getZoneColor(zonesJson, n);
+          return (
+            <TouchableOpacity
+              key={n}
+              onPress={() => onChange(n)}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                backgroundColor: active ? zoneColor : "#2A2A3E",
+                opacity: active ? 1 : 0.4,
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: active ? 0 : 1,
+                borderColor: "#3A3A4E",
+              }}
+            >
+              <Text style={{ fontSize: 16 }}>{emoji}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      {value > 0 && getZoneLabel(zonesJson, value) && (
+        <Text
+          style={{
+            color: getZoneColor(zonesJson, value),
+            fontWeight: "700",
+            fontSize: 12,
+          }}
+        >
+          {getZoneLabel(zonesJson, value)}
+        </Text>
+      )}
+    </View>
+  );
+}
 
 export default function DiaperNewScreen() {
   const { data: baby } = useActiveBaby();
@@ -31,19 +122,37 @@ export default function DiaperNewScreen() {
   const pauseFeeding = usePauseFeeding();
   const saveEvent = useSaveTimelineEvent();
   const { pickImage, takePhoto } = useCamera();
-  const qc = useQueryClient();
 
+  const [peeConfig, setPeeConfig] = useState(DEFAULT_PEE_CONFIG);
   const [peeIntensity, setPeeIntensity] = useState(0);
   const [poopIntensity, setPoopIntensity] = useState(0);
-  const [selectedObs, setSelectedObs] = useState<string[]>([]);
+  const [obsValues, setObsValues] = useState<Record<string, number>>({});
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [weightGrams, setWeightGrams] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const toggleObs = (id: string) => {
-    setSelectedObs((prev) =>
-      prev.includes(id) ? prev.filter((o) => o !== id) : [...prev, id]
-    );
+  useEffect(() => {
+    AsyncStorage.getItem(PEE_CONFIG_KEY).then((json) => {
+      if (json) {
+        try {
+          setPeeConfig(JSON.parse(json));
+        } catch {}
+      }
+    });
+  }, []);
+
+  const toggleObs = (obs: DiaperObservation) => {
+    const id = obs.id;
+    setObsValues((prev) => {
+      if (id in prev) {
+        const { [id]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [id]: obs.scaleMin ?? 1 };
+    });
   };
+
+  const isObsSelected = (id: string) => id in obsValues;
 
   const handleSave = async () => {
     if (!baby || !profile) return;
@@ -53,6 +162,17 @@ export default function DiaperNewScreen() {
         await pauseFeeding.mutateAsync(activeFeeding);
       }
 
+      const obsWithScale: Record<string, number> = {};
+      const obsNoScale: string[] = [];
+      for (const [id, val] of Object.entries(obsValues)) {
+        const ob = observations?.find((o) => o.id === id);
+        if (ob?.scaleMin != null) {
+          obsWithScale[id] = val;
+        } else {
+          obsNoScale.push(id);
+        }
+      }
+
       await saveEvent.mutateAsync({
         babyId: baby.id,
         eventTypeId: "diaper",
@@ -60,12 +180,13 @@ export default function DiaperNewScreen() {
         metadata: {
           peeIntensity,
           poopIntensity,
-          observationIds: selectedObs,
+          observationIds: obsNoScale,
+          observationValues: obsWithScale,
           imageUri: imageUri ?? undefined,
+          weightGrams: weightGrams.trim() ? parseInt(weightGrams) : undefined,
         },
       });
 
-      qc.invalidateQueries({ queryKey: ["timeline"] });
       router.back();
     } catch (e) {
       Alert.alert("Error", "No se pudo guardar el pañal");
@@ -129,22 +250,36 @@ export default function DiaperNewScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20, gap: 24 }}
+        contentContainerStyle={{ padding: 20, gap: 20 }}
       >
-        {/* Pee */}
-        <View style={{ gap: 8 }}>
-          <Text style={{ color: "#FFD700", fontWeight: "800", fontSize: 15 }}>
-            💦 Pipí
-          </Text>
-          <PoopOMeter value={peeIntensity} onChange={setPeeIntensity} />
-        </View>
+        {/* Pipímetro */}
+        <ScaleMeter
+          label="💦 Pipí"
+          emoji="💧"
+          value={peeIntensity}
+          onChange={setPeeIntensity}
+          min={peeConfig.scaleMin}
+          max={peeConfig.scaleMax}
+          zonesJson={JSON.stringify(peeConfig.zones)}
+        />
 
-        {/* Poop */}
-        <View style={{ gap: 8 }}>
+        {/* Popó */}
+        <View style={{ gap: 6 }}>
           <Text style={{ color: "#8B4513", fontWeight: "800", fontSize: 15 }}>
             💩 Popó
           </Text>
-          <PoopOMeter value={poopIntensity} onChange={setPoopIntensity} />
+          <ScaleMeter
+            emoji="🟤"
+            value={poopIntensity}
+            onChange={setPoopIntensity}
+            min={0}
+            max={5}
+            zonesJson={JSON.stringify([
+              { min: 1, max: 2, color: "#8B4513", label: "Poco" },
+              { min: 3, max: 4, color: "#654321", label: "Normal" },
+              { min: 5, max: 5, color: "#3E2723", label: "Mucho" },
+            ])}
+          />
         </View>
 
         {/* Observations */}
@@ -157,12 +292,18 @@ export default function DiaperNewScreen() {
             </Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {observations.map((obs) => {
-                const isSelected = selectedObs.includes(obs.id);
+                const selected = isObsSelected(obs.id);
                 const isMedical = ["blood", "mucus", "diarrhea"].includes(obs.id);
+                const hasScale = obs.scaleMin != null;
+                const bgColor = selected
+                  ? isMedical
+                    ? "#8B0000"
+                    : "#FF8AB3"
+                  : "#2A2A3E";
                 return (
                   <TouchableOpacity
                     key={obs.id}
-                    onPress={() => toggleObs(obs.id)}
+                    onPress={() => toggleObs(obs)}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
@@ -170,28 +311,82 @@ export default function DiaperNewScreen() {
                       paddingHorizontal: 14,
                       paddingVertical: 8,
                       borderRadius: 99,
-                      backgroundColor: isSelected
-                        ? isMedical
-                          ? "#8B0000"
-                          : "#FF8AB3"
-                        : "#2A2A3E",
+                      backgroundColor: bgColor,
                     }}
                   >
                     <Text style={{ fontSize: 16 }}>{obs.emoji}</Text>
                     <Text
                       style={{
-                        color: isSelected ? "#FFFFFF" : "#BBBBBB",
+                        color: selected ? "#FFFFFF" : "#BBBBBB",
                         fontWeight: "700",
                         fontSize: 13,
                       }}
                     >
                       {obs.label}
                     </Text>
+                    {selected && hasScale && obsValues[obs.id] > 0 && (
+                      <Text
+                        style={{
+                          color: getZoneColor(obs.zones, obsValues[obs.id]),
+                          fontWeight: "800",
+                          fontSize: 13,
+                        }}
+                      >
+                        {obsValues[obs.id]}
+                      </Text>
+                    )}
+                    {selected && hasScale && (
+                      <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>
+                        ✕
+                      </Text>
+                    )}
+                    {selected && !hasScale && (
+                      <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 14 }}>
+                        ✓
+                      </Text>
+                    )}
                   </TouchableOpacity>
                 );
               })}
             </View>
-            {selectedObs.some((id) =>
+
+            {/* Expanded sliders for selected observations with scale */}
+            {observations
+              .filter((o) => isObsSelected(o.id) && o.scaleMin != null)
+              .map((obs) => (
+                <View
+                  key={obs.id}
+                  style={{
+                    backgroundColor: "#2A2A3E",
+                    borderRadius: 12,
+                    padding: 14,
+                    gap: 8,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#FFFFFF",
+                      fontWeight: "700",
+                      fontSize: 14,
+                    }}
+                  >
+                    {obs.emoji} {obs.label}
+                  </Text>
+                  <ScaleMeter
+                    emoji={obs.emoji}
+                    value={obsValues[obs.id] ?? obs.scaleMin!}
+                    onChange={(v) =>
+                      setObsValues((prev) => ({ ...prev, [obs.id]: v }))
+                    }
+                    min={obs.scaleMin!}
+                    max={obs.scaleMax!}
+                    zonesJson={obs.zones}
+                  />
+                </View>
+              ))}
+
+            {/* Medical alert */}
+            {Object.keys(obsValues).some((id) =>
               ["blood", "mucus", "diarrhea"].includes(id)
             ) && (
               <View
@@ -211,11 +406,31 @@ export default function DiaperNewScreen() {
           </View>
         )}
 
+        {/* Diaper weight */}
+        <View style={{ gap: 6 }}>
+          <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 13 }}>
+            ⚖️ Peso del pañal (gramos)
+          </Text>
+          <TextInput
+            value={weightGrams}
+            onChangeText={setWeightGrams}
+            placeholder="0"
+            placeholderTextColor="#666"
+            keyboardType="number-pad"
+            style={{
+              backgroundColor: "#2A2A3E",
+              borderRadius: 12,
+              padding: 14,
+              color: "#FFFFFF",
+              fontSize: 18,
+              fontWeight: "700",
+            }}
+          />
+        </View>
+
         {/* Photo */}
         <View style={{ gap: 8 }}>
-          <Text
-            style={{ color: "#FF8AB3", fontWeight: "800", fontSize: 15 }}
-          >
+          <Text style={{ color: "#FF8AB3", fontWeight: "800", fontSize: 15 }}>
             📸 Foto
           </Text>
           {imageUri ? (
@@ -254,12 +469,27 @@ export default function DiaperNewScreen() {
 
         <View style={{ height: 16 }} />
 
-        <BigButton
-          title={saving ? "Guardando..." : "💾 Guardar Pañal"}
+        {/* Save */}
+        <TouchableOpacity
           onPress={handleSave}
           disabled={saving}
-          variant="primary"
-        />
+          style={{
+            backgroundColor: saving ? "#3A3A4E" : "#FF8AB3",
+            paddingVertical: 16,
+            borderRadius: 99,
+            alignItems: "center",
+          }}
+        >
+          <Text
+            style={{
+              color: "#FFFFFF",
+              fontWeight: "900",
+              fontSize: 16,
+            }}
+          >
+            {saving ? "Guardando..." : "💾 Guardar Pañal"}
+          </Text>
+        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>

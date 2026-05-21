@@ -46,6 +46,9 @@ export const diaperObservations = sqliteTable('diaper_observations', {
   emoji:     text('emoji').notNull(),
   label:     text('label').notNull(),
   isSystem:  integer('is_system', { mode: 'boolean' }).default(false),
+  scaleMin:  integer('scale_min'),       // null = sin escala
+  scaleMax:  integer('scale_max'),       // null = sin escala
+  zones:     text('zones'),              // JSON: [{min,max,color,label}]
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
@@ -149,11 +152,42 @@ export type SleepStatusEvent    = typeof sleepStatusEvents.$inferSelect;
 export type TimelineEvent       = typeof timelineEvents.$inferSelect;
 
 // ─── METADATA TIPADA POR EVENTO ───────────────────────────────────────────────
+export interface DiaperZone {
+  min: number;
+  max: number;
+  color: string;
+  label: string;
+}
+
 export interface DiaperMetadata {
-  peeIntensity:   number;
-  poopIntensity:  number;
-  observationIds: string[];
-  imageUri?:      string;
+  peeIntensity:        number;
+  poopIntensity:       number;
+  observationIds:      string[];
+  observationValues:   Record<string, number> | null;  // { observationId: valor } solo para las que tienen escala
+  imageUri?:           string;
+  weightGrams?:        number;
+}
+
+export function getZoneColor(zonesJson: string | null, value: number): string {
+  if (!zonesJson) return '#888';
+  try {
+    const zones: DiaperZone[] = JSON.parse(zonesJson);
+    for (const z of zones) {
+      if (value >= z.min && value <= z.max) return z.color;
+    }
+  } catch {}
+  return '#888';
+}
+
+export function getZoneLabel(zonesJson: string | null, value: number): string | null {
+  if (!zonesJson) return null;
+  try {
+    const zones: DiaperZone[] = JSON.parse(zonesJson);
+    for (const z of zones) {
+      if (value >= z.min && value <= z.max) return z.label;
+    }
+  } catch {}
+  return null;
 }
 
 export interface MedicationMetadata {

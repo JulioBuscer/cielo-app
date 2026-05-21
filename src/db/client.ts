@@ -35,11 +35,11 @@ const DEFAULT_EVENT_TYPES = [
 ];
 
 const DEFAULT_DIAPER_OBSERVATIONS = [
-  { id: 'blood',    emoji: '🩸', label: 'Sangre'    },
-  { id: 'mucus',    emoji: '🤧', label: 'Mucosidad' },
-  { id: 'diarrhea', emoji: '⚠️', label: 'Diarrea'   },
-  { id: 'green',    emoji: '🟢', label: 'Verde'     },
-  { id: 'lumpy',    emoji: '☁️', label: 'Grumoso'   },
+  { id: 'blood',    emoji: '🩸', label: 'Sangre',    scaleMin: 1,  scaleMax: 10, zones: '[{"min":1,"max":3,"color":"#4CAF50","label":"Leve"},{"min":4,"max":7,"color":"#FFC107","label":"Moderado"},{"min":8,"max":10,"color":"#F44336","label":"Severo"}]' },
+  { id: 'mucus',    emoji: '🤧', label: 'Mucosidad', scaleMin: 1,  scaleMax: 10, zones: null },
+  { id: 'diarrhea', emoji: '⚠️', label: 'Diarrea',   scaleMin: 1,  scaleMax: 5,  zones: null },
+  { id: 'green',    emoji: '🟢', label: 'Verde',     scaleMin: null, scaleMax: null, zones: null },
+  { id: 'lumpy',    emoji: '☁️', label: 'Grumoso',   scaleMin: null, scaleMax: null, zones: null },
 ];
 
 // ─── MIGRACIÓN / SETUP ────────────────────────────────────────────────────────
@@ -104,6 +104,9 @@ export async function runMigrations() {
       emoji TEXT NOT NULL,
       label TEXT NOT NULL,
       is_system INTEGER DEFAULT 0,
+      scale_min INTEGER,
+      scale_max INTEGER,
+      zones TEXT,
       created_at INTEGER NOT NULL
     );
 
@@ -187,6 +190,10 @@ export async function runMigrations() {
     `ALTER TABLE babies ADD COLUMN avatar_emoji TEXT DEFAULT '\u{1F476}'`,
     // timeline_events
     `ALTER TABLE timeline_events ADD COLUMN sleep_session_id TEXT REFERENCES sleep_sessions(id)`,
+    // diaper_observations
+    `ALTER TABLE diaper_observations ADD COLUMN scale_min INTEGER`,
+    `ALTER TABLE diaper_observations ADD COLUMN scale_max INTEGER`,
+    `ALTER TABLE diaper_observations ADD COLUMN zones TEXT`,
   ]) {
     try { await _raw.execAsync(sql); } catch { /* columna ya existe, ok */ }
   }
@@ -203,8 +210,8 @@ export async function runMigrations() {
   // Seed diaper_observations
   for (const obs of DEFAULT_DIAPER_OBSERVATIONS) {
     await _raw.execAsync(
-      `INSERT OR IGNORE INTO diaper_observations (id, emoji, label, is_system, created_at)
-       VALUES ('${obs.id}', '${obs.emoji}', '${obs.label}', 1, ${now});`
+      `INSERT OR IGNORE INTO diaper_observations (id, emoji, label, is_system, scale_min, scale_max, zones, created_at)
+       VALUES ('${obs.id}', '${obs.emoji}', '${obs.label}', 1, ${obs.scaleMin ?? 'NULL'}, ${obs.scaleMax ?? 'NULL'}, '${obs.zones ?? ''}', ${now});`
     );
   }
 }

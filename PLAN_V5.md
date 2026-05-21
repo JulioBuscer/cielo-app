@@ -69,7 +69,7 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 - [x] Independiente de las tomas
 - [x] Auto-finish de siesta anterior al iniciar nueva
 
-### Pañales
+### Pañales (v1)
 - [x] `app/logs/diaper/new.tsx` con PoopOMeter (intensidad 0-5)
 - [x] Selección de observaciones (sangre, mucosidad, diarrea, verde, grumoso)
 - [x] Alerta visual si hay observaciones médicas
@@ -77,6 +77,7 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 - [x] Vinculación a sesión de toma activa
 - [x] Foto del pañal (cámara o galería) con preview
 - [x] `app/logs/event/new.tsx` — Evento genérico con selector de tipo, notas, datetime
+- [ ] **[REDISEÑO →](./DIAPER-REDESIGN.md)** Separar cantidad/salud pipí/popó + observaciones multi-métrica
 
 ### Otros Eventos
 - [x] Modal de selección de tipo de evento
@@ -148,6 +149,16 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 - [x] **`app/logs/growth/history.tsx`** — Historial de crecimiento
   - Tabla cronológica con últimos registros
   - Mini estadísticas (progreso desde el nacimiento)
+
+### FASE 1.5: REDISEÑO PAÑAL — Pipímetro + Popómetro + Multi-métrica
+> 📄 **[Plan detallado → DIAPER-REDESIGN.md](./DIAPER-REDESIGN.md)**
+
+- [ ] **Schema**: columna `metrics` en `diaper_observations`, migrar datos viejos
+- [ ] **Metadata**: `peeHealth`/`poopHealth` + multi-métrica `observationValues`
+- [ ] **Settings**: secciones Pipí y Popó (intensidad + salud) + editor multi-métrica
+- [ ] **Formulario pañal**: pipímetro, popómetro, métricas inline, peso
+- [ ] **Event detail**: mostrar salud con colores/emojis resueltos
+- [ ] **Share/Stats**: actualizar reportes y estadísticas
 
 ### FASE 2: REFINAMIENTO UX
 
@@ -250,11 +261,12 @@ cielo-app/
 ## 🔢 ORDEN DE IMPLEMENTACIÓN
 
 1. ✅ **Fase 1: Pantallas faltantes** — growth/new, growth/history, feeding/[id], sleep/[id], event/[id], feeding/retro, diaper/new, event/new
-2. **Tab bar** — navegación con tabs en lugar de header lleno de botones
-3. **Dead code** — eliminar useDiaperLogs, useFeedingLogs, reportGenerator v3
-4. **Migración no-destructiva** — _layout.tsx sin DROP TABLE
-5. **Refinamientos** — curvas de crecimiento, gráficas tendencia
-6. **Multi-bebé y sync** — fases v2.0+
+2. **Fase 1.5: [Rediseño Pañal](./DIAPER-REDESIGN.md)** — pipímetro/popómetro + observaciones multi-métrica
+3. **Tab bar** — navegación con tabs en lugar de header lleno de botones
+4. **Dead code** — eliminar useDiaperLogs, useFeedingLogs, reportGenerator v3
+5. **Migración no-destructiva** — _layout.tsx sin DROP TABLE
+6. **Refinamientos** — curvas de crecimiento, gráficas tendencia
+7. **Multi-bebé y sync** — fases v2.0+
 
 ---
 
