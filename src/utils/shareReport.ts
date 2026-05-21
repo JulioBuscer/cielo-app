@@ -96,9 +96,11 @@ export interface DiaperShareData {
   timestamp:          Date | number;
   peeIntensity:       number;
   poopIntensity:      number;
+  peeHealth:          number | null;
+  poopHealth:         number | null;
   observationIds:     string[];
   observationLabels:  { id: string; emoji: string; label: string; isAlert: boolean }[];
-  observationValues:  Record<string, number> | null;  // valores de observaciones con escala
+  observationValues:  Record<string, Record<string, number>> | null;  // { obsId: { metricId: value } }
   weightGrams?:       number | null;
   imageUri?:          string | null;
   notes?:             string | null;
@@ -179,24 +181,29 @@ export function buildRecordMessage(record: AnyShareData): string {
     case 'diaper': {
       const pee  = record.peeIntensity;
       const poop = record.poopIntensity;
-      const hasPoop = poop > 0;
 
       L.push(`🍑 *CAMBIO DE PAÑAL*`);
       L.push(`🕐 ${fmtDateTime(record.timestamp)}`);
       L.push('');
 
       // Intensidades
-      L.push(`💧 Pipí:   ${stars(pee)}  ${pee}/5`);
-      L.push(`💩 Popó:   ${stars(poop)}  ${poop}/5`);
+      L.push(`💧 Pipí:   ${stars(pee, 8)}  ${pee}/8`);
+      if (record.peeHealth != null && record.peeHealth > 0) {
+        L.push(`🔬 Salud:  ${stars(record.peeHealth, 8)}  ${record.peeHealth}/8`);
+      }
+      L.push(`💩 Popó:   ${stars(poop, 5)}  ${poop}/5`);
+      if (record.poopHealth != null && record.poopHealth > 0) {
+        L.push(`🔬 Salud:  ${stars(record.poopHealth, 8)}  ${record.poopHealth}/8`);
+      }
       L.push('');
 
-      // Observaciones con escala
+      // Observaciones con métricas
       if (record.observationValues && Object.keys(record.observationValues).length > 0) {
-        for (const [obsId, val] of Object.entries(record.observationValues)) {
+        for (const [obsId, metrics] of Object.entries(record.observationValues)) {
           const obs = record.observationLabels.find(o => o.id === obsId);
-          if (obs) {
-            L.push(`${obs.emoji} ${obs.label}: ${val}`);
-          }
+          const obsLabel = obs ? `${obs.emoji} ${obs.label}` : obsId;
+          const parts = Object.entries(metrics).map(([, val]) => String(val));
+          L.push(`${obsLabel}: ${parts.join(' · ')}`);
         }
         L.push('');
       }

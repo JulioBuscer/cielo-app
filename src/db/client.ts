@@ -35,11 +35,39 @@ const DEFAULT_EVENT_TYPES = [
 ];
 
 const DEFAULT_DIAPER_OBSERVATIONS = [
-  { id: 'blood',    emoji: '🩸', label: 'Sangre',    scaleMin: 1,  scaleMax: 10, zones: '[{"min":1,"max":3,"color":"#4CAF50","label":"Leve"},{"min":4,"max":7,"color":"#FFC107","label":"Moderado"},{"min":8,"max":10,"color":"#F44336","label":"Severo"}]' },
-  { id: 'mucus',    emoji: '🤧', label: 'Mucosidad', scaleMin: 1,  scaleMax: 10, zones: null },
-  { id: 'diarrhea', emoji: '⚠️', label: 'Diarrea',   scaleMin: 1,  scaleMax: 5,  zones: null },
-  { id: 'green',    emoji: '🟢', label: 'Verde',     scaleMin: null, scaleMax: null, zones: null },
-  { id: 'lumpy',    emoji: '☁️', label: 'Grumoso',   scaleMin: null, scaleMax: null, zones: null },
+  {
+    id: 'blood',    emoji: '🩸', label: 'Sangre',    isAlert: true,
+    metrics: JSON.stringify([
+      { id: 'intensity', name: 'Intensidad', scaleMin: 1, scaleMax: 10,
+        zones: [
+          { min: 1,  max: 3,  color: '#4CAF50', label: 'Leve',       emoji: '🩸' },
+          { min: 4,  max: 7,  color: '#FFC107', label: 'Moderado',   emoji: '🔴' },
+          { min: 8,  max: 10, color: '#F44336', label: 'Severo',     emoji: '🚨' },
+        ] },
+    ]),
+  },
+  {
+    id: 'mucus',    emoji: '🤧', label: 'Mucosidad', isAlert: true,
+    metrics: JSON.stringify([
+      { id: 'default', name: 'Cantidad', scaleMin: 1, scaleMax: 10,
+        zones: [
+          { min: 1,  max: 5,  color: '#4CAF50', label: 'Poca',       emoji: '🤧' },
+          { min: 6,  max: 10, color: '#FFC107', label: 'Excesiva',   emoji: '💦' },
+        ] },
+    ]),
+  },
+  {
+    id: 'diarrhea', emoji: '⚠️', label: 'Diarrea',   isAlert: true,
+    metrics: JSON.stringify([
+      { id: 'default', name: 'Consistencia', scaleMin: 1, scaleMax: 5,
+        zones: [
+          { min: 1,  max: 2,  color: '#FFC107', label: 'Blanda',     emoji: '💩' },
+          { min: 3,  max: 5,  color: '#F44336', label: 'Acuosa',     emoji: '💧' },
+        ] },
+    ]),
+  },
+  { id: 'green',    emoji: '🟢', label: 'Verde',     isAlert: false, metrics: '[]' },
+  { id: 'lumpy',    emoji: '☁️', label: 'Grumoso',   isAlert: false, metrics: '[]' },
 ];
 
 // ─── MIGRACIÓN / SETUP ────────────────────────────────────────────────────────
@@ -194,9 +222,30 @@ export async function runMigrations() {
     `ALTER TABLE diaper_observations ADD COLUMN scale_min INTEGER`,
     `ALTER TABLE diaper_observations ADD COLUMN scale_max INTEGER`,
     `ALTER TABLE diaper_observations ADD COLUMN zones TEXT`,
+    `ALTER TABLE diaper_observations ADD COLUMN is_alert INTEGER DEFAULT 0`,
+    `ALTER TABLE diaper_observations ADD COLUMN metrics TEXT DEFAULT '[]'`,
+    `ALTER TABLE diaper_observations ADD COLUMN sort_order INTEGER DEFAULT 0`,
+    `ALTER TABLE diaper_observations ADD COLUMN active INTEGER DEFAULT 1`,
   ]) {
     try { await _raw.execAsync(sql); } catch { /* columna ya existe, ok */ }
   }
+
+  // Migrar datos viejos: scale_min/scale_max/zones → metrics
+  await _raw.execAsync(`
+    UPDATE diaper_observations
+    SET metrics = CASE
+      WHEN scale_min IS NOT NULL AND metrics = '[]' THEN
+        json_array(json_object(
+          'id', 'default',
+          'name', 'default',
+          'scaleMin', scale_min,
+          'scaleMax', scale_max,
+          'zones', coalesce(nullif(zones, ''), '[]')
+        ))
+      ELSE metrics
+    END
+    WHERE scale_min IS NOT NULL AND (metrics IS NULL OR metrics = '[]');
+  `);
 
   // Seed event_types
   const now = Date.now();
@@ -209,9 +258,10 @@ export async function runMigrations() {
 
   // Seed diaper_observations
   for (const obs of DEFAULT_DIAPER_OBSERVATIONS) {
+    const isAlert = obs.isAlert ? 1 : 0;
     await _raw.execAsync(
-      `INSERT OR IGNORE INTO diaper_observations (id, emoji, label, is_system, scale_min, scale_max, zones, created_at)
-       VALUES ('${obs.id}', '${obs.emoji}', '${obs.label}', 1, ${obs.scaleMin ?? 'NULL'}, ${obs.scaleMax ?? 'NULL'}, '${obs.zones ?? ''}', ${now});`
+      `INSERT OR IGNORE INTO diaper_observations (id, emoji, label, is_system, is_alert, metrics, sort_order, active, created_at)
+       VALUES ('${obs.id}', '${obs.emoji}', '${obs.label}', 1, ${isAlert}, '${obs.metrics}', 0, 1, ${now});`
     );
   }
 }

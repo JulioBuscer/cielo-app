@@ -46,9 +46,13 @@ export const diaperObservations = sqliteTable('diaper_observations', {
   emoji:     text('emoji').notNull(),
   label:     text('label').notNull(),
   isSystem:  integer('is_system', { mode: 'boolean' }).default(false),
-  scaleMin:  integer('scale_min'),       // null = sin escala
-  scaleMax:  integer('scale_max'),       // null = sin escala
-  zones:     text('zones'),              // JSON: [{min,max,color,label}]
+  isAlert:   integer('is_alert', { mode: 'boolean' }).default(false),
+  scaleMin:  integer('scale_min'),       // ⚠️ deprecated — usar metrics
+  scaleMax:  integer('scale_max'),       // ⚠️ deprecated — usar metrics
+  zones:     text('zones'),              // ⚠️ deprecated — usar metrics
+  metrics:   text('metrics').default('[]'), // JSON: ObservationMetric[]
+  sortOrder: integer('sort_order').default(0),
+  active:    integer('active', { mode: 'boolean' }).default(true),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
@@ -151,6 +155,49 @@ export type SleepSession        = typeof sleepSessions.$inferSelect;
 export type SleepStatusEvent    = typeof sleepStatusEvents.$inferSelect;
 export type TimelineEvent       = typeof timelineEvents.$inferSelect;
 
+// ─── OBSERVATION METRICS ──────────────────────────────────────────────────────
+export interface ObservationZone {
+  min: number;
+  max: number;
+  color: string;
+  label: string;
+  emoji: string;
+}
+
+export interface ObservationMetric {
+  id: string;
+  name: string;
+  scaleMin: number;
+  scaleMax: number;
+  zones: ObservationZone[];
+}
+
+export function parseMetrics(json: string | null): ObservationMetric[] {
+  if (!json) return [];
+  try { return JSON.parse(json) as ObservationMetric[]; } catch { return []; }
+}
+
+export function getMetricZoneColor(metric: ObservationMetric, value: number): string {
+  for (const z of metric.zones) {
+    if (value >= z.min && value <= z.max) return z.color;
+  }
+  return '#888';
+}
+
+export function getMetricZoneLabel(metric: ObservationMetric, value: number): string | null {
+  for (const z of metric.zones) {
+    if (value >= z.min && value <= z.max) return z.label;
+  }
+  return null;
+}
+
+export function getMetricZoneEmoji(metric: ObservationMetric, value: number): string | null {
+  for (const z of metric.zones) {
+    if (value >= z.min && value <= z.max) return z.emoji;
+  }
+  return null;
+}
+
 // ─── METADATA TIPADA POR EVENTO ───────────────────────────────────────────────
 export interface DiaperZone {
   min: number;
@@ -162,8 +209,10 @@ export interface DiaperZone {
 export interface DiaperMetadata {
   peeIntensity:        number;
   poopIntensity:       number;
-  observationIds:      string[];
-  observationValues:   Record<string, number> | null;  // { observationId: valor } solo para las que tienen escala
+  peeHealth:           number | null;           // pipímetro
+  poopHealth:          number | null;           // popómetro
+  observationIds:      string[];                // tags simples sin métricas
+  observationValues:   Record<string, Record<string, number>> | null;  // { obsId: { metricId: valor } }
   imageUri?:           string;
   weightGrams?:        number;
 }

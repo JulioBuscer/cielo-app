@@ -20,7 +20,7 @@ import { useActiveProfile } from "@/src/hooks/useProfile";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
-import { getZoneColor, getZoneLabel } from "@/src/db/schema";
+import { getZoneColor, getZoneLabel, parseMetrics, getMetricZoneColor, getMetricZoneLabel, getMetricZoneEmoji } from "@/src/db/schema";
 
 function formatDateTime(ts: Date | string | number | undefined | null): string {
   if (!ts) return "--";
@@ -121,16 +121,45 @@ export default function EventDetailScreen() {
           parts.push(`💩 ${meta.poopIntensity}`);
         metadataDisplay.push({ label: "Pañal", value: parts.join(" · ") });
       }
+      // Pipímetro / Popómetro
+      if (meta.peeHealth != null && meta.peeHealth > 0) {
+        const obs = diaperObs?.find((o) => o.id === "pee_health");
+        metadataDisplay.push({ label: "💧 Pipí (color)", value: `🧪 ${meta.peeHealth}`, color: "#4FC3F7" });
+      }
+      if (meta.poopHealth != null && meta.poopHealth > 0) {
+        metadataDisplay.push({ label: "💩 Popó (color)", value: `🧪 ${meta.poopHealth}`, color: "#8B4513" });
+      }
       if (meta.observationValues && typeof meta.observationValues === "object") {
-        for (const [obsId, val] of Object.entries(meta.observationValues)) {
+        for (const [obsId, valOrMetrics] of Object.entries(meta.observationValues)) {
           const obs = diaperObs?.find((o) => o.id === obsId);
-          const color = getZoneColor(obs?.zones ?? null, val as number);
-          const label = getZoneLabel(obs?.zones ?? null, val as number);
-          metadataDisplay.push({
-            label: obs ? `${obs.emoji} ${obs.label}` : obsId,
-            value: `${val}${label ? ` · ${label}` : ""}`,
-            color,
-          });
+          if (typeof valOrMetrics === "object" && valOrMetrics !== null) {
+            // New multi-metric format: { metricId: value }
+            const metrics = obs ? parseMetrics(obs.metrics) : [];
+            for (const [metricId, mVal] of Object.entries(valOrMetrics as Record<string, number>)) {
+              const metric = metrics.find((m) => m.id === metricId);
+              if (metric) {
+                metadataDisplay.push({
+                  label: obs ? `${obs.emoji} ${obs.label} · ${metric.name}` : `${obsId}:${metricId}`,
+                  value: `${mVal} · ${getMetricZoneLabel(metric, mVal) ?? ""}`,
+                  color: getMetricZoneColor(metric, mVal),
+                });
+              } else {
+                metadataDisplay.push({
+                  label: obs ? `${obs.emoji} ${obs.label}` : obsId,
+                  value: `${mVal}`,
+                });
+              }
+            }
+          } else {
+            // Legacy format: { obsId: number }
+            const color = getZoneColor(obs?.zones ?? null, valOrMetrics as number);
+            const label = getZoneLabel(obs?.zones ?? null, valOrMetrics as number);
+            metadataDisplay.push({
+              label: obs ? `${obs.emoji} ${obs.label}` : obsId,
+              value: `${valOrMetrics}${label ? ` · ${label}` : ""}`,
+              color,
+            });
+          }
         }
       }
       if (meta.observationIds?.length > 0) {

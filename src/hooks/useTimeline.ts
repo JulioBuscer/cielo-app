@@ -167,9 +167,8 @@ export function useCreateDiaperObservation() {
     mutationFn: async (input: {
       emoji: string;
       label: string;
-      scaleMin?: number | null;
-      scaleMax?: number | null;
-      zones?: string | null;
+      isAlert?: boolean;
+      metrics?: string;           // JSON: ObservationMetric[]
     }) => {
       const id = generateId();
       await getDb().insert(diaperObservations).values({
@@ -177,9 +176,8 @@ export function useCreateDiaperObservation() {
         emoji:     input.emoji,
         label:     input.label,
         isSystem:  false,
-        scaleMin:  input.scaleMin ?? null,
-        scaleMax:  input.scaleMax ?? null,
-        zones:     input.zones ?? null,
+        isAlert:   input.isAlert ?? false,
+        metrics:   input.metrics ?? '[]',
         createdAt: new Date(),
       });
       return id;
@@ -195,17 +193,17 @@ export function useUpdateDiaperObservation() {
       id: string;
       emoji?: string;
       label?: string;
-      scaleMin?: number | null;
-      scaleMax?: number | null;
-      zones?: string | null;
+      isAlert?: boolean;
+      metrics?: string;
+      active?: boolean;
     }) => {
       await getDb().update(diaperObservations)
         .set({
-          emoji:     input.emoji,
-          label:     input.label,
-          scaleMin:  input.scaleMin,
-          scaleMax:  input.scaleMax,
-          zones:     input.zones,
+          emoji:    input.emoji,
+          label:    input.label,
+          isAlert:  input.isAlert,
+          metrics:  input.metrics,
+          active:   input.active,
         })
         .where(eq(diaperObservations.id, input.id));
     },

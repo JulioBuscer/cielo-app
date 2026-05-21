@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BigButton } from "@/src/components/ui/BigButton";
 import {
   useEventTypes,
@@ -25,16 +26,20 @@ import { getDb } from "@/src/db/client";
 import { eventTypes, diaperObservations } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
 import { useQueryClient } from "@tanstack/react-query";
-import type { DiaperObservation } from "@/src/db/schema";
+import type { DiaperObservation, ObservationMetric, ObservationZone } from "@/src/db/schema";
+import { generateId } from "@/src/utils/id";
 
 const COLORS = ["#4CAF50", "#FFC107", "#FF9800", "#F44336", "#9C27B0", "#2196F3"];
+type Zone = { min: number; max: number; color: string; label: string; emoji?: string };
 
 function ZoneEditor({
   zones,
   onChange,
+  showEmoji,
 }: {
-  zones: { min: number; max: number; color: string; label: string }[];
-  onChange: (z: { min: number; max: number; color: string; label: string }[]) => void;
+  zones: Zone[];
+  onChange: (z: Zone[]) => void;
+  showEmoji?: boolean;
 }) {
   const add = () => {
     const prevMax = zones.length > 0 ? zones[zones.length - 1].max : 0;
@@ -139,8 +144,30 @@ function ZoneEditor({
               padding: 6,
               color: "#FFF",
               fontSize: 12,
+              flex: showEmoji ? undefined : 1,
             }}
           />
+          {showEmoji && (
+            <TextInput
+              value={z.emoji ?? ""}
+              onChangeText={(v) => {
+                const copy = [...zones];
+                copy[i] = { ...copy[i], emoji: v };
+                onChange(copy);
+              }}
+              placeholder="🩸"
+              maxLength={2}
+              style={{
+                backgroundColor: "#2A2A3E",
+                borderRadius: 8,
+                padding: 6,
+                color: "#FFF",
+                fontSize: 14,
+                width: 38,
+                textAlign: "center",
+              }}
+            />
+          )}
         </View>
       ))}
       <TouchableOpacity
@@ -170,38 +197,60 @@ function ObservationForm({
   onSave: (data: {
     emoji: string;
     label: string;
-    scaleMin: number | null;
-    scaleMax: number | null;
-    zones: string | null;
+    isAlert: boolean;
+    metrics: string;
   }) => void;
   onCancel: () => void;
 }) {
   const [emoji, setEmoji] = useState(initial?.emoji ?? "");
   const [label, setLabel] = useState(initial?.label ?? "");
-  const [hasScale, setHasScale] = useState(
-    initial ? initial.scaleMin != null : false
+  const [isAlert, setIsAlert] = useState(initial?.isAlert ?? false);
+  const [metrics, setMetrics] = useState<ObservationMetric[]>(
+    initial?.metrics ? JSON.parse(initial.metrics) : []
   );
-  const [scaleMin, setScaleMin] = useState(
-    String(initial?.scaleMin ?? 1)
-  );
-  const [scaleMax, setScaleMax] = useState(
-    String(initial?.scaleMax ?? 10)
-  );
-  const [zones, setZones] = useState<
-    { min: number; max: number; color: string; label: string }[]
-  >(initial?.zones ? JSON.parse(initial.zones) : []);
 
-  const isValid =
-    emoji.trim() && label.trim() && (!hasScale || (!!scaleMin && !!scaleMax));
+  const isValid = emoji.trim() && label.trim();
+
+  const addMetric = () => {
+    setMetrics((prev) => [
+      ...prev,
+      {
+        id: generateId(),
+        name: "",
+        scaleMin: 1,
+        scaleMax: 10,
+        zones: [],
+      },
+    ]);
+  };
+
+  const removeMetric = (idx: number) => {
+    setMetrics((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const updateMetric = (idx: number, upd: Partial<ObservationMetric>) => {
+    setMetrics((prev) => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], ...upd };
+      return copy;
+    });
+  };
+
+  const updateMetricZones = (idx: number, zones: Zone[]) => {
+    setMetrics((prev) => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], zones: zones as ObservationZone[] };
+      return copy;
+    });
+  };
 
   const handleSave = () => {
     if (!isValid) return;
     onSave({
       emoji: emoji.trim(),
       label: label.trim(),
-      scaleMin: hasScale ? parseInt(scaleMin) : null,
-      scaleMax: hasScale ? parseInt(scaleMax) : null,
-      zones: hasScale && zones.length > 0 ? JSON.stringify(zones) : null,
+      isAlert,
+      metrics: JSON.stringify(metrics),
     });
   };
 
@@ -248,7 +297,7 @@ function ObservationForm({
           <TextInput
             value={label}
             onChangeText={setLabel}
-            placeholder="Ej. Ligeramente rojo"
+            placeholder="Ej. Sangre"
             placeholderTextColor="#666"
             style={{
               backgroundColor: "#2A2A3E",
@@ -261,7 +310,7 @@ function ObservationForm({
         </View>
       </View>
 
-      {/* Scale toggle */}
+      {/* Alert toggle */}
       <View
         style={{
           flexDirection: "row",
@@ -270,22 +319,15 @@ function ObservationForm({
         }}
       >
         <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 13 }}>
-          📊 Tiene escala de intensidad
+          🚨 Es alerta médica
         </Text>
         <TouchableOpacity
-          onPress={() => {
-            setHasScale(!hasScale);
-            if (!hasScale) {
-              setScaleMin("1");
-              setScaleMax("10");
-              setZones([]);
-            }
-          }}
+          onPress={() => setIsAlert(!isAlert)}
           style={{
             width: 50,
             height: 28,
             borderRadius: 14,
-            backgroundColor: hasScale ? "#FF8AB3" : "#3A3A4E",
+            backgroundColor: isAlert ? "#F44336" : "#3A3A4E",
             padding: 3,
           }}
         >
@@ -295,56 +337,133 @@ function ObservationForm({
               height: 22,
               borderRadius: 11,
               backgroundColor: "#FFF",
-              alignSelf: hasScale ? "flex-end" : "flex-start",
+              alignSelf: isAlert ? "flex-end" : "flex-start",
             }}
           />
         </TouchableOpacity>
       </View>
 
-      {hasScale && (
-        <>
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: "#888", fontWeight: "700", fontSize: 11 }}>
-                Mínimo
-              </Text>
-              <TextInput
-                value={scaleMin}
-                onChangeText={setScaleMin}
-                keyboardType="number-pad"
-                style={{
-                  backgroundColor: "#2A2A3E",
-                  borderRadius: 12,
-                  padding: 12,
-                  fontSize: 16,
-                  color: "#FFF",
-                  textAlign: "center",
-                }}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: "#888", fontWeight: "700", fontSize: 11 }}>
-                Máximo
-              </Text>
-              <TextInput
-                value={scaleMax}
-                onChangeText={setScaleMax}
-                keyboardType="number-pad"
-                style={{
-                  backgroundColor: "#2A2A3E",
-                  borderRadius: 12,
-                  padding: 12,
-                  fontSize: 16,
-                  color: "#FFF",
-                  textAlign: "center",
-                }}
-              />
-            </View>
-          </View>
+      {/* Metrics */}
+      <View style={{ gap: 8 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 13 }}>
+            📊 Métricas (escalas)
+          </Text>
+          <TouchableOpacity
+            onPress={addMetric}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 99,
+              backgroundColor: "#FF8AB3",
+            }}
+          >
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>
+              + Añadir
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-          <ZoneEditor zones={zones} onChange={setZones} />
-        </>
-      )}
+        {metrics.length === 0 && (
+          <Text style={{ color: "#666", fontSize: 13 }}>
+            Sin escala — solo se mostrará como tag
+          </Text>
+        )}
+
+        {metrics.map((m, idx) => (
+          <View
+            key={m.id}
+            style={{
+              backgroundColor: "#2A2A3E",
+              borderRadius: 12,
+              padding: 14,
+              gap: 8,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <TextInput
+                value={m.name}
+                onChangeText={(v) => updateMetric(idx, { name: v })}
+                placeholder="Nombre (ej: Intensidad)"
+                placeholderTextColor="#666"
+                style={{
+                  backgroundColor: "#1A1A2E",
+                  borderRadius: 8,
+                  padding: 8,
+                  color: "#FFF",
+                  fontSize: 13,
+                  flex: 1,
+                  marginRight: 8,
+                }}
+              />
+              <TouchableOpacity onPress={() => removeMetric(idx)}>
+                <Text style={{ color: "#F44336", fontSize: 16 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#888", fontWeight: "700", fontSize: 11 }}>
+                  Min
+                </Text>
+                <TextInput
+                  value={String(m.scaleMin)}
+                  onChangeText={(v) =>
+                    updateMetric(idx, { scaleMin: parseInt(v) || 1 })
+                  }
+                  keyboardType="number-pad"
+                  style={{
+                    backgroundColor: "#1A1A2E",
+                    borderRadius: 8,
+                    padding: 8,
+                    color: "#FFF",
+                    fontSize: 14,
+                    textAlign: "center",
+                  }}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#888", fontWeight: "700", fontSize: 11 }}>
+                  Max
+                </Text>
+                <TextInput
+                  value={String(m.scaleMax)}
+                  onChangeText={(v) =>
+                    updateMetric(idx, { scaleMax: parseInt(v) || 1 })
+                  }
+                  keyboardType="number-pad"
+                  style={{
+                    backgroundColor: "#1A1A2E",
+                    borderRadius: 8,
+                    padding: 8,
+                    color: "#FFF",
+                    fontSize: 14,
+                    textAlign: "center",
+                  }}
+                />
+              </View>
+            </View>
+
+            <ZoneEditor
+              zones={m.zones as Zone[]}
+              onChange={(z) => updateMetricZones(idx, z)}
+              showEmoji
+            />
+          </View>
+        ))}
+      </View>
 
       <View style={{ flexDirection: "row", gap: 12 }}>
         <TouchableOpacity
@@ -387,65 +506,248 @@ function ObservationForm({
   );
 }
 
-function PeePoopConfig({
-  peeScale,
-  setPeeScale,
-  peeZones,
-  setPeeZones,
+type ConfigRange = { min: number; max: number };
+type HealthConfig = { enabled: boolean; min: number; max: number; zones: Zone[] };
+
+function IntensitySection({
+  label,
+  emoji,
+  config,
+  onChange,
 }: {
-  peeScale: { min: number; max: number };
-  setPeeScale: (s: { min: number; max: number }) => void;
-  peeZones: { min: number; max: number; color: string; label: string }[];
-  setPeeZones: (z: { min: number; max: number; color: string; label: string }[]) => void;
+  label: string;
+  emoji: string;
+  config: ConfigRange & { zones: Zone[] };
+  onChange: (c: ConfigRange & { zones: Zone[] }) => void;
 }) {
   return (
-    <View style={{ gap: 12 }}>
-      <Text style={{ color: "#FFD700", fontWeight: "800", fontSize: 14 }}>
-        💦 Configurar Pipímetro
+    <View style={{ gap: 8 }}>
+      <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 12 }}>
+        {emoji} Rango de intensidad
       </Text>
       <View style={{ flexDirection: "row", gap: 12 }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: "#888", fontWeight: "700", fontSize: 11 }}>
-            Mínimo
-          </Text>
           <TextInput
-            value={String(peeScale.min)}
-            onChangeText={(v) =>
-              setPeeScale({ ...peeScale, min: parseInt(v) || 1 })
-            }
+            value={String(config.min)}
+            onChangeText={(v) => onChange({ ...config, min: parseInt(v) || 0 })}
             keyboardType="number-pad"
+            placeholder="0"
+            placeholderTextColor="#666"
             style={{
               backgroundColor: "#2A2A3E",
-              borderRadius: 12,
-              padding: 12,
-              fontSize: 16,
+              borderRadius: 8,
+              padding: 8,
               color: "#FFF",
+              fontSize: 14,
               textAlign: "center",
             }}
           />
         </View>
+        <Text style={{ color: "#888", alignSelf: "center" }}>→</Text>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: "#888", fontWeight: "700", fontSize: 11 }}>
-            Máximo
-          </Text>
           <TextInput
-            value={String(peeScale.max)}
-            onChangeText={(v) =>
-              setPeeScale({ ...peeScale, max: parseInt(v) || 8 })
-            }
+            value={String(config.max)}
+            onChangeText={(v) => onChange({ ...config, max: parseInt(v) || 5 })}
             keyboardType="number-pad"
+            placeholder="5"
+            placeholderTextColor="#666"
             style={{
               backgroundColor: "#2A2A3E",
-              borderRadius: 12,
-              padding: 12,
-              fontSize: 16,
+              borderRadius: 8,
+              padding: 8,
               color: "#FFF",
+              fontSize: 14,
               textAlign: "center",
             }}
           />
         </View>
       </View>
-      <ZoneEditor zones={peeZones} onChange={setPeeZones} />
+      <ZoneEditor zones={config.zones} onChange={(z) => onChange({ ...config, zones: z })} />
+    </View>
+  );
+}
+
+function HealthSection({
+  label,
+  emoji,
+  config,
+  onChange,
+}: {
+  label: string;
+  emoji: string;
+  config: HealthConfig;
+  onChange: (c: HealthConfig) => void;
+}) {
+  return (
+    <View style={{ gap: 8 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 13 }}>
+          {emoji} {label}
+        </Text>
+        <TouchableOpacity
+          onPress={() =>
+            onChange({
+              ...config,
+              enabled: !config.enabled,
+              zones: config.enabled ? config.zones : [],
+            })
+          }
+          style={{
+            width: 50,
+            height: 28,
+            borderRadius: 14,
+            backgroundColor: config.enabled ? "#4CAF50" : "#3A3A4E",
+            padding: 3,
+          }}
+        >
+          <View
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 11,
+              backgroundColor: "#FFF",
+              alignSelf: config.enabled ? "flex-end" : "flex-start",
+            }}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {config.enabled && (
+        <>
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <TextInput
+                value={String(config.min)}
+                onChangeText={(v) =>
+                  onChange({ ...config, min: parseInt(v) || 1 })
+                }
+                keyboardType="number-pad"
+                placeholder="1"
+                placeholderTextColor="#666"
+                style={{
+                  backgroundColor: "#2A2A3E",
+                  borderRadius: 8,
+                  padding: 8,
+                  color: "#FFF",
+                  fontSize: 14,
+                  textAlign: "center",
+                }}
+              />
+            </View>
+            <Text style={{ color: "#888", alignSelf: "center" }}>→</Text>
+            <View style={{ flex: 1 }}>
+              <TextInput
+                value={String(config.max)}
+                onChangeText={(v) =>
+                  onChange({ ...config, max: parseInt(v) || 8 })
+                }
+                keyboardType="number-pad"
+                placeholder="8"
+                placeholderTextColor="#666"
+                style={{
+                  backgroundColor: "#2A2A3E",
+                  borderRadius: 8,
+                  padding: 8,
+                  color: "#FFF",
+                  fontSize: 14,
+                  textAlign: "center",
+                }}
+              />
+            </View>
+          </View>
+          <ZoneEditor
+            zones={config.zones}
+            onChange={(z) => onChange({ ...config, zones: z })}
+            showEmoji
+          />
+        </>
+      )}
+    </View>
+  );
+}
+
+function PeeConfigSection({
+  intensity,
+  setIntensity,
+  health,
+  setHealth,
+}: {
+  intensity: ConfigRange & { zones: Zone[] };
+  setIntensity: (c: ConfigRange & { zones: Zone[] }) => void;
+  health: HealthConfig;
+  setHealth: (c: HealthConfig) => void;
+}) {
+  return (
+    <View
+      style={{
+        backgroundColor: "#FFFFFF",
+        borderRadius: 20,
+        padding: 16,
+        gap: 16,
+      }}
+    >
+      <Text style={{ fontWeight: "800", fontSize: 15, color: "#2D1B26" }}>
+        💧 Pipí
+      </Text>
+      <IntensitySection
+        label="Intensidad"
+        emoji="💧"
+        config={intensity}
+        onChange={setIntensity}
+      />
+      <View style={{ height: 1, backgroundColor: "#FFF0F5" }} />
+      <HealthSection
+        label="Pipímetro (color de orina)"
+        emoji="🔬"
+        config={health}
+        onChange={setHealth}
+      />
+    </View>
+  );
+}
+
+function PoopConfigSection({
+  intensity,
+  setIntensity,
+  health,
+  setHealth,
+}: {
+  intensity: ConfigRange & { zones: Zone[] };
+  setIntensity: (c: ConfigRange & { zones: Zone[] }) => void;
+  health: HealthConfig;
+  setHealth: (c: HealthConfig) => void;
+}) {
+  return (
+    <View
+      style={{
+        backgroundColor: "#FFFFFF",
+        borderRadius: 20,
+        padding: 16,
+        gap: 16,
+      }}
+    >
+      <Text style={{ fontWeight: "800", fontSize: 15, color: "#2D1B26" }}>
+        💩 Popó
+      </Text>
+      <IntensitySection
+        label="Intensidad"
+        emoji="💩"
+        config={intensity}
+        onChange={setIntensity}
+      />
+      <View style={{ height: 1, backgroundColor: "#FFF0F5" }} />
+      <HealthSection
+        label="Popómetro (color de heces)"
+        emoji="🔬"
+        config={health}
+        onChange={setHealth}
+      />
     </View>
   );
 }
@@ -458,17 +760,74 @@ export default function CatalogsScreen() {
   const updateDiaper = useUpdateDiaperObservation();
   const qc = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<"events" | "diapers">("events");
+  const [activeTab, setActiveTab] = useState<"events" | "pee" | "poop" | "obs">("events");
   const [showForm, setShowForm] = useState(false);
   const [editingObs, setEditingObs] = useState<DiaperObservation | null>(null);
 
-  // Pee/Poop config (stored in AsyncStorage as fallback)
-  const [peeScale, setPeeScale] = useState({ min: 1, max: 8 });
-  const [peeZones, setPeeZones] = useState([
-    { min: 1, max: 3, color: "#4CAF50", label: "Saludable" },
-    { min: 4, max: 6, color: "#FFC107", label: "Precaución" },
-    { min: 7, max: 8, color: "#F44336", label: "Alerta" },
-  ]);
+  // ─── Pee config ───
+  const [peeIntensity, setPeeIntensity] = useState<ConfigRange & { zones: Zone[] }>({
+    min: 1, max: 8,
+    zones: [
+      { min: 1, max: 3, color: "#4CAF50", label: "Saludable" },
+      { min: 4, max: 6, color: "#FFC107", label: "Precaución" },
+      { min: 7, max: 8, color: "#F44336", label: "Alerta" },
+    ],
+  });
+  const [peeHealth, setPeeHealth] = useState<HealthConfig>({
+    enabled: false,
+    min: 1, max: 8,
+    zones: [
+      { min: 1, max: 2, color: "#4CAF50", label: "Transparente", emoji: "💧" },
+      { min: 3, max: 4, color: "#8BC34A", label: "Claro", emoji: "💦" },
+      { min: 5, max: 6, color: "#FFC107", label: "Amarillo", emoji: "🟡" },
+      { min: 7, max: 8, color: "#F44336", label: "Oscuro", emoji: "🟠" },
+    ],
+  });
+
+  // ─── Poop config ───
+  const [poopIntensity, setPoopIntensity] = useState<ConfigRange & { zones: Zone[] }>({
+    min: 0, max: 5,
+    zones: [
+      { min: 1, max: 2, color: "#8B4513", label: "Poco" },
+      { min: 3, max: 4, color: "#654321", label: "Normal" },
+      { min: 5, max: 5, color: "#3E2723", label: "Mucho" },
+    ],
+  });
+  const [poopHealth, setPoopHealth] = useState<HealthConfig>({
+    enabled: false,
+    min: 1, max: 8,
+    zones: [
+      { min: 1, max: 2, color: "#8BC34A", label: "Verde", emoji: "🟢" },
+      { min: 3, max: 4, color: "#FFC107", label: "Amarillo", emoji: "🟡" },
+      { min: 5, max: 6, color: "#8B4513", label: "Marrón", emoji: "🟤" },
+      { min: 7, max: 8, color: "#3E2723", label: "Oscuro", emoji: "⚫" },
+    ],
+  });
+
+  // Load configs from AsyncStorage
+  useEffect(() => {
+    Promise.all([
+      AsyncStorage.getItem('pee_intensity_config'),
+      AsyncStorage.getItem('pee_health_config'),
+      AsyncStorage.getItem('poop_intensity_config'),
+      AsyncStorage.getItem('poop_health_config'),
+    ]).then(([pi, ph, poi, poh]) => {
+      if (pi) try { setPeeIntensity(JSON.parse(pi)); } catch {}
+      if (ph) try { setPeeHealth(JSON.parse(ph)); } catch {}
+      if (poi) try { setPoopIntensity(JSON.parse(poi)); } catch {}
+      if (poh) try { setPoopHealth(JSON.parse(poh)); } catch {}
+    });
+  }, []);
+
+  const saveAllConfigs = () => {
+    AsyncStorage.multiSet([
+      ['pee_intensity_config', JSON.stringify(peeIntensity)],
+      ['pee_health_config', JSON.stringify(peeHealth)],
+      ['poop_intensity_config', JSON.stringify(poopIntensity)],
+      ['poop_health_config', JSON.stringify(poopHealth)],
+    ]);
+    Alert.alert("✅ Listo", "Configuración guardada");
+  };
 
   // Form states for events tab
   const [emoji, setEmoji] = useState("");
@@ -531,9 +890,8 @@ export default function CatalogsScreen() {
   const handleObservationSave = (data: {
     emoji: string;
     label: string;
-    scaleMin: number | null;
-    scaleMax: number | null;
-    zones: string | null;
+    isAlert: boolean;
+    metrics: string;
   }) => {
     if (editingObs) {
       updateDiaper.mutate(
@@ -584,52 +942,38 @@ export default function CatalogsScreen() {
             paddingHorizontal: 16,
           }}
         >
-          <TouchableOpacity
-            style={{
-              flex: 1,
-              paddingVertical: 12,
-              borderBottomWidth: 3,
-              borderBottomColor:
-                activeTab === "events" ? "#FFFFFF" : "transparent",
-            }}
-            onPress={() => setActiveTab("events")}
-          >
-            <Text
+          {[
+            { key: "events" as const, label: "📝 Eventos" },
+            { key: "pee" as const, label: "💧 Pipí" },
+            { key: "poop" as const, label: "💩 Popó" },
+            { key: "obs" as const, label: "🧷 Obs. Pañal" },
+          ].map((t) => (
+            <TouchableOpacity
+              key={t.key}
               style={{
-                textAlign: "center",
-                fontWeight: "800",
-                color:
-                  activeTab === "events"
-                    ? "#FFFFFF"
-                    : "rgba(255,255,255,0.6)",
+                flex: 1,
+                paddingVertical: 12,
+                borderBottomWidth: 3,
+                borderBottomColor:
+                  activeTab === t.key ? "#FFFFFF" : "transparent",
               }}
+              onPress={() => setActiveTab(t.key)}
             >
-              📝 Eventos
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{
-              flex: 1,
-              paddingVertical: 12,
-              borderBottomWidth: 3,
-              borderBottomColor:
-                activeTab === "diapers" ? "#FFFFFF" : "transparent",
-            }}
-            onPress={() => setActiveTab("diapers")}
-          >
-            <Text
-              style={{
-                textAlign: "center",
-                fontWeight: "800",
-                color:
-                  activeTab === "diapers"
-                    ? "#FFFFFF"
-                    : "rgba(255,255,255,0.6)",
-              }}
-            >
-              🧷 Obs. Pañal
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={{
+                  textAlign: "center",
+                  fontWeight: "800",
+                  color:
+                    activeTab === t.key
+                      ? "#FFFFFF"
+                      : "rgba(255,255,255,0.6)",
+                  fontSize: 10,
+                }}
+              >
+                {t.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {showForm || editingObs ? (
@@ -850,29 +1194,29 @@ export default function CatalogsScreen() {
               </View>
             )}
 
-            {/* ─── Diaper Observations Tab ─── */}
-            {activeTab === "diapers" && (
-              <>
-                {/* Pee/Poop config card */}
-                <View
-                  style={{
-                    backgroundColor: "#FFFFFF",
-                    borderRadius: 20,
-                    padding: 16,
-                    marginBottom: 20,
-                  }}
-                >
-                  <PeePoopConfig
-                    peeScale={peeScale}
-                    setPeeScale={setPeeScale}
-                    peeZones={peeZones}
-                    setPeeZones={setPeeZones}
-                  />
-                  <View style={{ marginTop: 12 }}>
-                    <BigButton label="💾 Guardar Config. Pipí" onPress={() => {}} />
-                  </View>
-                </View>
+            {/* ─── Pee Tab ─── */}
+            {activeTab === "pee" && (
+              <PeeConfigSection
+                intensity={peeIntensity}
+                setIntensity={setPeeIntensity}
+                health={peeHealth}
+                setHealth={setPeeHealth}
+              />
+            )}
 
+            {/* ─── Poop Tab ─── */}
+            {activeTab === "poop" && (
+              <PoopConfigSection
+                intensity={poopIntensity}
+                setIntensity={setPoopIntensity}
+                health={poopHealth}
+                setHealth={setPoopHealth}
+              />
+            )}
+
+            {/* ─── Observations Tab ─── */}
+            {activeTab === "obs" && (
+              <>
                 {/* Observations list */}
                 <View
                   style={{
@@ -922,70 +1266,85 @@ export default function CatalogsScreen() {
                   </View>
 
                   <View style={{ gap: 8 }}>
-                    {diaperObs?.map((item) => (
-                      <TouchableOpacity
-                        key={item.id}
-                        onPress={() => setEditingObs(item)}
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          paddingVertical: 8,
-                          borderBottomWidth: 1,
-                          borderBottomColor: "#FFF0F5",
-                        }}
-                      >
-                        <View
+                    {diaperObs?.map((item) => {
+                      const parsedMetrics: ObservationMetric[] = item.metrics
+                        ? JSON.parse(item.metrics)
+                        : [];
+                      const hasMetrics = parsedMetrics.length > 0;
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          onPress={() => setEditingObs(item)}
                           style={{
                             flexDirection: "row",
+                            justifyContent: "space-between",
                             alignItems: "center",
-                            gap: 12,
-                            flex: 1,
+                            paddingVertical: 8,
+                            borderBottomWidth: 1,
+                            borderBottomColor: "#FFF0F5",
                           }}
                         >
-                          <Text style={{ fontSize: 24 }}>{item.emoji}</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text
-                              style={{
-                                fontSize: 15,
-                                fontWeight: "800",
-                                color: "#2D1B26",
-                              }}
-                            >
-                              {item.label}
-                            </Text>
-                            <Text
-                              style={{
-                                fontSize: 11,
-                                color: "#9B7A88",
-                                fontWeight: "600",
-                              }}
-                            >
-                              {item.scaleMin != null
-                                ? `Escala ${item.scaleMin}-${item.scaleMax}`
-                                : "Sin escala"}
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 12,
+                              flex: 1,
+                            }}
+                          >
+                            <Text style={{ fontSize: 24 }}>{item.emoji}</Text>
+                            <View style={{ flex: 1 }}>
+                              <Text
+                                style={{
+                                  fontSize: 15,
+                                  fontWeight: "800",
+                                  color: "#2D1B26",
+                                }}
+                              >
+                                {item.label}
+                              </Text>
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  color: "#9B7A88",
+                                  fontWeight: "600",
+                                }}
+                              >
+                                {hasMetrics
+                                  ? `${parsedMetrics.length} métrica(s)`
+                                  : "Tag simple"}
+                              </Text>
+                            </View>
+                            <Text style={{ color: "#9B7A88", fontSize: 14 }}>
+                              ✏️
                             </Text>
                           </View>
-                          <Text style={{ color: "#9B7A88", fontSize: 14 }}>
-                            ✏️
-                          </Text>
-                        </View>
-                        {!item.isSystem && (
-                          <TouchableOpacity
-                            onPress={() =>
-                              handleDeleteDiaper(item.id, item.isSystem)
-                            }
-                          >
-                            <Text style={{ color: "#EF4444", fontSize: 18 }}>
-                              🗑️
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      </TouchableOpacity>
-                    ))}
+                          {!item.isSystem && (
+                            <TouchableOpacity
+                              onPress={() =>
+                                handleDeleteDiaper(item.id, item.isSystem)
+                              }
+                            >
+                              <Text style={{ color: "#EF4444", fontSize: 18 }}>
+                                🗑️
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 </View>
+
+                {/* Save button */}
+                <BigButton label="💾 Guardar todo" onPress={saveAllConfigs} />
               </>
+            )}
+
+            {activeTab !== "obs" && (
+              <View style={{ marginTop: 12 }}>
+                <BigButton label="💾 Guardar configuración" onPress={saveAllConfigs} />
+              </View>
             )}
           </ScrollView>
         )}
