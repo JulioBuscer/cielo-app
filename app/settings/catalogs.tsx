@@ -42,23 +42,25 @@ function ZoneEditor({
   onChange: (z: Zone[]) => void;
   showEmoji?: boolean;
 }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const add = () => {
     const prevMax = zones.length > 0 ? zones[zones.length - 1].max : 0;
     onChange([
       ...zones,
-      { min: prevMax + 1, max: prevMax + 2, color: "#888", label: "" },
+      { min: prevMax + 1, max: prevMax + 2, color: c.textMuted, label: "" },
     ]);
   };
   return (
     <View style={{ gap: 8 }}>
-      <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 12 }}>
+      <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 12 }}>
         Zonas de color
       </Text>
       {zones.map((z, i) => (
         <View
           key={i}
           style={{
-            backgroundColor: "#1A1A2E",
+            backgroundColor: c.surface,
             borderRadius: 10,
             padding: 10,
             gap: 6,
@@ -75,16 +77,16 @@ function ZoneEditor({
               }}
               keyboardType="number-pad"
               style={{
-                backgroundColor: "#2A2A3E",
+                backgroundColor: c.card,
                 borderRadius: 8,
                 padding: 6,
-                color: "#FFF",
+                color: c.textBody,
                 fontSize: 13,
                 width: 40,
                 textAlign: "center",
               }}
             />
-            <Text style={{ color: "#888" }}>→</Text>
+            <Text style={{ color: c.textMuted }}>→</Text>
             <TextInput
               value={String(z.max)}
               onChangeText={(v) => {
@@ -95,31 +97,31 @@ function ZoneEditor({
               }}
               keyboardType="number-pad"
               style={{
-                backgroundColor: "#2A2A3E",
+                backgroundColor: c.card,
                 borderRadius: 8,
                 padding: 6,
-                color: "#FFF",
+                color: c.textBody,
                 fontSize: 13,
                 width: 40,
                 textAlign: "center",
               }}
             />
             <View style={{ flexDirection: "row", gap: 4, flex: 1 }}>
-              {COLORS.map((c) => (
+              {COLORS.map((colorVal) => (
                 <TouchableOpacity
-                  key={c}
+                  key={colorVal}
                   onPress={() => {
                     const copy = [...zones];
-                    copy[i] = { ...copy[i], color: c };
+                    copy[i] = { ...copy[i], color: colorVal };
                     onChange(copy);
                   }}
                   style={{
                     width: 22,
                     height: 22,
                     borderRadius: 11,
-                    backgroundColor: c,
-                    borderWidth: z.color === c ? 2 : 0,
-                    borderColor: "#FFF",
+                    backgroundColor: colorVal,
+                    borderWidth: z.color === colorVal ? 2 : 0,
+                    borderColor: c.textBody,
                   }}
                 />
               ))}
@@ -127,7 +129,7 @@ function ZoneEditor({
             <TouchableOpacity
               onPress={() => onChange(zones.filter((_, j) => j !== i))}
             >
-              <Text style={{ color: "#F44336", fontSize: 16 }}>✕</Text>
+              <Text style={{ color: c.danger, fontSize: 16 }}>✕</Text>
             </TouchableOpacity>
           </View>
           <TextInput
@@ -138,12 +140,12 @@ function ZoneEditor({
               onChange(copy);
             }}
             placeholder="Etiqueta (ej: Leve)"
-            placeholderTextColor="#666"
+            placeholderTextColor={c.textMuted}
             style={{
-              backgroundColor: "#2A2A3E",
+              backgroundColor: c.card,
               borderRadius: 8,
               padding: 6,
-              color: "#FFF",
+              color: c.textBody,
               fontSize: 12,
               flex: showEmoji ? undefined : 1,
             }}
@@ -159,10 +161,10 @@ function ZoneEditor({
               placeholder="🩸"
               maxLength={2}
               style={{
-                backgroundColor: "#2A2A3E",
+                backgroundColor: c.card,
                 borderRadius: 8,
                 padding: 6,
-                color: "#FFF",
+                color: c.textBody,
                 fontSize: 14,
                 width: 38,
                 textAlign: "center",
@@ -178,10 +180,10 @@ function ZoneEditor({
           paddingHorizontal: 12,
           paddingVertical: 6,
           borderRadius: 99,
-          backgroundColor: "#2A2A3E",
+          backgroundColor: c.card,
         }}
       >
-        <Text style={{ color: "#FF8AB3", fontWeight: "700", fontSize: 12 }}>
+        <Text style={{ color: c.accent, fontWeight: "700", fontSize: 12 }}>
           + Añadir zona
         </Text>
       </TouchableOpacity>
@@ -203,6 +205,8 @@ function ObservationForm({
   }) => void;
   onCancel: () => void;
 }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const [emoji, setEmoji] = useState(initial?.emoji ?? "");
   const [label, setLabel] = useState(initial?.label ?? "");
   const [isAlert, setIsAlert] = useState(initial?.isAlert ?? false);
@@ -262,7 +266,7 @@ function ObservationForm({
     >
       <Text
         style={{
-          color: "#FFFFFF",
+          color: c.textBody,
           fontWeight: "900",
           fontSize: 18,
           textAlign: "center",
@@ -273,7 +277,7 @@ function ObservationForm({
 
       <View style={{ flexDirection: "row", gap: 12 }}>
         <View style={{ width: 60 }}>
-          <Text style={{ color: "#888", fontWeight: "700", fontSize: 11 }}>
+          <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 11 }}>
             EMOJI
           </Text>
           <TextInput
@@ -282,30 +286,30 @@ function ObservationForm({
             placeholder="✨"
             maxLength={2}
             style={{
-              backgroundColor: "#2A2A3E",
+              backgroundColor: c.card,
               borderRadius: 12,
               padding: 12,
               fontSize: 20,
               textAlign: "center",
-              color: "#FFF",
+              color: c.textBody,
             }}
           />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: "#888", fontWeight: "700", fontSize: 11 }}>
+          <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 11 }}>
             NOMBRE
           </Text>
           <TextInput
             value={label}
             onChangeText={setLabel}
             placeholder="Ej. Sangre"
-            placeholderTextColor="#666"
+            placeholderTextColor={c.textMuted}
             style={{
-              backgroundColor: "#2A2A3E",
+              backgroundColor: c.card,
               borderRadius: 12,
               padding: 12,
               fontSize: 15,
-              color: "#FFF",
+              color: c.textBody,
             }}
           />
         </View>
@@ -319,7 +323,7 @@ function ObservationForm({
           justifyContent: "space-between",
         }}
       >
-        <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 13 }}>
+        <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
           🚨 Es alerta médica
         </Text>
         <TouchableOpacity
@@ -328,7 +332,7 @@ function ObservationForm({
             width: 50,
             height: 28,
             borderRadius: 14,
-            backgroundColor: isAlert ? "#F44336" : "#3A3A4E",
+            backgroundColor: isAlert ? c.danger : c.elevated,
             padding: 3,
           }}
         >
@@ -337,7 +341,7 @@ function ObservationForm({
               width: 22,
               height: 22,
               borderRadius: 11,
-              backgroundColor: "#FFF",
+              backgroundColor: c.textBody,
               alignSelf: isAlert ? "flex-end" : "flex-start",
             }}
           />
@@ -353,7 +357,7 @@ function ObservationForm({
             alignItems: "center",
           }}
         >
-          <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 13 }}>
+          <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
             📊 Métricas (escalas)
           </Text>
           <TouchableOpacity
@@ -362,17 +366,17 @@ function ObservationForm({
               paddingHorizontal: 12,
               paddingVertical: 6,
               borderRadius: 99,
-              backgroundColor: "#FF8AB3",
+              backgroundColor: c.accent,
             }}
           >
-            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>
+            <Text style={{ color: c.textBody, fontWeight: "800", fontSize: 12 }}>
               + Añadir
             </Text>
           </TouchableOpacity>
         </View>
 
         {metrics.length === 0 && (
-          <Text style={{ color: "#666", fontSize: 13 }}>
+          <Text style={{ color: c.textMuted, fontSize: 13 }}>
             Sin escala — solo se mostrará como tag
           </Text>
         )}
@@ -381,7 +385,7 @@ function ObservationForm({
           <View
             key={m.id}
             style={{
-              backgroundColor: "#2A2A3E",
+              backgroundColor: c.card,
               borderRadius: 12,
               padding: 14,
               gap: 8,
@@ -398,25 +402,25 @@ function ObservationForm({
                 value={m.name}
                 onChangeText={(v) => updateMetric(idx, { name: v })}
                 placeholder="Nombre (ej: Intensidad)"
-                placeholderTextColor="#666"
+                placeholderTextColor={c.textMuted}
                 style={{
-                  backgroundColor: "#1A1A2E",
+                  backgroundColor: c.surface,
                   borderRadius: 8,
                   padding: 8,
-                  color: "#FFF",
+                  color: c.textBody,
                   fontSize: 13,
                   flex: 1,
                   marginRight: 8,
                 }}
               />
               <TouchableOpacity onPress={() => removeMetric(idx)}>
-                <Text style={{ color: "#F44336", fontSize: 16 }}>✕</Text>
+                <Text style={{ color: c.danger, fontSize: 16 }}>✕</Text>
               </TouchableOpacity>
             </View>
 
             <View style={{ flexDirection: "row", gap: 8 }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: "#888", fontWeight: "700", fontSize: 11 }}>
+                <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 11 }}>
                   Min
                 </Text>
                 <TextInput
@@ -426,17 +430,17 @@ function ObservationForm({
                   }
                   keyboardType="number-pad"
                   style={{
-                    backgroundColor: "#1A1A2E",
+                    backgroundColor: c.surface,
                     borderRadius: 8,
                     padding: 8,
-                    color: "#FFF",
+                    color: c.textBody,
                     fontSize: 14,
                     textAlign: "center",
                   }}
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: "#888", fontWeight: "700", fontSize: 11 }}>
+                <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 11 }}>
                   Max
                 </Text>
                 <TextInput
@@ -446,10 +450,10 @@ function ObservationForm({
                   }
                   keyboardType="number-pad"
                   style={{
-                    backgroundColor: "#1A1A2E",
+                    backgroundColor: c.surface,
                     borderRadius: 8,
                     padding: 8,
-                    color: "#FFF",
+                    color: c.textBody,
                     fontSize: 14,
                     textAlign: "center",
                   }}
@@ -473,11 +477,11 @@ function ObservationForm({
             flex: 1,
             paddingVertical: 12,
             borderRadius: 99,
-            backgroundColor: "#2A2A3E",
+            backgroundColor: c.card,
             alignItems: "center",
           }}
         >
-          <Text style={{ color: "#888", fontWeight: "700", fontSize: 14 }}>
+          <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 14 }}>
             Cancelar
           </Text>
         </TouchableOpacity>
@@ -488,13 +492,13 @@ function ObservationForm({
             flex: 2,
             paddingVertical: 12,
             borderRadius: 99,
-            backgroundColor: isValid ? "#FF8AB3" : "#3A3A4E",
+            backgroundColor: isValid ? c.accent : c.elevated,
             alignItems: "center",
           }}
         >
           <Text
             style={{
-              color: "#FFF",
+              color: c.textBody,
               fontWeight: "800",
               fontSize: 14,
             }}
@@ -521,9 +525,11 @@ function IntensitySection({
   config: ConfigRange & { zones: Zone[] };
   onChange: (c: ConfigRange & { zones: Zone[] }) => void;
 }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
   return (
     <View style={{ gap: 8 }}>
-      <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 12 }}>
+      <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 12 }}>
         {emoji} Rango de intensidad
       </Text>
       <View style={{ flexDirection: "row", gap: 12 }}>
@@ -533,30 +539,30 @@ function IntensitySection({
             onChangeText={(v) => onChange({ ...config, min: parseInt(v) || 0 })}
             keyboardType="number-pad"
             placeholder="0"
-            placeholderTextColor="#666"
+            placeholderTextColor={c.textMuted}
             style={{
-              backgroundColor: "#2A2A3E",
+              backgroundColor: c.card,
               borderRadius: 8,
               padding: 8,
-              color: "#FFF",
+              color: c.textBody,
               fontSize: 14,
               textAlign: "center",
             }}
           />
         </View>
-        <Text style={{ color: "#888", alignSelf: "center" }}>→</Text>
+        <Text style={{ color: c.textMuted, alignSelf: "center" }}>→</Text>
         <View style={{ flex: 1 }}>
           <TextInput
             value={String(config.max)}
             onChangeText={(v) => onChange({ ...config, max: parseInt(v) || 5 })}
             keyboardType="number-pad"
             placeholder="5"
-            placeholderTextColor="#666"
+            placeholderTextColor={c.textMuted}
             style={{
-              backgroundColor: "#2A2A3E",
+              backgroundColor: c.card,
               borderRadius: 8,
               padding: 8,
-              color: "#FFF",
+              color: c.textBody,
               fontSize: 14,
               textAlign: "center",
             }}
@@ -579,6 +585,8 @@ function HealthSection({
   config: HealthConfig;
   onChange: (c: HealthConfig) => void;
 }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
   return (
     <View style={{ gap: 8 }}>
       <View
@@ -588,7 +596,7 @@ function HealthSection({
           justifyContent: "space-between",
         }}
       >
-        <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 13 }}>
+        <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
           {emoji} {label}
         </Text>
         <TouchableOpacity
@@ -603,7 +611,7 @@ function HealthSection({
             width: 50,
             height: 28,
             borderRadius: 14,
-            backgroundColor: config.enabled ? "#4CAF50" : "#3A3A4E",
+            backgroundColor: config.enabled ? c.success : c.elevated,
             padding: 3,
           }}
         >
@@ -612,7 +620,7 @@ function HealthSection({
               width: 22,
               height: 22,
               borderRadius: 11,
-              backgroundColor: "#FFF",
+              backgroundColor: c.textBody,
               alignSelf: config.enabled ? "flex-end" : "flex-start",
             }}
           />
@@ -630,18 +638,18 @@ function HealthSection({
                 }
                 keyboardType="number-pad"
                 placeholder="1"
-                placeholderTextColor="#666"
+                placeholderTextColor={c.textMuted}
                 style={{
-                  backgroundColor: "#2A2A3E",
+                  backgroundColor: c.card,
                   borderRadius: 8,
                   padding: 8,
-                  color: "#FFF",
+                  color: c.textBody,
                   fontSize: 14,
                   textAlign: "center",
                 }}
               />
             </View>
-            <Text style={{ color: "#888", alignSelf: "center" }}>→</Text>
+            <Text style={{ color: c.textMuted, alignSelf: "center" }}>→</Text>
             <View style={{ flex: 1 }}>
               <TextInput
                 value={String(config.max)}
@@ -650,12 +658,12 @@ function HealthSection({
                 }
                 keyboardType="number-pad"
                 placeholder="8"
-                placeholderTextColor="#666"
+                placeholderTextColor={c.textMuted}
                 style={{
-                  backgroundColor: "#2A2A3E",
+                  backgroundColor: c.card,
                   borderRadius: 8,
                   padding: 8,
-                  color: "#FFF",
+                  color: c.textBody,
                   fontSize: 14,
                   textAlign: "center",
                 }}
@@ -684,16 +692,18 @@ function PeeConfigSection({
   health: HealthConfig;
   setHealth: (c: HealthConfig) => void;
 }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
   return (
     <View
       style={{
-        backgroundColor: "#FFFFFF",
+        backgroundColor: c.card,
         borderRadius: 20,
         padding: 16,
         gap: 16,
       }}
     >
-      <Text style={{ fontWeight: "800", fontSize: 15, color: "#2D1B26" }}>
+      <Text style={{ fontWeight: "800", fontSize: 15, color: c.textBody }}>
         💧 Pipí
       </Text>
       <IntensitySection
@@ -702,7 +712,7 @@ function PeeConfigSection({
         config={intensity}
         onChange={setIntensity}
       />
-      <View style={{ height: 1, backgroundColor: "#FFF0F5" }} />
+      <View style={{ height: 1, backgroundColor: c.surface }} />
       <HealthSection
         label="Pipímetro (color de orina)"
         emoji="🔬"
@@ -724,16 +734,18 @@ function PoopConfigSection({
   health: HealthConfig;
   setHealth: (c: HealthConfig) => void;
 }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
   return (
     <View
       style={{
-        backgroundColor: "#FFFFFF",
+        backgroundColor: c.card,
         borderRadius: 20,
         padding: 16,
         gap: 16,
       }}
     >
-      <Text style={{ fontWeight: "800", fontSize: 15, color: "#2D1B26" }}>
+      <Text style={{ fontWeight: "800", fontSize: 15, color: c.textBody }}>
         💩 Popó
       </Text>
       <IntensitySection
@@ -742,7 +754,7 @@ function PoopConfigSection({
         config={intensity}
         onChange={setIntensity}
       />
-      <View style={{ height: 1, backgroundColor: "#FFF0F5" }} />
+      <View style={{ height: 1, backgroundColor: c.surface }} />
       <HealthSection
         label="Popómetro (color de heces)"
         emoji="🔬"
@@ -777,7 +789,7 @@ function ThemeToggle() {
           >
             <Text
               style={{
-                color: active ? "#FFFFFF" : "rgba(255,255,255,0.7)",
+                color: active ? c.headerText : "rgba(255,255,255,0.7)",
                 fontWeight: active ? "800" : "600",
                 fontSize: 13,
               }}
@@ -946,7 +958,7 @@ export default function CatalogsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.headerBg }} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#FF8AB3" />
+      <StatusBar barStyle="light-content" backgroundColor={c.headerBg} />
       <View
         className="flex-row items-center px-4"
         style={{ padding: 16 }}
@@ -955,11 +967,11 @@ export default function CatalogsScreen() {
           onPress={() => router.back()}
           style={{ paddingRight: 16 }}
         >
-          <Text style={{ color: "#FFFFFF", fontSize: 26, lineHeight: 28 }}>
+          <Text style={{ color: c.headerText, fontSize: 26, lineHeight: 28 }}>
             ←
           </Text>
         </TouchableOpacity>
-        <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 18 }}>
+        <Text style={{ color: c.headerText, fontWeight: "900", fontSize: 18 }}>
           🛠️ Personalizar
         </Text>
       </View>
@@ -989,7 +1001,7 @@ export default function CatalogsScreen() {
                 paddingVertical: 12,
                 borderBottomWidth: 3,
                 borderBottomColor:
-                  activeTab === t.key ? "#FFFFFF" : "transparent",
+                  activeTab === t.key ? c.headerText : "transparent",
               }}
               onPress={() => setActiveTab(t.key)}
             >
@@ -999,7 +1011,7 @@ export default function CatalogsScreen() {
                   fontWeight: "800",
                   color:
                     activeTab === t.key
-                      ? "#FFFFFF"
+                      ? c.headerText
                       : "rgba(255,255,255,0.6)",
                   fontSize: 10,
                 }}
@@ -1014,7 +1026,7 @@ export default function CatalogsScreen() {
           <View
             style={{
               flex: 1,
-              backgroundColor: "#1A1A2E",
+              backgroundColor: c.surface,
             }}
           >
             <ObservationForm
@@ -1037,7 +1049,7 @@ export default function CatalogsScreen() {
             {activeTab === "events" && (
               <View
                 style={{
-                  backgroundColor: "#FFFFFF",
+                  backgroundColor: c.card,
                   borderRadius: 20,
                   padding: 16,
                   marginBottom: 20,
@@ -1047,7 +1059,7 @@ export default function CatalogsScreen() {
                   style={{
                     fontWeight: "800",
                     fontSize: 13,
-                    color: "#9B7A88",
+                    color: c.textMuted,
                     marginBottom: 12,
                     textTransform: "uppercase",
                   }}
@@ -1067,7 +1079,7 @@ export default function CatalogsScreen() {
                       style={{
                         fontSize: 11,
                         fontWeight: "800",
-                        color: "#9B7A88",
+                        color: c.textMuted,
                         marginBottom: 4,
                       }}
                     >
@@ -1075,12 +1087,12 @@ export default function CatalogsScreen() {
                     </Text>
                     <TextInput
                       style={{
-                        backgroundColor: "#FFF0F5",
+                        backgroundColor: c.surface,
                         borderRadius: 12,
                         padding: 12,
                         fontSize: 20,
                         textAlign: "center",
-                        color: "#2D1B26",
+                        color: c.textBody,
                       }}
                       placeholder="✨"
                       maxLength={2}
@@ -1093,7 +1105,7 @@ export default function CatalogsScreen() {
                       style={{
                         fontSize: 11,
                         fontWeight: "800",
-                        color: "#9B7A88",
+                        color: c.textMuted,
                         marginBottom: 4,
                       }}
                     >
@@ -1101,11 +1113,11 @@ export default function CatalogsScreen() {
                     </Text>
                     <TextInput
                       style={{
-                        backgroundColor: "#FFF0F5",
+                        backgroundColor: c.surface,
                         borderRadius: 12,
                         padding: 12,
                         fontSize: 15,
-                        color: "#2D1B26",
+                        color: c.textBody,
                       }}
                       placeholder="Ej. Baño"
                       value={label}
@@ -1119,7 +1131,7 @@ export default function CatalogsScreen() {
                     style={{
                       fontSize: 11,
                       fontWeight: "800",
-                      color: "#9B7A88",
+                      color: c.textMuted,
                       marginBottom: 4,
                     }}
                   >
@@ -1138,9 +1150,9 @@ export default function CatalogsScreen() {
                           borderRadius: 99,
                           borderWidth: 1.5,
                           backgroundColor:
-                            category === cat ? "#FFE4EE" : "#FFF0F5",
+                            category === cat ? c.elevated : c.surface,
                           borderColor:
-                            category === cat ? "#FF5C9A" : "transparent",
+                            category === cat ? c.accentStrong : "transparent",
                         }}
                       >
                         <Text
@@ -1148,7 +1160,7 @@ export default function CatalogsScreen() {
                             fontSize: 12,
                             fontWeight: "800",
                             color:
-                              category === cat ? "#FF5C9A" : "#9B7A88",
+                              category === cat ? c.accentStrong : c.textMuted,
                             textTransform: "capitalize",
                           }}
                         >
@@ -1177,7 +1189,7 @@ export default function CatalogsScreen() {
                         alignItems: "center",
                         paddingVertical: 8,
                         borderBottomWidth: 1,
-                        borderBottomColor: "#FFF0F5",
+                        borderBottomColor: c.surface,
                       }}
                     >
                       <View
@@ -1193,7 +1205,7 @@ export default function CatalogsScreen() {
                             style={{
                               fontSize: 15,
                               fontWeight: "800",
-                              color: "#2D1B26",
+                              color: c.textBody,
                             }}
                           >
                             {item.label}
@@ -1202,7 +1214,7 @@ export default function CatalogsScreen() {
                             <Text
                               style={{
                                 fontSize: 10,
-                                color: "#FF5C9A",
+                                color: c.accentStrong,
                                 fontWeight: "800",
                               }}
                             >
@@ -1217,7 +1229,7 @@ export default function CatalogsScreen() {
                             handleDeleteEvent(item.id, item.isSystem)
                           }
                         >
-                          <Text style={{ color: "#EF4444", fontSize: 18 }}>
+                          <Text style={{ color: c.danger, fontSize: 18 }}>
                             🗑️
                           </Text>
                         </TouchableOpacity>
@@ -1254,7 +1266,7 @@ export default function CatalogsScreen() {
                 {/* Observations list */}
                 <View
                   style={{
-                    backgroundColor: "#FFFFFF",
+                    backgroundColor: c.card,
                     borderRadius: 20,
                     padding: 16,
                     marginBottom: 20,
@@ -1272,7 +1284,7 @@ export default function CatalogsScreen() {
                       style={{
                         fontWeight: "800",
                         fontSize: 13,
-                        color: "#9B7A88",
+                        color: c.textMuted,
                         textTransform: "uppercase",
                       }}
                     >
@@ -1281,7 +1293,7 @@ export default function CatalogsScreen() {
                     <TouchableOpacity
                       onPress={() => setShowForm(true)}
                       style={{
-                        backgroundColor: "#FF8AB3",
+                        backgroundColor: c.accent,
                         paddingHorizontal: 12,
                         paddingVertical: 6,
                         borderRadius: 99,
@@ -1289,7 +1301,7 @@ export default function CatalogsScreen() {
                     >
                       <Text
                         style={{
-                          color: "#FFF",
+                          color: c.textBody,
                           fontWeight: "800",
                           fontSize: 12,
                         }}
@@ -1315,7 +1327,7 @@ export default function CatalogsScreen() {
                             alignItems: "center",
                             paddingVertical: 8,
                             borderBottomWidth: 1,
-                            borderBottomColor: "#FFF0F5",
+                            borderBottomColor: c.surface,
                           }}
                         >
                           <View
@@ -1332,7 +1344,7 @@ export default function CatalogsScreen() {
                                 style={{
                                   fontSize: 15,
                                   fontWeight: "800",
-                                  color: "#2D1B26",
+                                  color: c.textBody,
                                 }}
                               >
                                 {item.label}
@@ -1340,7 +1352,7 @@ export default function CatalogsScreen() {
                               <Text
                                 style={{
                                   fontSize: 11,
-                                  color: "#9B7A88",
+                                  color: c.textMuted,
                                   fontWeight: "600",
                                 }}
                               >
@@ -1349,7 +1361,7 @@ export default function CatalogsScreen() {
                                   : "Tag simple"}
                               </Text>
                             </View>
-                            <Text style={{ color: "#9B7A88", fontSize: 14 }}>
+                            <Text style={{ color: c.textMuted, fontSize: 14 }}>
                               ✏️
                             </Text>
                           </View>
@@ -1359,7 +1371,7 @@ export default function CatalogsScreen() {
                                 handleDeleteDiaper(item.id, item.isSystem)
                               }
                             >
-                              <Text style={{ color: "#EF4444", fontSize: 18 }}>
+                              <Text style={{ color: c.danger, fontSize: 18 }}>
                                 🗑️
                               </Text>
                             </TouchableOpacity>

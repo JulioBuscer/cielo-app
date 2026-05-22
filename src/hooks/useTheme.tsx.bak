@@ -1,0 +1,79 @@
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { View, Appearance } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+export type ThemeMode = "system" | "light" | "dark";
+
+export interface ThemeContextValue {
+  mode: ThemeMode;
+  isDark: boolean;
+  setMode: (m: ThemeMode) => void;
+}
+
+const ThemeContext = createContext<ThemeContextValue>({
+  mode: "system",
+  isDark: false,
+  setMode: () => {},
+});
+
+const STORAGE_KEY = "theme_mode";
+
+function computeIsDark(mode: ThemeMode, systemScheme: "light" | "dark" | null): boolean {
+  if (mode === "dark") return true;
+  if (mode === "light") return false;
+  return systemScheme === "dark";
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [mode, setModeState] = useState<ThemeMode>("system");
+  const [systemScheme, setSystemScheme] = useState<"light" | "dark" | null>(null);
+
+  const isDark = computeIsDark(mode, systemScheme);
+
+  // Listen for system appearance changes
+  useEffect(() => {
+    const cs = Appearance.getColorScheme();
+    setSystemScheme(cs === "dark" ? "dark" : "light");
+    const sub = Appearance.addChangeListener(({ colorScheme: cs }) => {
+      setSystemScheme(cs === "dark" ? "dark" : "light");
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Load persisted mode on mount and sync Appearance
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY).then((v) => {
+      if (v === "light" || v === "dark") {
+        setModeState(v);
+        Appearance.setColorScheme(v);
+      } else {
+        setModeState("system");
+        Appearance.setColorScheme(null);
+      }
+    });
+  }, []);
+
+  const setMode = useCallback((m: ThemeMode) => {
+    setModeState(m);
+    if (m === "dark") {
+      Appearance.setColorScheme("dark");
+    } else if (m === "light") {
+      Appearance.setColorScheme("light");
+    } else {
+      Appearance.setColorScheme(null);
+    }
+    AsyncStorage.setItem(STORAGE_KEY, m);
+  }, []);
+
+  return (
+    <ThemeContext.Provider value={{ mode, isDark, setMode }}>
+      <View className={isDark ? "dark" : ""} style={{ flex: 1 }}>
+        {children}
+      </View>
+    </ThemeContext.Provider>
+  );
+}
+
+export function useThemeContext() {
+  return useContext(ThemeContext);
+}
