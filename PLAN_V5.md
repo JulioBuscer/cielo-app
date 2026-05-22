@@ -1,5 +1,5 @@
 # 🌙 CIELO APP — PLAN MAESTRO V5 (Unificado)
-> **Versión:** 5.0 · **Estado:** En desarrollo activo
+> **Versión:** 5.2 · **Estado:** En desarrollo activo
 > *"Hecho para los que velan de noche. Por Cielo."*
 
 ---
@@ -12,7 +12,7 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 
 ---
 
-## ✅ LO QUE YA FUNCIONA (V4.2)
+## ✅ LO QUE YA FUNCIONA (V5.2)
 
 ### Infraestructura
 - [x] Expo SDK 54, React Native 0.81.5, New Architecture habilitada
@@ -22,20 +22,22 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 - [x] expo-router con Redirect desde `app/index.tsx`
 - [x] `generateId()` propio (Hermes-safe)
 - [x] EAS Build con `--legacy-peer-deps`
+- [x] pnpm (migrado desde npm) con `shamefully-hoist=true`
+- [x] Sistema de temas propio (React Context + inline styles, sin `dark:` variants)
 
-### Base de Datos — Schema V4.2
+### Base de Datos — Schema V5.2
 | Tabla | Descripción |
 |---|---|
 | `profiles` | Cuidadores con rol (mamá/papá/abue/nanny/bestie) |
 | `babies` | Perfil del bebé con avatar_emoji, photo_uri, nick, sexo, estado |
-| `event_types` | Catálogo default + custom (pañal, eructo, vomito, peso...) |
+| `event_types` | Catálogo default + custom, con columna `metrics` (JSON: EventMetric[]) |
 | `diaper_observations` | Catálogo default + custom (sangre, mucosidad, diarrea...) |
 | `feeding_sessions` | Tomas con estados y timeline de eventos |
 | `feeding_status_events` | Eventos de cambio de estado de toma (auditoría) |
 | `sleep_sessions` | Siestas con estados (independientes de tomas) |
 | `sleep_status_events` | Eventos de cambio de estado de siesta |
 | `growth_logs` | Registros de peso/estatura/céfalo (enteros g/mm) |
-| `timeline_events` | Timeline unificado de todos los eventos |
+| `timeline_events` | Timeline unificado, con columna `"values"` (JSON: Record<metricId, number>) |
 
 ### Onboarding
 - [x] `welcome.tsx` — bienvenida con logo
@@ -69,34 +71,46 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 - [x] Independiente de las tomas
 - [x] Auto-finish de siesta anterior al iniciar nueva
 
-### Pañales (v1)
-- [x] `app/logs/diaper/new.tsx` con PoopOMeter (intensidad 0-5)
-- [x] Selección de observaciones (sangre, mucosidad, diarrea, verde, grumoso)
-- [x] Alerta visual si hay observaciones médicas
-- [x] Auto-pausa de toma activa al registrar pañal
-- [x] Vinculación a sesión de toma activa
+### Pañales (v2 — rediseño completo)
+- [x] `app/logs/diaper/new.tsx` con Pipímetro + Popómetro (intensidad + salud)
+- [x] Observaciones multi-métrica (sangre, mucosidad, diarrea, etc.)
+- [x] Peso del pañal inline
 - [x] Foto del pañal (cámara o galería) con preview
-- [x] `app/logs/event/new.tsx` — Evento genérico con selector de tipo, notas, datetime
-- [ ] **[REDISEÑO →](./DIAPER-REDESIGN.md)** Separar cantidad/salud pipí/popó + observaciones multi-métrica
+- [x] Auto-pausa de toma activa
+- [x] Mostrar salud con colores/emojis en detalle
+- [x] Reportes y stats actualizados
 
-### Otros Eventos
-- [x] Modal de selección de tipo de evento
-- [x] `app/logs/event/new.tsx` — evento genérico con metadata
-- [x] Eventos vinculados a toma activa
-- [x] Eructo, regurgitación, vómito, medicamento, peso, estatura, temperatura, nota
+### Otros Eventos — Sistema de Unidades y Métricas (NUEVO en V5.1)
+- [x] `src/units/` — sistema de unidades (16 unidades en 5 dimensiones, conversión, badge)
+- [x] Schema: columna `metrics` en `eventTypes`, columna `"values"` en `timelineEvents`
+- [x] Seed de métricas para weight (kg), height (cm), temperature (°C), medication (mL)
+- [x] Migración legacy `metadata.weightGrams` → `values.weight` (kg), `heightMm` → cm, `celsius` → °C
+- [x] `EventMetricsEditor` en catálogos — editor de zonas de métrica por tipo de evento
+- [x] Captura de métricas en `new.tsx` con selector de unidad (cm↔m, kg↔g, °C↔°F)
+- [x] Display de valores con zonas de color en detalle (`[id].tsx`)
+- [x] Estadísticas: agregación de métricas (avg/min/max) por tipo de evento en `/stats`
+- [x] `useLastGrowthLog` lee de `values`, `metadata` legacy, y `growth_logs`
+- [x] `useTheme()` en `new.tsx` (colores no hardcodeados)
+
+### Fase 3.5 — UX/UI Cleanup
+- [x] Header de EventMetricsEditor y ObservationForm homogéneos (← + título + 💾 Guardar)
+- [x] Botón editar pasa de ⚙️ a ✏️ (⚙️ se mantiene como indicador de métricas)
+- [x] Perfil bebé sin link a catálogos (solo settings)
+- [x] Targets táctiles ≥44×44px (Apple HIG)
+- [x] Unidades: gotas (drop), sobre (sachet) agregadas al registry
 
 ### Perfil del Bebé
 - [x] `app/baby/profile.tsx` — datos + avatar picker (grid 30 emojis + cámara + galería)
 - [x] Modo edición completo con DateTimePicker fix (raw string state)
 - [x] KeyboardAvoidingView que no tapa inputs
 - [x] Zona de desarrollo: reset total con doble confirmación
-- [x] Se mantiene tal cual en la nueva navegación
+- [x] Compara peso/talla nacimiento vs último registrado (desde growth_logs + timeline)
 
 ### Estadísticas
 - [x] `useStats.ts` — hook con comparación vs período anterior
 - [x] `app/stats/index.tsx` — pantalla completa
 - [x] Filtros: ☀️ Día / 📅 Semana / 🗓️ Mes / 📆 Año
-- [x] Tomas, sueño, pañales, otros eventos, crecimiento
+- [x] Tomas, sueño, pañales, otros eventos (con métricas agregadas), crecimiento
 - [x] Badges de delta (↑↓=) vs período anterior
 - [x] Botón 📤 para compartir reporte desde stats
 
@@ -107,8 +121,21 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 - [x] Con foto: imagen primero → delay 600ms → texto después
 
 ### Catálogos Custom
-- [x] `app/settings/catalogs.tsx` — crear tipos de evento y observaciones custom
+- [x] `app/settings/catalogs.tsx` — crear tipos de evento con métricas, observaciones custom
+- [x] Editor de métricas por tipo de evento (nombre, unidad, dimensión, zonas de color)
 - [x] `useCreateEventType`, `useCreateDiaperObservation` hooks
+
+### Sistema de Temas (Fase 2 completa)
+- [x] `src/theme/types.ts` — interfaz `AppTheme` con 30+ tokens de color
+- [x] Temas light/dark por defecto
+- [x] `ThemeProvider.tsx` — React Context
+- [x] `useTheme.ts` — hook `const { theme } = useTheme()`
+- [x] `themeStorage.ts` — persistencia en AsyncStorage
+- [x] `app/settings/index.tsx` — lista de ajustes (⋮ → settings)
+- [x] `app/settings/theme/index.tsx` — selector de temas con preview
+- [x] `app/settings/theme/editor.tsx` — editor visual de temas
+- [x] Migración de 17+ archivos a `useTheme()`
+- [x] Sin `dark:` classNames — colores vía inline styles
 
 ### UI Components
 | Componente | Descripción |
@@ -123,127 +150,49 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 | `PoopOMeter` | Selector intensidad 0-5 |
 | `TimelineBubbles` | Burbujas de evento, sesión, sueño, separador fecha |
 | `SafeScreen` | Wrapper SafeAreaView + padding |
+| `UnitBadge` | Badge de unidad de medida (kg, cm, °C...) |
 
 ---
 
 ## 🔴 PENDIENTE — Lo que falta
 
-### FASE 1: PANTALLAS FALTANTES (Stack navigation) ✅
+### FASE 3: Eventos con Métricas y Unidades ✅
+> Implementado en V5.1
 
-- [x] **`app/logs/diaper/new.tsx`** — Pañal con PoopOMeter, observaciones, foto (antes marcado ✅ pero no existía)
-- [x] **`app/logs/event/new.tsx`** — Evento genérico con preselect param (antes marcado ✅ pero no existía)
-- [x] **`app/logs/feeding/retro.tsx`** — Toma rezagada
-  - Picker de tipo + subtipo + DateTimePicker inicio/fin
-  - Calcular y guardar `durationSec`
-  - Inserta feeding_session con status 'finished'
-- [x] **`app/logs/feeding/[id].tsx`** — Detalle de toma
-  - Header con tipo, hora inicio→fin, duración
-  - Timeline interna de eventos durante la toma
-  - Botón editar hora inicio/fin
-- [x] **`app/logs/sleep/[id].tsx`** — Detalle de siesta
-  - Similar al detalle de toma
-- [x] **`app/logs/event/[id].tsx`** — Detalle de evento genérico
-  - Mostrar metadata según tipo de evento
-- [x] **`app/logs/growth/new.tsx`** — Registro de crecimiento
-  - Peso (kg), estatura (cm), circunferencia cefálica (cm)
-  - Al menos un campo requerido
-- [x] **`app/logs/growth/history.tsx`** — Historial de crecimiento
-  - Tabla cronológica con últimos registros
-  - Mini estadísticas (progreso desde el nacimiento)
+- [x] Sistema de unidades (`src/units/`)
+- [x] Schema + migración (metrics, values)
+- [x] Editor de métricas en catálogos
+- [x] Captura de valores al crear evento (con selector de unidad)
+- [x] Display de valores en detalle
+- [x] Estadísticas de métricas
+- [x] Limpieza y SITEMAP.md
 
-### FASE 1.5: REDISEÑO PAÑAL — Pipímetro + Popómetro + Multi-métrica ✅
-> 📄 **[Plan detallado → DIAPER-REDESIGN.md](./DIAPER-REDESIGN.md)**
+### FASE 3.5: UX/UI CLEANUP ✅
 
-- [x] **Schema**: columna `metrics` en `diaper_observations`, migrar datos viejos
-- [x] **Metadata**: `peeHealth`/`poopHealth` + multi-métrica `observationValues`
-- [x] **Settings**: secciones Pipí y Popó (intensidad + salud) + editor multi-métrica
-- [x] **Formulario pañal**: pipímetro, popómetro, métricas inline, peso
-- [x] **Event detail**: mostrar salud con colores/emojis resueltos
-- [x] **Share/Stats**: actualizar reportes y estadísticas
+- [x] ObservationForm header homogéneo (← + título + 💾 Guardar como EventMetricsEditor)
+- [x] ✏️ editar (⚙️ se mantiene solo como indicador visual de métricas)
+- [x] Unidades: gotas (drop), sobre (sachet) agregadas al registry
+- [x] Targets táctiles ≥44px, perfil bebé sin link a catálogos
 
-### FASE 2: SISTEMA DE TEMA + REESTRUCTURACIÓN NAVEGACIÓN
-> 📄 **[Plan detallado → THEME-SYSTEM.md](./THEME-SYSTEM.md)**
+### FASE 4: REFINAMIENTOS UX
 
-**Problema:** NativeWind v4 + `darkMode: 'class'` + `dark:` variants no funciona en producción. Las variantes `dark:` no se resuelven aunque el wrapper `className="dark"` esté presente.
-
-**Solución:** Abandonar `dark:` variants de NativeWind. Migrar a **sistema de temas propio con React Context + inline styles**, que funciona siempre, es predecible, y permite temas editables por el usuario.
-
-#### FASE 2.1: Infraestructura de Tema Contextual (nueva)
-
-- [ ] **`src/theme/types.ts`** — interfaz `AppTheme` con todos los tokens de color
-- [ ] **`src/theme/themes/light.ts`** — tema claro
-- [ ] **`src/theme/themes/dark.ts`** — tema oscuro
-- [ ] **`src/theme/ThemeProvider.tsx`** — React Context que provee el tema activo + setter
-- [ ] **`src/theme/useTheme.ts`** — hook `useTheme()` → `colors` (los valores directos)
-- [ ] **`src/theme/useThemeStyles.ts`** — hook `useThemeStyles(fn)` → memoiza StyleSheet por tema
-- [ ] **`src/theme/themeStorage.ts`** — load/save themes en AsyncStorage
-- [ ] **Reemplazar `src/hooks/useTheme.tsx`** — el ThemeProvider actual (className="dark") desaparece, el nuevo provee colores via context
-
-#### FASE 2.2: Settings como pantalla de lista (estilo WhatsApp)
-
-- [ ] **Tres puntitos (⋮) en dashboard header** → abre settings
-- [ ] **`app/settings/index.tsx`** — pantalla principal de ajustes con lista:
-  - 📝 Catálogos (eventos, pipí, popó, obs. pañal)
-  - 🎨 Gestor de temas
-  - 👤 Perfil del bebé
-  - 👥 Cuidadores
-  - ℹ️ Acerca de / Versión
-
-- [ ] **Mover `catalogs.tsx`** como sub-pantalla de settings
-
-#### FASE 2.3: Gestor de Temas (editor + selector)
-
-- [ ] **`app/settings/theme/index.tsx`** — lista de temas disponibles (Light, Dark, custom)
-- [ ] **`app/settings/theme/editor.tsx`** — editor visual de tema:
-  - Paletas de colores por token (surface, card, textBody, accent, headerBg...)
-  - Vista previa en vivo
-  - Guardar como nuevo tema / sobrescribir
-- [ ] **Selector de tema** en settings principal
-- [ ] **Persistencia** en AsyncStorage + carga al inicio
-
-#### FASE 2.4: Migración progresiva de componentes
-
-- [ ] **Migrar `TimelineBubbles.tsx`** — de className tokens → `const theme = useTheme()`
-- [ ] **Migrar `dashboard/index.tsx`**
-- [ ] **Migrar `app/settings/`** (catalogs + theme screens)
-- [ ] **Migrar `app/logs/`** (event/[id], feeding/[id], sleep/[id], growth/*, diaper/new)
-- [ ] **Migrar `app/stats/index.tsx`**
-- [ ] **Migrar componentes UI restantes** (ActiveFeedingCard, ActiveSleepCard, etc.)
-- [ ] **Migrar `_layout.tsx`** (splash screen)
-
-**Nota:** Se mantienen NativeWind utilities para layout (padding, margin, gap, flex, border-radius, font-size, font-weight). Solo los **colores** se mueven a inline styles con `useTheme()`.
-
-#### FASE 2.5: Limpieza
-
-- [ ] **Eliminar `tailwind.config.js` colors** — ya no necesitamos tokens semánticos ahí
-- [ ] **Eliminar `dark:` classNames** de todos los archivos
-- [ ] **Eliminar `darkMode: 'class'`** de tailwind.config.js
-- [ ] **Mantener NativeWind** para utilities no-color
-
-### FASE 3: REFINAMIENTOS UX
-
-- [ ] **Curva de crecimiento** — Gráfica simple con `react-native-svg`
+- [ ] **Auto-detect display unit** — mostrar en m si >100cm, en kg si >1000g, etc.
 - [ ] **Nombre real del cuidador en burbujas** — Reemplazar "Otro cuidador" por nombre real
+- [ ] **Curva de crecimiento** — Gráfica OMS con percentiles (peso, talla, cefálico)
 - [ ] **Estadísticas: gráficas de tendencia** — Líneas de tendencia diaria/semanal con SVG
-- [ ] **Tab bar** — Navegación principal con tabs (💬 Chat · 📊 Stats · ⚙️ Settings) (opcional, después de fase 2)
 
-### FASE 4: LIMPIEZA TÉCNICA
+### FASE 5: LIMPIEZA TÉCNICA
 
 - [ ] **Eliminar dead code V3**
   - `useDiaperLogs.ts` — importa tabla `diaperLogs` que ya no existe
   - `useFeedingLogs.ts` — importa tabla `feedingLogs` que ya no existe
   - `reportGenerator.ts` — importa tipo `DiaperLog` que ya no existe
   - `app/report/generate.tsx` — usa hooks V3 (reemplazado por stats)
-
-- [ ] **Migración no-destructiva en `_layout.tsx`**
-  - No dropear tablas existentes al detectar schema viejo
-  - Usar ALTER TABLE con try/catch como el resto del código
-
+- [ ] **Migración no-destructiva en `_layout.tsx`** — no dropear tablas existentes
 - [ ] **Verificar TypeScript strict** — Corregir errores de tipado
-
 - [ ] **`app/timeline/index.tsx`** — Eliminar placeholder (el dashboard ya es el timeline)
 
-### FASE 5: NICE TO HAVE
+### FASE 6: NICE TO HAVE
 
 - [ ] **Múltiples bebés** — schema lo soporta, falta UI de selección
 - [ ] **Múltiples cuidadores** — schema lo soporta, falta sync
@@ -252,197 +201,76 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 - [ ] **Compartir múltiples imágenes** vía react-native-share
 - [ ] **Estadísticas: curvas OMS** con percentiles
 - [ ] **Onboarding segundo cuidador** vía QR
+- [ ] **Tab bar** — Navegación principal con tabs (💬 Chat · 📊 Stats · ⚙️ Settings)
 
 ---
 
-## 🏗️ PLAN DE IMPLEMENTACIÓN — SISTEMA DE TEMA CONTEXTUAL
+## 🏗️ ESTRUCTURA DE ARCHIVOS (V5.2)
 
-### Arquitectura
-
-```
-src/theme/
-├── types.ts           → AppTheme interface (todos los tokens)
-├── themes/
-│   ├── light.ts       → Tema claro default
-│   └── dark.ts        → Tema oscuro default
-├── ThemeProvider.tsx   → React Context provider
-├── useTheme.ts        → Hook: const theme = useTheme()
-├── useThemeStyles.ts  → Hook: const styles = useThemeStyles((t) => StyleSheet.create({...}))
-└── themeStorage.ts    → AsyncStorage CRUD
-
-app/settings/
-├── index.tsx          → Lista de ajustes (nueva)
-└── theme/
-    ├── index.tsx      → Selector de tema
-    └── editor.tsx     → Editor visual de temas
-```
-
-### Interfaz AppTheme
-
-```ts
-interface AppTheme {
-  id: string;
-  name: string;
-  isBuiltIn: boolean;
-  colors: {
-    // Superficies
-    surface: string;
-    card: string;
-    elevated: string;
-    inputBg: string;
-    // Texto
-    textBody: string;
-    textMuted: string;
-    textDim: string;
-    textOnAccent: string;
-    // Acento
-    accent: string;
-    accentStrong: string;
-    accentLight: string;
-    // Header
-    headerBg: string;
-    headerText: string;
-    // Bordes
-    border: string;
-    // Timeline
-    bubbleOwn: string;
-    bubbleOther: string;
-    // Estados
-    success: string;
-    warning: string;
-    danger: string;
-    // Colores fijos (no cambian con tema)
-    biological: { pee: string; poop: string };
-    feeding: { bottle: string; breast: string };
-    growth: string;
-  };
-}
-```
-
-### Flujo de uso en componentes
-
-```tsx
-// Antes (NativeWind con dark:)
-<View className="bg-surface dark:bg-surface p-4 rounded-xl">
-  <Text className="text-textBody dark:text-textBody font-bold">Hola</Text>
-</View>
-
-// Después (Context + inline styles)
-function MiComponente() {
-  const { colors } = useTheme();
-  return (
-    <View style={{ backgroundColor: colors.surface, padding: 16, borderRadius: 12 }}>
-      <Text style={{ color: colors.textBody, fontWeight: 'bold' }}>Hola</Text>
-    </View>
-  );
-}
-
-// O con useThemeStyles (estilo StyleSheet)
-function MiComponente() {
-  const styles = useThemeStyles((t) => StyleSheet.create({
-    container: { backgroundColor: t.surface, padding: 16, borderRadius: 12 },
-    title: { color: t.textBody, fontWeight: 'bold' },
-  }));
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Hola</Text>
-    </View>
-  );
-}
-```
-
-### Orden de implementación
-
-1. **`src/theme/types.ts`** + temas light/dark
-2. **`ThemeProvider.tsx`** + `useTheme.ts` + `themeStorage.ts`
-3. **`useThemeStyles.ts`** — hook memoizado
-4. **Reemplazar `useTheme.tsx`** (el actual) con el nuevo ThemeProvider
-5. **Migrar 1 componente** (ej. TimelineBubbles) para validar el approach
-6. **Crear `app/settings/index.tsx`** con lista de opciones
-7. **Agregar ⋮ en dashboard header** → navega a settings
-8. **Mover catalogs.tsx** como sub-pantalla de settings
-9. **Crear gestor de temas** (selector + editor)
-10. **Migrar resto de componentes** progresivamente
-
----
-
-## 🧱 ARQUITECTURA
-
-### Flujo de navegación (después de Fase 2)
-```
-App Launch → _layout.tsx (runMigrations + ThemeProvider)
-  → app/index.tsx (check onboarding_done)
-    → NO: /onboarding/welcome → /onboarding/role → /onboarding/baby → /dashboard
-    → SÍ: /dashboard
-      → Header ⋮ → /settings (lista)
-        → /settings/catalogs
-        → /settings/theme
-        → /baby/profile
-```
-
-### Estructura de archivos (después de Fase 2)
 ```
 cielo-app/
 ├── app/
-│   ├── _layout.tsx              ← runMigrations lazy + ThemeProvider
+│   ├── _layout.tsx              ← runMigrations + ThemeProvider
 │   ├── index.tsx                ← Redirect según onboarding
 │   ├── baby/profile.tsx         ← Perfil bebé + avatar picker
-│   ├── dashboard/index.tsx      ← Timeline/chat principal + ⋮ menu
+│   ├── dashboard/index.tsx      ← Timeline/chat principal + ⋮ menu + 📊 stats
 │   ├── settings/
-│   │   ├── index.tsx            ← Lista de ajustes (NUEVA)
-│   │   ├── catalogs.tsx         ← Catálogos custom (movido)
+│   │   ├── index.tsx            ← Lista de ajustes
+│   │   ├── catalogs.tsx         ← Catálogos custom + EventMetricsEditor
 │   │   └── theme/
-│   │       ├── index.tsx        ← Selector de tema (NUEVA)
-│   │       └── editor.tsx       ← Editor de temas (NUEVA)
-│   ├── logs/...
-│   ├── onboarding/...
-│   ├── stats/...
-│   └── timeline/...
+│   │       ├── index.tsx        ← Selector de tema
+│   │       └── editor.tsx       ← Editor visual de temas
+│   ├── logs/
+│   │   ├── diaper/new.tsx
+│   │   ├── event/[id].tsx       ← Detalle + display de métricas
+│   │   ├── event/new.tsx        ← Crear evento + captura de métricas
+│   │   ├── feeding/[id].tsx
+│   │   ├── feeding/retro.tsx
+│   │   ├── sleep/[id].tsx
+│   │   └── growth/{new,history}.tsx
+│   ├── stats/index.tsx          ← Estadísticas con agregación de métricas
+│   ├── onboarding/{welcome,role,baby}.tsx
+│   ├── report/generate.tsx
+│   └── timeline/index.tsx       ← Placeholder (dead code)
 ├── src/
-│   ├── theme/                   ← NUEVO: sistema de temas contextual
+│   ├── units/                   ← NUEVO: sistema de unidades
 │   │   ├── types.ts
-│   │   ├── themes/
+│   │   ├── registry.ts          ← 14 unidades
+│   │   ├── helpers.ts           ← convert, formatWithUnit
+│   │   ├── UnitBadge.tsx
+│   │   └── index.ts
+│   ├── theme/                   ← Sistema de temas contextual
+│   │   ├── types.ts
+│   │   ├── themes/{light,dark}.ts
 │   │   ├── ThemeProvider.tsx
 │   │   ├── useTheme.ts
 │   │   ├── useThemeStyles.ts
 │   │   └── themeStorage.ts
-│   ├── components/...
-│   ├── db/...
-│   ├── hooks/...
+│   ├── components/
+│   │   ├── charts/              ← BarChart, AreaChart, GrowthLineChart
+│   │   └── ui/                  ← BigButton, DateTimePicker, AvatarPicker...
+│   ├── db/
+│   │   ├── schema.ts            ← Columnas metrics y "values"
+│   │   └── client.ts            ← seed de métricas + migración legacy
+│   ├── hooks/
+│   │   ├── useTimeline.ts       ← useSaveTimelineEvent soporta values
+│   │   ├── useStats.ts          ← eventMetricAggs
+│   │   └── useGrowthLogs.ts     ← lee de values + metadata + growth_logs
 │   └── utils/...
 ```
 
-### Stack técnico
-| Capa | Tecnología |
-|---|---|
-| Framework | Expo SDK 54, React 19, RN 0.81.5 |
-| Routing | expo-router (file-based) |
-| DB | expo-sqlite + Drizzle ORM |
-| Cache/Estado | TanStack React Query v5 |
-| Estilo (layout) | NativeWind v4 + Tailwind v3 (padding, margin, flex, etc.) |
-| **Estilo (colores)** | **React Context + inline styles / StyleSheet** (NUEVO) |
-| Animación | react-native-reanimated v4 |
-| Cámara | expo-image-picker |
-| Archivos | expo-file-system |
-| Compartir | expo-sharing + RN Share |
-| Build | EAS Build (Android APK) |
-| **Tema** | **React Context + AsyncStorage** (NUEVO) |
-
 ---
 
-## 🔢 ORDEN DE IMPLEMENTACIÓN (actualizado)
+## 🔢 ORDEN DE IMPLEMENTACIÓN (V5.2)
 
 1. ✅ **Fase 1: Pantallas faltantes** — growth/new, growth/history, feeding/[id], sleep/[id], event/[id], feeding/retro, diaper/new, event/new
-2. ✅ **Fase 1.5: [Rediseño Pañal](./DIAPER-REDESIGN.md)** — pipímetro/popómetro + observaciones multi-métrica
-3. **FASE 2: [Sistema de Tema Contextual + Settings](./THEME-SYSTEM.md)**
-   - 2.1 Infraestructura de tema (types, provider, hooks, storage)
-   - 2.2 Settings como pantalla de lista (⋮ → settings)
-   - 2.3 Gestor de temas (selector + editor visual)
-   - 2.4 Migración progresiva de componentes (className → useTheme)
-   - 2.5 Limpieza (dark: classNames, tailwind colors)
-4. **Fase 3: Refinamientos UX** — curvas de crecimiento, gráficas, nombre cuidador
-5. **Fase 4: Dead code + limpieza técnica**
-6. **Fase 5: Multi-bebé, notificaciones, export**
+2. ✅ **Fase 1.5: Rediseño Pañal** — pipímetro/popómetro + observaciones multi-métrica
+3. ✅ **Fase 2: Sistema de Tema Contextual + Settings** — types, provider, settings, gestor de temas, migración
+4. ✅ **Fase 3: Eventos con Métricas y Unidades** — sistema de unidades, schema metrics/values, editor, captura, display, estadísticas
+5. ✅ **Fase 3.5: UX/UI Cleanup** — cabeceras homogéneas, ⚙️→✏️, gotas/sobre, one-hand, catálogos solo settings
+6. ⬜ **Fase 4: Refinamientos UX** — auto-detect unidades, nombre cuidador, curvas OMS, tendencias
+7. ⬜ **Fase 5: Limpieza técnica** — dead code V3, TypeScript strict, timeline placeholder
+8. ⬜ **Fase 6: Nice to have** — multi-bebé, notificaciones, export, tabs
 
 ---
 
@@ -472,9 +300,8 @@ adb logcat -s ReactNativeJS
 |---|---|
 | `app.json` | scheme: cieloaapp, newArchEnabled: true, userInterfaceStyle: dark |
 | `eas.json` | npmFlags: --legacy-peer-deps, profile preview → APK |
-| `tailwind.config.js` | Solo utilities de layout (no colores semánticos) después de Fase 2 |
+| `tailwind.config.js` | Solo utilities de layout (no colores semánticos) |
 | `global.css` | @tailwind base/components/utilities |
-| `opencode.json` | skills.paths → .opencode/skills |
 
 ---
 
@@ -490,8 +317,11 @@ adb logcat -s ReactNativeJS
 | Timer de toma ignoraba pausas | sumar segmentos activos con `calcDurationSec()` |
 | DateTimePicker re-derivaba display del Date prop | Raw string state independiente por campo |
 | EAS Build sin peer-deps | `--legacy-peer-deps` en eas.json |
-| **NativeWind v4 `dark:` variants no resuelven en prod** | **Migrar a React Context + inline styles para colores** |
+| NativeWind v4 `dark:` variants no resuelven en prod | Migrar a React Context + inline styles para colores |
+| pnpm no hoistea react-native-css-interop | Agregar como direct dependency + shamefully-hoist=true |
+| SQLite `values` es palabra reservada | Usar `"values"` (con comillas) en raw SQL |
+| `parseInt || 1` en inputs numéricos | Usar `v === '' ? 0 : parseInt(v) || 0` |
 
 ---
 
-*Cielo App PLAN V5 · Unifica V3 + V4.2 + tareas pendientes*
+*Cielo App PLAN V5.1 · Actualizado post-Fase 3*

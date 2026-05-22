@@ -87,7 +87,6 @@ flowchart TB
   SettingsIndex -->|Catálogos| Catalogs
   SettingsIndex -->|Tema| ThemeIndex
 
-  BabyProfile -->|Personalizar Catálogos| Catalogs
   BabyProfile -.->|borrar datos → replace| Welcome
 
   ThemeIndex -->|+ Nuevo| ThemeEditor
@@ -135,7 +134,7 @@ flowchart TB
 
 | Route | Component | Purpose | Navigates To | Navigated From |
 |-------|-----------|---------|-------------|----------------|
-| `/baby/profile` | `BabyProfile` | Edit baby info, growth cards, danger zone (reset) | `/settings/catalogs`, `/onboarding/welcome` | `/dashboard`, `/settings` |
+| `/baby/profile` | `BabyProfile` | Edit baby info, growth cards, danger zone (reset) | `/onboarding/welcome` | `/dashboard`, `/settings` |
 | `/settings` | `SettingsScreen` | Main settings: Catalogs, Theme, Baby Profile, Version | `/baby/profile`, `/settings/catalogs`, `/settings/theme` | `/dashboard` (⋮ menu) |
 | `/settings/catalogs` | `CatalogsScreen` | Customize event types (with metric zones/units), pee/poop scales, observations | `router.back()` | `/settings`, `/baby/profile` |
 | `/settings/theme` | `ThemeSelectorScreen` | Theme list (built-in + custom), preview, edit/delete | `/settings/theme/editor` | `/settings` |
