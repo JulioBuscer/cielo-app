@@ -9,16 +9,18 @@ const variants = {
 };
 
 export function BigButton({
-  label, onPress,
+  label, title, onPress,
   variant = 'primary',
   loading, disabled,
 }: {
-  label: string;
+  label?: string;
+  title?: string;
   onPress: () => void;
   variant?: keyof typeof variants;
   loading?: boolean;
   disabled?: boolean;
 }) {
+  const text = label ?? title ?? "";
   const v = variants[variant];
   return (
     <TouchableOpacity
@@ -44,7 +46,7 @@ export function BigButton({
     >
       {loading
         ? <ActivityIndicator color={v.text} />
-        : <Text style={{ color: v.text, fontWeight: '800', fontSize: 16 }}>{label}</Text>
+        : <Text style={{ color: v.text, fontWeight: '800', fontSize: 16 }}>{text}</Text>
       }
     </TouchableOpacity>
   );
