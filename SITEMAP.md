@@ -78,7 +78,11 @@ flowchart TB
   Timeline -.->|router.back| Dashboard
 
   %% Growth flow
-  GrowthHistory -.->|router.back| Dashboard
+  Stats -.->|📈 Crecimiento → Ver historial| GrowthHistory
+  BabyProfile -.->|📊 Ver historial completo| GrowthHistory
+  GrowthHistory -.->|router.back| Stats
+  GrowthHistory -.->|router.back| BabyProfile
+  GrowthHistory -.->|router.back| SettingsIndex
   GrowthHistory -->|📝 Nuevo Registro| GrowthNew
   GrowthNew -.->|router.back| GrowthHistory
 
@@ -127,14 +131,14 @@ flowchart TB
 | `/logs/feeding/:id` | `FeedingDetailScreen` | View/edit feeding session times, notes | `router.back()` | `/dashboard` (tap feeding bubble) |
 | `/logs/feeding/retro` | `FeedingRetroScreen` | Retroactive feeding log (type + duration) | `router.back()` | `/dashboard` (⏱ Rezagada) |
 | `/logs/sleep/:id` | `SleepDetailScreen` | View/edit sleep session, status timeline | `router.back()` | `/dashboard` (tap sleep bubble) |
-| `/logs/growth/history` | `GrowthHistoryScreen` | Table of growth measurements with deltas | `/logs/growth/new` | Dashboard (from stats or ?) |
+| `/logs/growth/history` | `GrowthHistoryScreen` | Table of growth measurements with deltas + OMS percentile chart | `/logs/growth/new` | Baby profile (📊 Ver historial completo), Stats (📈 Crecimiento → Ver historial) |
 | `/logs/growth/new` | `GrowthNewScreen` | New weight/height/head circumference entry | `router.back()` | `/logs/growth/history` |
 
 ### Settings
 
 | Route | Component | Purpose | Navigates To | Navigated From |
 |-------|-----------|---------|-------------|----------------|
-| `/baby/profile` | `BabyProfile` | Edit baby info, growth cards, danger zone (reset) | `/onboarding/welcome` | `/dashboard`, `/settings` |
+| `/baby/profile` | `BabyProfile` | Edit baby info, growth cards + OMS chart link, danger zone (reset) | `/onboarding/welcome`, `/logs/growth/history` | `/dashboard`, `/settings` |
 | `/settings` | `SettingsScreen` | Main settings: Catalogs, Theme, Baby Profile, Version | `/baby/profile`, `/settings/catalogs`, `/settings/theme` | `/dashboard` (⋮ menu) |
 | `/settings/catalogs` | `CatalogsScreen` | Customize event types (with metric zones/units), pee/poop scales, observations | `router.back()` | `/settings`, `/baby/profile` |
 | `/settings/theme` | `ThemeSelectorScreen` | Theme list (built-in + custom), preview, edit/delete | `/settings/theme/editor` | `/settings` |

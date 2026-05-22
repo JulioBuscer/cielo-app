@@ -231,6 +231,14 @@ export default function BabyProfile() {
                 <GrowthCard emoji="🔵" label="Cráneo" current={`${mmToCm(lastGrowth.headCircMm)} cm`} birth={null} diffMm={null} />
               )}
             </View>
+            <TouchableOpacity
+              onPress={() => router.push("/logs/growth/history")}
+              style={{ marginTop: 8, alignSelf: "center", paddingVertical: 8, paddingHorizontal: 16 }}
+            >
+              <Text style={{ color: c.headerText, fontWeight: "700", fontSize: 12, opacity: 0.8 }}>
+                📊 Ver historial completo →
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <View className="p-4" style={{ backgroundColor: c.card }}>

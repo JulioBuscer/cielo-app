@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDb } from '@/src/db/client';
 import { growthLogs, timelineEvents } from '@/src/db/schema';
-import { desc, eq, inArray } from 'drizzle-orm';
+import { desc, eq, inArray, and } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 
 // ─── Helpers de conversión (UI en kg/cm, DB en g/mm) ─────────────────────────
@@ -54,18 +54,89 @@ export function useSaveGrowthLog() {
   });
 }
 
-// ─── QUERY: historial completo ────────────────────────────────────────────────
+// ─── QUERY: historial completo (growth_logs + timeline_events) ─────────────────
+//
+// El usuario puede registrar peso/talla de dos formas:
+//   1. app/logs/growth/new.tsx → guarda en growth_logs
+//   2. Quick Event → "Peso" / "Estatura" → guarda en timeline_events
+//
+// Este hook fusiona ambas fuentes ordenadas por timestamp.
+// ─────────────────────────────────────────────────────────────────────────────
 export function useGrowthHistory(babyId?: string) {
   return useQuery({
     queryKey: ['growth_logs', babyId, 'history'],
     enabled:  !!babyId,
     queryFn: async () => {
       if (!babyId) return [];
-      return getDb()
+
+      const db = getDb();
+
+      // Fuente 1: growth_logs
+      const glRows = await db
         .select()
         .from(growthLogs)
         .where(eq(growthLogs.babyId, babyId))
         .orderBy(desc(growthLogs.timestamp));
+
+      // Fuente 2: timeline_events tipo 'weight' o 'height'
+      const evRows = await db
+        .select()
+        .from(timelineEvents)
+        .where(and(
+          eq(timelineEvents.babyId, babyId),
+          inArray(timelineEvents.eventTypeId, ['weight', 'height']),
+        ))
+        .orderBy(desc(timelineEvents.timestamp));
+
+      const parseMeta = (row: typeof evRows[0]): Record<string, any> => {
+        try { return row.metadata ? JSON.parse(row.metadata) : {}; }
+        catch { return {}; }
+      };
+
+      const parseValues = (row: typeof evRows[0]): Record<string, number> => {
+        try { return row.values ? JSON.parse(row.values) : {}; }
+        catch { return {}; }
+      };
+
+      // Convertir timeline_events a filas unificadas
+      const evUnified = evRows.map((e) => {
+        const meta = parseMeta(e);
+        const vals = parseValues(e);
+        const ts = e.timestamp instanceof Date ? e.timestamp : new Date(Number(e.timestamp));
+        let weightGrams: number | null = null;
+        let heightMm: number | null = null;
+
+        if (e.eventTypeId === 'weight') {
+          // Nuevo sistema: values.weight está en kg → convertir a gramos
+          if (vals.weight != null) weightGrams = vals.weight * 1000;
+          // Legacy: metadata.weightGrams ya está en gramos
+          else if (meta.weightGrams != null) weightGrams = meta.weightGrams;
+        } else if (e.eventTypeId === 'height') {
+          // Nuevo sistema: values.height está en cm → convertir a mm
+          if (vals.height != null) heightMm = vals.height * 10;
+          // Legacy: metadata.heightMm ya está en mm
+          else if (meta.heightMm != null) heightMm = meta.heightMm;
+        }
+
+        return {
+          id: e.id,
+          babyId: e.babyId,
+          profileId: e.profileId,
+          timestamp: ts,
+          weightGrams,
+          heightMm,
+          headCircMm: null as number | null,
+          notes: e.notes,
+          createdAt: e.createdAt instanceof Date ? e.createdAt : new Date(Number(e.createdAt)),
+        };
+      });
+
+      // Fusionar y ordenar por timestamp (más reciente primero)
+      const merged = [...glRows, ...evUnified].sort(
+        (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+      );
+
+      return merged;
     },
   });
 }

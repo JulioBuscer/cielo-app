@@ -537,6 +537,14 @@ export default function StatsScreen() {
                       height={180}
                       noData={`Sin mediciones de ${growthMeta.label}`}
                     />
+                    <TouchableOpacity
+                      onPress={() => router.push("/logs/growth/history")}
+                      style={{ alignSelf: "center", marginTop: 8 }}
+                    >
+                      <Text style={{ color: c.accent, fontWeight: "700", fontSize: 12 }}>
+                        📊 Ver historial completo →
+                      </Text>
+                    </TouchableOpacity>
                   </ChartCard>
                 )}
 
