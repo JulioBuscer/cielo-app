@@ -208,6 +208,7 @@ function EventMetricsEditor({
   const [metrics, setMetrics] = useState<EventMetric[]>(
     eventType.metrics ? JSON.parse(eventType.metrics) : []
   );
+  const [hasChanges, setHasChanges] = useState(false);
 
   const DIMENSIONS: { id: string; label: string }[] = [
     { id: "mass", label: "Masa" },
@@ -228,6 +229,7 @@ function EventMetricsEditor({
       copy[idx] = { ...copy[idx], ...upd };
       return copy;
     });
+    setHasChanges(true);
   };
 
   const updateMetricZones = (idx: number, zones: Zone[]) => {
@@ -236,6 +238,7 @@ function EventMetricsEditor({
       copy[idx] = { ...copy[idx], zones: zones as ObservationZone[] };
       return copy;
     });
+    setHasChanges(true);
   };
 
   const addMetric = () => {
@@ -247,36 +250,101 @@ function EventMetricsEditor({
         unitId: "count",
       },
     ]);
+    setHasChanges(true);
   };
 
   const removeMetric = (idx: number) => {
     setMetrics((prev) => prev.filter((_, i) => i !== idx));
+    setHasChanges(true);
   };
 
   return (
-    <View style={{ marginTop: 16, gap: 16 }}>
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <Text
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 20, gap: 20, paddingBottom: 40 }}
+    >
+      {/* Header */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <TouchableOpacity
+          onPress={onCancel}
+          style={{ minWidth: 44, minHeight: 44, justifyContent: "center" }}
+        >
+          <Text style={{ color: c.textBody, fontSize: 24 }}>←</Text>
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              color: c.textBody,
+              fontWeight: "900",
+              fontSize: 18,
+            }}
+          >
+            ⚙️ Métricas
+          </Text>
+          <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 2 }}>
+            {eventType.emoji} {eventType.label}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => onSave(metrics)}
+          disabled={!hasChanges}
           style={{
-            fontWeight: "900",
-            fontSize: 15,
-            color: c.textBody,
+            backgroundColor: hasChanges ? c.accent : c.elevated,
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            borderRadius: 99,
+            minHeight: 44,
+            justifyContent: "center",
           }}
         >
-          ⚙️ Métricas de {eventType.emoji} {eventType.label}
-        </Text>
-        <TouchableOpacity onPress={onCancel}>
-          <Text style={{ color: c.danger, fontWeight: "700", fontSize: 14 }}>
-            ✕ Cerrar
+          <Text
+            style={{
+              color: hasChanges ? "#FFFFFF" : c.textMuted,
+              fontWeight: "800",
+              fontSize: 14,
+            }}
+          >
+            💾 Guardar
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Add button */}
+      <TouchableOpacity
+        onPress={addMetric}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6,
+          backgroundColor: c.card,
+          borderRadius: 14,
+          padding: 16,
+          minHeight: 52,
+          borderWidth: 1,
+          borderColor: c.elevated,
+          borderStyle: "dashed",
+        }}
+      >
+        <Text style={{ fontSize: 18 }}>➕</Text>
+        <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 14 }}>
+          Añadir métrica
+        </Text>
+      </TouchableOpacity>
+
+      {/* Metrics list */}
+      {metrics.length === 0 && (
+        <Text
+          style={{
+            color: c.textMuted,
+            fontSize: 14,
+            textAlign: "center",
+            paddingVertical: 24,
+          }}
+        >
+          Sin métricas — el evento solo tendrá notas y fecha
+        </Text>
+      )}
 
       {metrics.map((m, idx) => {
         const currentDim = unitDimension(m.unitId);
@@ -285,10 +353,10 @@ function EventMetricsEditor({
           <View
             key={m.id}
             style={{
-              backgroundColor: c.surface,
+              backgroundColor: c.card,
               borderRadius: 16,
-              padding: 14,
-              gap: 10,
+              padding: 16,
+              gap: 12,
             }}
           >
             <View
@@ -307,8 +375,11 @@ function EventMetricsEditor({
               >
                 #{idx + 1}
               </Text>
-              <TouchableOpacity onPress={() => removeMetric(idx)}>
-                <Text style={{ color: c.danger, fontSize: 14 }}>🗑️</Text>
+              <TouchableOpacity
+                onPress={() => removeMetric(idx)}
+                style={{ minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "center" }}
+              >
+                <Text style={{ color: c.danger, fontSize: 18 }}>✕</Text>
               </TouchableOpacity>
             </View>
 
@@ -318,12 +389,13 @@ function EventMetricsEditor({
               placeholder="Nombre de la métrica"
               placeholderTextColor={c.textMuted}
               style={{
-                backgroundColor: c.card,
-                borderRadius: 8,
-                padding: 10,
+                backgroundColor: c.surface,
+                borderRadius: 12,
+                padding: 14,
                 color: c.textBody,
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: "600",
+                minHeight: 48,
               }}
             />
 
@@ -333,10 +405,11 @@ function EventMetricsEditor({
                   fontSize: 11,
                   fontWeight: "800",
                   color: c.textMuted,
-                  marginBottom: 4,
+                  marginBottom: 6,
+                  textTransform: "uppercase",
                 }}
               >
-                DIMENSIÓN
+                Dimensión
               </Text>
               <View
                 style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}
@@ -349,21 +422,21 @@ function EventMetricsEditor({
                       updateMetric(idx, { unitId: units[0]?.id ?? "count" });
                     }}
                     style={{
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
                       borderRadius: 99,
                       backgroundColor:
-                        currentDim === dim.id ? c.elevated : c.card,
+                        currentDim === dim.id ? c.accent : c.surface,
+                      minHeight: 36,
+                      justifyContent: "center",
                     }}
                   >
                     <Text
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: "700",
                         color:
-                          currentDim === dim.id
-                            ? c.accentStrong
-                            : c.textMuted,
+                          currentDim === dim.id ? "#FFFFFF" : c.textMuted,
                       }}
                     >
                       {dim.label}
@@ -379,10 +452,11 @@ function EventMetricsEditor({
                   fontSize: 11,
                   fontWeight: "800",
                   color: c.textMuted,
-                  marginBottom: 4,
+                  marginBottom: 6,
+                  textTransform: "uppercase",
                 }}
               >
-                UNIDAD
+                Unidad
               </Text>
               <View
                 style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}
@@ -392,19 +466,20 @@ function EventMetricsEditor({
                     key={u.id}
                     onPress={() => updateMetric(idx, { unitId: u.id })}
                     style={{
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
                       borderRadius: 99,
                       backgroundColor:
-                        m.unitId === u.id ? c.elevated : c.card,
+                        m.unitId === u.id ? c.accent : c.surface,
+                      minHeight: 36,
+                      justifyContent: "center",
                     }}
                   >
                     <Text
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: "700",
-                        color:
-                          m.unitId === u.id ? c.accentStrong : c.textMuted,
+                        color: m.unitId === u.id ? "#FFFFFF" : c.textMuted,
                       }}
                     >
                       {u.symbol || u.name}
@@ -414,6 +489,7 @@ function EventMetricsEditor({
               </View>
             </View>
 
+            {/* Scale min/max */}
             <View style={{ flexDirection: "row", gap: 12 }}>
               <View style={{ flex: 1 }}>
                 <Text
@@ -422,6 +498,7 @@ function EventMetricsEditor({
                     fontWeight: "800",
                     color: c.textMuted,
                     marginBottom: 4,
+                    textTransform: "uppercase",
                   }}
                 >
                   Mín
@@ -430,20 +507,20 @@ function EventMetricsEditor({
                   value={m.scaleMin != null ? String(m.scaleMin) : ""}
                   onChangeText={(v) =>
                     updateMetric(idx, {
-                      scaleMin:
-                        v === "" ? undefined : parseInt(v) || 0,
+                      scaleMin: v === "" ? undefined : parseFloat(v) || 0,
                     })
                   }
-                  keyboardType="number-pad"
-                  placeholder="—"
+                  keyboardType="decimal-pad"
+                  placeholder="0"
                   placeholderTextColor={c.textMuted}
                   style={{
-                    backgroundColor: c.card,
-                    borderRadius: 8,
-                    padding: 8,
+                    backgroundColor: c.surface,
+                    borderRadius: 10,
+                    padding: 12,
                     color: c.textBody,
                     fontSize: 14,
                     textAlign: "center",
+                    minHeight: 44,
                   }}
                 />
               </View>
@@ -454,6 +531,7 @@ function EventMetricsEditor({
                     fontWeight: "800",
                     color: c.textMuted,
                     marginBottom: 4,
+                    textTransform: "uppercase",
                   }}
                 >
                   Máx
@@ -462,54 +540,34 @@ function EventMetricsEditor({
                   value={m.scaleMax != null ? String(m.scaleMax) : ""}
                   onChangeText={(v) =>
                     updateMetric(idx, {
-                      scaleMax:
-                        v === "" ? undefined : parseInt(v) || 0,
+                      scaleMax: v === "" ? undefined : parseFloat(v) || 0,
                     })
                   }
-                  keyboardType="number-pad"
-                  placeholder="—"
+                  keyboardType="decimal-pad"
+                  placeholder="10"
                   placeholderTextColor={c.textMuted}
                   style={{
-                    backgroundColor: c.card,
-                    borderRadius: 8,
-                    padding: 8,
+                    backgroundColor: c.surface,
+                    borderRadius: 10,
+                    padding: 12,
                     color: c.textBody,
                     fontSize: 14,
                     textAlign: "center",
+                    minHeight: 44,
                   }}
                 />
               </View>
             </View>
 
             <ZoneEditor
-              zones={(m.zones ?? []) as Zone[]}
-              onChange={(zones) => updateMetricZones(idx, zones)}
+              zones={m.zones as Zone[]}
+              onChange={(z) => updateMetricZones(idx, z)}
               showEmoji
             />
           </View>
         );
       })}
-
-      <TouchableOpacity
-        onPress={addMetric}
-        style={{
-          alignSelf: "flex-start",
-          paddingHorizontal: 14,
-          paddingVertical: 8,
-          borderRadius: 99,
-          backgroundColor: c.card,
-        }}
-      >
-        <Text style={{ color: c.accent, fontWeight: "700", fontSize: 13 }}>
-          + Añadir métrica
-        </Text>
-      </TouchableOpacity>
-
-      <BigButton
-        label="💾 Guardar métricas"
-        onPress={() => onSave(metrics)}
-      />
-    </View>
+    </ScrollView>
   );
 }
 
@@ -1370,6 +1428,21 @@ export default function CatalogsScreen() {
               }}
             />
           </View>
+        ) : editingEventMetrics ? (
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: c.surface,
+            }}
+          >
+            <EventMetricsEditor
+              eventType={editingEventMetrics}
+              onSave={(metrics) =>
+                handleSaveEventMetrics(editingEventMetrics.id, metrics)
+              }
+              onCancel={() => setEditingEventMetrics(null)}
+            />
+          </View>
         ) : (
           <ScrollView
             className="flex-1" style={{ backgroundColor: c.surface }}
@@ -1379,7 +1452,7 @@ export default function CatalogsScreen() {
           >
             {/* ─── Events Tab ─── */}
             {activeTab === "events" && (
-              <><View
+              <View
                 style={{
                   backgroundColor: c.card,
                   borderRadius: 20,
@@ -1611,17 +1684,6 @@ export default function CatalogsScreen() {
                   })}
                 </View>
               </View>
-
-              {editingEventMetrics && (
-                <EventMetricsEditor
-                  eventType={editingEventMetrics}
-                  onSave={(metrics) =>
-                    handleSaveEventMetrics(editingEventMetrics.id, metrics)
-                  }
-                  onCancel={() => setEditingEventMetrics(null)}
-                />
-              )}
-              </>
             )}
 
             {activeTab === "pee" && (
