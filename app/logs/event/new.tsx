@@ -22,6 +22,8 @@ import {
 } from "@/src/hooks/useTimeline";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
+import type { EventMetric } from "@/src/units/types";
+import { getUnit, getUnitsByDimension } from "@/src/units/registry";
 
 const MEDICAL_TYPES = ["medication", "temperature", "vomit"];
 
@@ -40,6 +42,20 @@ export default function EventNewScreen() {
   const [notes, setNotes] = useState("");
   const [timestamp, setTimestamp] = useState(new Date());
   const [saving, setSaving] = useState(false);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [displayUnits, setDisplayUnits] = useState<Record<string, string>>({});
+
+  const metrics: EventMetric[] = useMemo(() => {
+    if (!selectedType || !eventTypes) return [];
+    const et = eventTypes.find((t) => t.id === selectedType);
+    if (!et?.metrics) return [];
+    try {
+      const parsed = JSON.parse(et.metrics);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [selectedType, eventTypes]);
 
   const isMedical = selectedType ? MEDICAL_TYPES.includes(selectedType) : false;
 
@@ -73,12 +89,37 @@ export default function EventNewScreen() {
         await pauseFeeding.mutateAsync(activeFeeding);
       }
 
+      const numericValues: Record<string, number> = {};
+      for (const [k, v] of Object.entries(values)) {
+        if (v !== "") {
+          const num = parseFloat(v);
+          if (!isNaN(num)) {
+            // Convert from display unit to metric's default unit
+            const mDef = metrics.find((m) => m.id === k);
+            const displayUnitId = displayUnits[k] ?? mDef?.unitId;
+            if (displayUnitId && mDef && displayUnitId !== mDef.unitId) {
+              const displayU = getUnit(displayUnitId);
+              const defaultU = getUnit(mDef.unitId);
+              if (displayU && defaultU) {
+                const inBase = displayU.toBase(num);
+                numericValues[k] = defaultU.fromBase(inBase);
+              } else {
+                numericValues[k] = num;
+              }
+            } else {
+              numericValues[k] = num;
+            }
+          }
+        }
+      }
+
       await saveEvent.mutateAsync({
         babyId: baby.id,
         eventTypeId: selectedType,
         notes: notes.trim() || undefined,
         timestamp,
         feedingSessionId: activeFeeding?.id,
+        values: Object.keys(numericValues).length > 0 ? numericValues : undefined,
       });
 
       router.back();
@@ -227,6 +268,102 @@ export default function EventNewScreen() {
                 }}
               />
             </View>
+
+            {/* Metrics */}
+            {metrics.length > 0 && (
+              <View style={{ gap: 12 }}>
+                <Text
+                  style={{
+                    color: "#FF8AB3",
+                    fontWeight: "800",
+                    fontSize: 13,
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                  }}
+                >
+                  📐 Mediciones
+                </Text>
+                {metrics.map((m) => {
+                  const u = getUnit(m.unitId);
+                  const compatible = u ? getUnitsByDimension(u.dimension) : [];
+                  const displayUnitId = displayUnits[m.id] ?? m.unitId;
+                  const displayUnit = getUnit(displayUnitId) ?? u;
+                  const cycleUnit = () => {
+                    const idx = compatible.findIndex((cu) => cu.id === displayUnitId);
+                    const nextUnit = compatible[(idx + 1) % compatible.length];
+                    if (!nextUnit) return;
+                    const curUnit = getUnit(displayUnitId)!;
+                    setDisplayUnits((prev) => ({ ...prev, [m.id]: nextUnit.id }));
+                    setValues((prev) => {
+                      const raw = prev[m.id];
+                      if (!raw || raw === "") return prev;
+                      const num = parseFloat(raw);
+                      if (isNaN(num)) return prev;
+                      const inBase = curUnit.toBase(num);
+                      const newVal = nextUnit.fromBase(inBase);
+                      return { ...prev, [m.id]: String(newVal) };
+                    });
+                  };
+
+                  return (
+                    <View key={m.id} style={{ gap: 4 }}>
+                      <Text
+                        style={{
+                          color: "#BBBBBB",
+                          fontWeight: "700",
+                          fontSize: 13,
+                        }}
+                      >
+                        {m.name}{" "}
+                        {m.unitId ? (
+                          <Text style={{ color: "#888" }}>({m.unitId})</Text>
+                        ) : null}
+                      </Text>
+                      <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+                        <TextInput
+                          value={values[m.id] ?? ""}
+                          onChangeText={(v) =>
+                            setValues((prev) => ({ ...prev, [m.id]: v }))
+                          }
+                          placeholder="0"
+                          placeholderTextColor="#666"
+                          keyboardType="numeric"
+                          style={{
+                            flex: 1,
+                            backgroundColor: "#2A2A3E",
+                            borderRadius: 12,
+                            padding: 14,
+                            color: "#FFFFFF",
+                            fontSize: 15,
+                          }}
+                        />
+                        {compatible.length > 1 && (
+                          <TouchableOpacity
+                            onPress={cycleUnit}
+                            style={{
+                              backgroundColor: "#2A2A3E",
+                              borderRadius: 12,
+                              paddingHorizontal: 14,
+                              paddingVertical: 14,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: "#FF8AB3",
+                                fontWeight: "800",
+                                fontSize: 14,
+                              }}
+                            >
+                              {displayUnit?.symbol || displayUnitId}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
 
             {/* Date & Time */}
             <View style={{ gap: 6 }}>

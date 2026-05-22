@@ -82,6 +82,7 @@ export function useSaveTimelineEvent() {
       babyId: string;
       eventTypeId: string;
       metadata?: Record<string, unknown>;
+      values?: Record<string, number>;
       notes?: string;
       timestamp?: Date;
       feedingSessionId?: string;
@@ -99,6 +100,7 @@ export function useSaveTimelineEvent() {
         timestamp:        now,
         notes:            input.notes ?? null,
         metadata:         input.metadata ? JSON.stringify(input.metadata) : null,
+        values:           input.values ? JSON.stringify(input.values) : '{}',
         createdAt:        new Date(),
       });
     },

@@ -37,6 +37,7 @@ export const eventTypes = sqliteTable('event_types', {
                enum: ['diaper', 'feeding', 'health', 'growth', 'other']
              }).notNull(),
   isSystem:  integer('is_system', { mode: 'boolean' }).default(false),
+  metrics:   text('metrics').default('[]'), // JSON: EventMetric[]
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
@@ -140,6 +141,7 @@ export const timelineEvents = sqliteTable('timeline_events', {
   timestamp:        integer('timestamp', { mode: 'timestamp' }).notNull(),
   notes:            text('notes'),
   metadata:         text('metadata'),
+  values:           text('values').default('{}'), // JSON: Record<string, number>
   createdAt:        integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 

@@ -123,8 +123,8 @@ flowchart TB
 | Route | Component | Purpose | Navigates To | Navigated From |
 |-------|-----------|---------|-------------|----------------|
 | `/logs/diaper/new` | `DiaperNewScreen` | Record pee/poop intensity, health, weight, photo | `router.back()` | `/dashboard` |
-| `/logs/event/new` | `EventNewScreen` | Create custom event (select type + notes) | `router.back()` | `/dashboard` (with `preselect` param) |
-| `/logs/event/:id` | `EventDetailScreen` | View/edit event details, metadata, notes | `router.back()` | `/dashboard` (tap event bubble) |
+| `/logs/event/new` | `EventNewScreen` | Create custom event (select type + optional metric values with units) | `router.back()` | `/dashboard` (with `preselect` param) |
+| `/logs/event/:id` | `EventDetailScreen` | View/edit event details, metric values with zone colors, legacy metadata, notes | `router.back()` | `/dashboard` (tap event bubble) |
 | `/logs/feeding/:id` | `FeedingDetailScreen` | View/edit feeding session times, notes | `router.back()` | `/dashboard` (tap feeding bubble) |
 | `/logs/feeding/retro` | `FeedingRetroScreen` | Retroactive feeding log (type + duration) | `router.back()` | `/dashboard` (⏱ Rezagada) |
 | `/logs/sleep/:id` | `SleepDetailScreen` | View/edit sleep session, status timeline | `router.back()` | `/dashboard` (tap sleep bubble) |
@@ -137,7 +137,7 @@ flowchart TB
 |-------|-----------|---------|-------------|----------------|
 | `/baby/profile` | `BabyProfile` | Edit baby info, growth cards, danger zone (reset) | `/settings/catalogs`, `/onboarding/welcome` | `/dashboard`, `/settings` |
 | `/settings` | `SettingsScreen` | Main settings: Catalogs, Theme, Baby Profile, Version | `/baby/profile`, `/settings/catalogs`, `/settings/theme` | `/dashboard` (⋮ menu) |
-| `/settings/catalogs` | `CatalogsScreen` | Customize event types, pee/poop scales, observations | `router.back()` | `/settings`, `/baby/profile` |
+| `/settings/catalogs` | `CatalogsScreen` | Customize event types (with metric zones/units), pee/poop scales, observations | `router.back()` | `/settings`, `/baby/profile` |
 | `/settings/theme` | `ThemeSelectorScreen` | Theme list (built-in + custom), preview, edit/delete | `/settings/theme/editor` | `/settings` |
 | `/settings/theme/editor` | `ThemeEditorScreen` | Create/edit custom theme (all color fields) | `router.back()` | `/settings/theme` |
 
@@ -145,7 +145,7 @@ flowchart TB
 
 | Route | Component | Purpose | Navigates To | Navigated From |
 |-------|-----------|---------|-------------|----------------|
-| `/stats` | `StatsScreen` | Charts + summaries: feeding, sleep, diaper, growth | `router.back()` | `/dashboard` |
+| `/stats` | `StatsScreen` | Charts + summaries: feeding, sleep, diaper, events (with metric aggregates), growth | `router.back()` | `/dashboard` |
 | `/report/generate` | `GenerateReport` | Share reports via WhatsApp (native share) | (native share) | `/dashboard` |
 
 ### Placeholder

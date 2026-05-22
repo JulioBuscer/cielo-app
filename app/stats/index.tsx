@@ -13,7 +13,8 @@ import {
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useActiveBaby } from '@/src/hooks/useBaby';
-import { useStats, getRangeBounds, type RangeType } from '@/src/hooks/useStats';
+import { useEventTypes } from '@/src/hooks/useTimeline';
+import { useStats, getRangeBounds, type RangeType, type MetricValueAgg } from '@/src/hooks/useStats';
 import { useChartData } from '@/src/hooks/useChartData';
 import { shareReport } from '@/src/utils/shareReport';
 import { formatDuration } from '@/src/db/client';
@@ -21,6 +22,7 @@ import { BarChart }        from '@/src/components/charts/BarChart';
 import { AreaChart }       from '@/src/components/charts/AreaChart';
 import { GrowthLineChart } from '@/src/components/charts/GrowthLineChart';
 import { useTheme } from '@/src/theme/useTheme';
+import { getUnit } from '@/src/units/registry';
 
 // ─── Ranges ───────────────────────────────────────────────────────────────────
 const RANGES: { key: RangeType; label: string; icon: string }[] = [
@@ -209,6 +211,7 @@ export default function StatsScreen() {
   const [growthMetric, setGrowthMetric] = useState<GrowthMetric>('weightKg');
 
   const { data: baby }                  = useActiveBaby();
+  const { data: eventTypes }            = useEventTypes();
   const { data: result, isLoading }     = useStats(baby?.id, range, refDate);
   const { data: chartData, isLoading: chartLoading } = useChartData(baby?.id, range, refDate);
 
@@ -722,18 +725,52 @@ export default function StatsScreen() {
                       temperature: '🌡️ Temperatura', note: '📝 Notas',
                     };
                     const prevCount = prev.eventsByType[typeId] ?? 0;
+                    const aggs = curr.eventMetricAggs[typeId];
                     return (
-                      <View key={typeId} style={{
-                        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                        paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: c.elevated,
-                      }}>
-                        <Text style={{ fontSize: 14, color: c.textBody, fontWeight: '700' }}>
-                          {lbls[typeId] ?? typeId}
-                        </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <Text style={{ fontSize: 16, fontWeight: '900', color: c.success }}>{count}</Text>
-                          <DeltaBadge curr={count} prev={prevCount} />
+                      <View key={typeId}>
+                        <View style={{
+                          flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                          paddingVertical: 9,
+                          borderBottomWidth: aggs?.length ? 0 : 1,
+                          borderBottomColor: c.elevated,
+                        }}>
+                          <Text style={{ fontSize: 14, color: c.textBody, fontWeight: '700' }}>
+                            {lbls[typeId] ?? typeId}
+                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={{ fontSize: 16, fontWeight: '900', color: c.success }}>{count}</Text>
+                            <DeltaBadge curr={count} prev={prevCount} />
+                          </View>
                         </View>
+                        {aggs?.map((agg) => {
+                          const et = eventTypes?.find((t) => t.id === typeId);
+                          let metricDefs: { id: string; name: string; unitId: string }[] = [];
+                          if (et?.metrics) {
+                            try { metricDefs = JSON.parse(et.metrics); } catch {}
+                          }
+                          const mDef = metricDefs.find((m) => m.id === agg.metricId);
+                          const u = mDef ? getUnit(mDef.unitId) : undefined;
+                          const fmt = (n: number) => (n % 1 === 0 ? String(n) : n.toFixed(1));
+                          return (
+                            <View key={agg.metricId} style={{
+                              flexDirection: 'row', justifyContent: 'space-between',
+                              paddingLeft: 16, paddingVertical: 4,
+                              borderBottomWidth: 1, borderBottomColor: c.elevated,
+                            }}>
+                              <Text style={{ fontSize: 12, color: c.textMuted }}>
+                                {mDef?.name ?? agg.metricId}
+                              </Text>
+                              <Text style={{ fontSize: 12, color: c.textBody, fontWeight: '600' }}>
+                                {fmt(agg.avg)}{u?.symbol ? ` ${u.symbol}` : ''}
+                                {' '}
+                                <Text style={{ color: c.textMuted }}>
+                                  ({fmt(agg.min)}–{fmt(agg.max)})
+                                </Text>
+                              </Text>
+                            </View>
+                          );
+                        })}
+                        {!aggs?.length && <View style={{ borderBottomWidth: 1, borderBottomColor: c.elevated }} />}
                       </View>
                     );
                   })}

@@ -202,6 +202,7 @@ export async function runMigrations() {
       timestamp INTEGER NOT NULL,
       notes TEXT,
       metadata TEXT,
+      "values" TEXT DEFAULT '{}',
       created_at INTEGER NOT NULL
     );
   `);
@@ -226,6 +227,10 @@ export async function runMigrations() {
     `ALTER TABLE diaper_observations ADD COLUMN metrics TEXT DEFAULT '[]'`,
     `ALTER TABLE diaper_observations ADD COLUMN sort_order INTEGER DEFAULT 0`,
     `ALTER TABLE diaper_observations ADD COLUMN active INTEGER DEFAULT 1`,
+    // event_types
+    `ALTER TABLE event_types ADD COLUMN metrics TEXT DEFAULT '[]'`,
+    // timeline_events
+    `ALTER TABLE timeline_events ADD COLUMN "values" TEXT DEFAULT '{}'`,
   ]) {
     try { await _raw.execAsync(sql); } catch { /* columna ya existe, ok */ }
   }
@@ -254,6 +259,62 @@ export async function runMigrations() {
       `INSERT OR IGNORE INTO event_types (id, emoji, label, category, is_system, created_at)
        VALUES ('${et.id}', '${et.emoji}', '${et.label}', '${et.category}', 1, ${now});`
     );
+  }
+
+  // Seed metrics for system event types
+  const METRICS_MAP: Record<string, string> = {
+    weight: JSON.stringify([
+      { id: 'weight', name: 'Peso', unitId: 'kilogram', scaleMin: 0, scaleMax: 30 },
+    ]),
+    height: JSON.stringify([
+      { id: 'height', name: 'Estatura', unitId: 'centimeter', scaleMin: 0, scaleMax: 120 },
+    ]),
+    temperature: JSON.stringify([
+      { id: 'temperature', name: 'Temperatura', unitId: 'celsius', scaleMin: 34, scaleMax: 42 },
+    ]),
+    medication: JSON.stringify([
+      { id: 'dose', name: 'Dosis', unitId: 'milliliter', scaleMin: 0, scaleMax: 100 },
+    ]),
+  };
+  for (const [id, metrics] of Object.entries(METRICS_MAP)) {
+    await _raw.execAsync(
+      `UPDATE event_types SET metrics = '${metrics}' WHERE id = '${id}' AND (metrics IS NULL OR metrics = '[]');`
+    );
+  }
+
+  // Migrate legacy metadata → values
+  const LEGACY_MIGRATIONS = [
+    {
+      typeId: 'weight',
+      field: 'weightGrams',
+      metricId: 'weight',
+      divisor: 1000,
+    },
+    {
+      typeId: 'height',
+      field: 'heightMm',
+      metricId: 'height',
+      divisor: 10,
+    },
+    {
+      typeId: 'temperature',
+      field: 'celsius',
+      metricId: 'temperature',
+      divisor: 1,
+    },
+  ];
+  for (const { typeId, field, metricId, divisor } of LEGACY_MIGRATIONS) {
+    await _raw.execAsync(`
+      UPDATE timeline_events
+      SET "values" = json_object(
+        '${metricId}',
+        CAST(json_extract(metadata, '$.${field}') AS REAL) / ${divisor}
+      )
+      WHERE event_type_id = '${typeId}'
+        AND metadata IS NOT NULL
+        AND json_extract(metadata, '$.${field}') IS NOT NULL
+        AND ("values" IS NULL OR "values" = '{}');
+    `);
   }
 
   // Seed diaper_observations

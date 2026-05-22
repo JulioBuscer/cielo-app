@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -28,6 +28,9 @@ import { eq } from "drizzle-orm";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/src/theme/useTheme";
 import type { DiaperObservation, ObservationMetric, ObservationZone } from "@/src/db/schema";
+import type { EventType } from "@/src/db/schema";
+import type { EventMetric } from "@/src/units/types";
+import { getUnit, getUnitsByDimension } from "@/src/units/registry";
 import { generateId } from "@/src/utils/id";
 
 const COLORS = ["#4CAF50", "#FFC107", "#FF9800", "#F44336", "#9C27B0", "#2196F3"];
@@ -70,7 +73,7 @@ function ZoneEditor({
             <TextInput
               value={String(z.min)}
               onChangeText={(v) => {
-                const n = parseInt(v) || 1;
+                const n = v === '' ? 0 : parseInt(v) || 0;
                 const copy = [...zones];
                 copy[i] = { ...copy[i], min: n };
                 onChange(copy);
@@ -90,7 +93,7 @@ function ZoneEditor({
             <TextInput
               value={String(z.max)}
               onChangeText={(v) => {
-                const n = parseInt(v) || 1;
+                const n = v === '' ? 0 : parseInt(v) || 0;
                 const copy = [...zones];
                 copy[i] = { ...copy[i], max: n };
                 onChange(copy);
@@ -187,6 +190,325 @@ function ZoneEditor({
           + Añadir zona
         </Text>
       </TouchableOpacity>
+    </View>
+  );
+}
+
+function EventMetricsEditor({
+  eventType,
+  onSave,
+  onCancel,
+}: {
+  eventType: EventType;
+  onSave: (metrics: EventMetric[]) => void;
+  onCancel: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const [metrics, setMetrics] = useState<EventMetric[]>(
+    eventType.metrics ? JSON.parse(eventType.metrics) : []
+  );
+
+  const DIMENSIONS: { id: string; label: string }[] = [
+    { id: "mass", label: "Masa" },
+    { id: "volume", label: "Volumen" },
+    { id: "temperature", label: "Temperatura" },
+    { id: "length", label: "Longitud" },
+    { id: "dimensionless", label: "Sin unidad" },
+  ];
+
+  const unitDimension = (unitId: string): string => {
+    const u = getUnit(unitId);
+    return u ? u.dimension : "mass";
+  };
+
+  const updateMetric = (idx: number, upd: Partial<EventMetric>) => {
+    setMetrics((prev) => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], ...upd };
+      return copy;
+    });
+  };
+
+  const updateMetricZones = (idx: number, zones: Zone[]) => {
+    setMetrics((prev) => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], zones: zones as ObservationZone[] };
+      return copy;
+    });
+  };
+
+  const addMetric = () => {
+    setMetrics((prev) => [
+      ...prev,
+      {
+        id: generateId(),
+        name: "",
+        unitId: "count",
+      },
+    ]);
+  };
+
+  const removeMetric = (idx: number) => {
+    setMetrics((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <View style={{ marginTop: 16, gap: 16 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <Text
+          style={{
+            fontWeight: "900",
+            fontSize: 15,
+            color: c.textBody,
+          }}
+        >
+          ⚙️ Métricas de {eventType.emoji} {eventType.label}
+        </Text>
+        <TouchableOpacity onPress={onCancel}>
+          <Text style={{ color: c.danger, fontWeight: "700", fontSize: 14 }}>
+            ✕ Cerrar
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {metrics.map((m, idx) => {
+        const currentDim = unitDimension(m.unitId);
+        const availableUnits = getUnitsByDimension(currentDim);
+        return (
+          <View
+            key={m.id}
+            style={{
+              backgroundColor: c.surface,
+              borderRadius: 16,
+              padding: 14,
+              gap: 10,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  fontWeight: "800",
+                  fontSize: 13,
+                  color: c.accent,
+                }}
+              >
+                #{idx + 1}
+              </Text>
+              <TouchableOpacity onPress={() => removeMetric(idx)}>
+                <Text style={{ color: c.danger, fontSize: 14 }}>🗑️</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              value={m.name}
+              onChangeText={(v) => updateMetric(idx, { name: v })}
+              placeholder="Nombre de la métrica"
+              placeholderTextColor={c.textMuted}
+              style={{
+                backgroundColor: c.card,
+                borderRadius: 8,
+                padding: 10,
+                color: c.textBody,
+                fontSize: 14,
+                fontWeight: "600",
+              }}
+            />
+
+            <View>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "800",
+                  color: c.textMuted,
+                  marginBottom: 4,
+                }}
+              >
+                DIMENSIÓN
+              </Text>
+              <View
+                style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}
+              >
+                {DIMENSIONS.map((dim) => (
+                  <TouchableOpacity
+                    key={dim.id}
+                    onPress={() => {
+                      const units = getUnitsByDimension(dim.id);
+                      updateMetric(idx, { unitId: units[0]?.id ?? "count" });
+                    }}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 99,
+                      backgroundColor:
+                        currentDim === dim.id ? c.elevated : c.card,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: "700",
+                        color:
+                          currentDim === dim.id
+                            ? c.accentStrong
+                            : c.textMuted,
+                      }}
+                    >
+                      {dim.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "800",
+                  color: c.textMuted,
+                  marginBottom: 4,
+                }}
+              >
+                UNIDAD
+              </Text>
+              <View
+                style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}
+              >
+                {availableUnits.map((u) => (
+                  <TouchableOpacity
+                    key={u.id}
+                    onPress={() => updateMetric(idx, { unitId: u.id })}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 99,
+                      backgroundColor:
+                        m.unitId === u.id ? c.elevated : c.card,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: "700",
+                        color:
+                          m.unitId === u.id ? c.accentStrong : c.textMuted,
+                      }}
+                    >
+                      {u.symbol || u.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "800",
+                    color: c.textMuted,
+                    marginBottom: 4,
+                  }}
+                >
+                  Mín
+                </Text>
+                <TextInput
+                  value={m.scaleMin != null ? String(m.scaleMin) : ""}
+                  onChangeText={(v) =>
+                    updateMetric(idx, {
+                      scaleMin:
+                        v === "" ? undefined : parseInt(v) || 0,
+                    })
+                  }
+                  keyboardType="number-pad"
+                  placeholder="—"
+                  placeholderTextColor={c.textMuted}
+                  style={{
+                    backgroundColor: c.card,
+                    borderRadius: 8,
+                    padding: 8,
+                    color: c.textBody,
+                    fontSize: 14,
+                    textAlign: "center",
+                  }}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "800",
+                    color: c.textMuted,
+                    marginBottom: 4,
+                  }}
+                >
+                  Máx
+                </Text>
+                <TextInput
+                  value={m.scaleMax != null ? String(m.scaleMax) : ""}
+                  onChangeText={(v) =>
+                    updateMetric(idx, {
+                      scaleMax:
+                        v === "" ? undefined : parseInt(v) || 0,
+                    })
+                  }
+                  keyboardType="number-pad"
+                  placeholder="—"
+                  placeholderTextColor={c.textMuted}
+                  style={{
+                    backgroundColor: c.card,
+                    borderRadius: 8,
+                    padding: 8,
+                    color: c.textBody,
+                    fontSize: 14,
+                    textAlign: "center",
+                  }}
+                />
+              </View>
+            </View>
+
+            <ZoneEditor
+              zones={(m.zones ?? []) as Zone[]}
+              onChange={(zones) => updateMetricZones(idx, zones)}
+              showEmoji
+            />
+          </View>
+        );
+      })}
+
+      <TouchableOpacity
+        onPress={addMetric}
+        style={{
+          alignSelf: "flex-start",
+          paddingHorizontal: 14,
+          paddingVertical: 8,
+          borderRadius: 99,
+          backgroundColor: c.card,
+        }}
+      >
+        <Text style={{ color: c.accent, fontWeight: "700", fontSize: 13 }}>
+          + Añadir métrica
+        </Text>
+      </TouchableOpacity>
+
+      <BigButton
+        label="💾 Guardar métricas"
+        onPress={() => onSave(metrics)}
+      />
     </View>
   );
 }
@@ -426,7 +748,7 @@ function ObservationForm({
                 <TextInput
                   value={String(m.scaleMin)}
                   onChangeText={(v) =>
-                    updateMetric(idx, { scaleMin: parseInt(v) || 1 })
+                    updateMetric(idx, { scaleMin: v === '' ? 0 : parseInt(v) || 0 })
                   }
                   keyboardType="number-pad"
                   style={{
@@ -446,7 +768,7 @@ function ObservationForm({
                 <TextInput
                   value={String(m.scaleMax)}
                   onChangeText={(v) =>
-                    updateMetric(idx, { scaleMax: parseInt(v) || 1 })
+                    updateMetric(idx, { scaleMax: v === '' ? 0 : parseInt(v) || 0 })
                   }
                   keyboardType="number-pad"
                   style={{
@@ -634,7 +956,7 @@ function HealthSection({
               <TextInput
                 value={String(config.min)}
                 onChangeText={(v) =>
-                  onChange({ ...config, min: parseInt(v) || 1 })
+                  onChange({ ...config, min: v === '' ? 0 : parseInt(v) || 0 })
                 }
                 keyboardType="number-pad"
                 placeholder="1"
@@ -816,6 +1138,7 @@ export default function CatalogsScreen() {
   const [activeTab, setActiveTab] = useState<"events" | "pee" | "poop" | "obs">("events");
   const [showForm, setShowForm] = useState(false);
   const [editingObs, setEditingObs] = useState<DiaperObservation | null>(null);
+  const [editingEventMetrics, setEditingEventMetrics] = useState<EventType | null>(null);
 
   // ─── Pee config ───
   const [peeIntensity, setPeeIntensity] = useState<ConfigRange & { zones: Zone[] }>({
@@ -917,6 +1240,15 @@ export default function CatalogsScreen() {
         },
       },
     ]);
+  };
+
+  const handleSaveEventMetrics = async (id: string, metrics: EventMetric[]) => {
+    await getDb()
+      .update(eventTypes)
+      .set({ metrics: JSON.stringify(metrics) })
+      .where(eq(eventTypes.id, id));
+    qc.invalidateQueries({ queryKey: ["event_types"] });
+    setEditingEventMetrics(null);
   };
 
   const handleDeleteDiaper = async (id: string, isSystem: boolean | null) => {
@@ -1047,7 +1379,7 @@ export default function CatalogsScreen() {
           >
             {/* ─── Events Tab ─── */}
             {activeTab === "events" && (
-              <View
+              <><View
                 style={{
                   backgroundColor: c.card,
                   borderRadius: 20,
@@ -1180,67 +1512,118 @@ export default function CatalogsScreen() {
                 />
 
                 <View style={{ marginTop: 20, gap: 8 }}>
-                  {events?.map((item) => (
-                    <View
-                      key={item.id}
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        paddingVertical: 8,
-                        borderBottomWidth: 1,
-                        borderBottomColor: c.surface,
-                      }}
-                    >
+                  {events?.map((item) => {
+                    const parsedMetrics: EventMetric[] = item.metrics
+                      ? JSON.parse(item.metrics)
+                      : [];
+                    return (
                       <View
+                        key={item.id}
                         style={{
                           flexDirection: "row",
+                          justifyContent: "space-between",
                           alignItems: "center",
-                          gap: 12,
+                          paddingVertical: 8,
+                          borderBottomWidth: 1,
+                          borderBottomColor: c.surface,
                         }}
                       >
-                        <Text style={{ fontSize: 24 }}>{item.emoji}</Text>
-                        <View>
-                          <Text
-                            style={{
-                              fontSize: 15,
-                              fontWeight: "800",
-                              color: c.textBody,
-                            }}
-                          >
-                            {item.label}
-                          </Text>
-                          {!!item.isSystem && (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 12,
+                            flex: 1,
+                          }}
+                        >
+                          <Text style={{ fontSize: 24 }}>{item.emoji}</Text>
+                          <View style={{ flex: 1 }}>
                             <Text
                               style={{
-                                fontSize: 10,
-                                color: c.accentStrong,
+                                fontSize: 15,
                                 fontWeight: "800",
+                                color: c.textBody,
                               }}
                             >
-                              SISTEMA
+                              {item.label}
                             </Text>
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                gap: 6,
+                                alignItems: "center",
+                              }}
+                            >
+                              {!!item.isSystem && (
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    color: c.accentStrong,
+                                    fontWeight: "800",
+                                  }}
+                                >
+                                  SISTEMA
+                                </Text>
+                              )}
+                              {parsedMetrics.length > 0 && (
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    color: c.whatsGreen,
+                                    fontWeight: "800",
+                                  }}
+                                >
+                                  ⚙️ {parsedMetrics.length} métrica
+                                  {parsedMetrics.length > 1 ? "s" : ""}
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            gap: 8,
+                            alignItems: "center",
+                          }}
+                        >
+                          <TouchableOpacity
+                            onPress={() => setEditingEventMetrics(item)}
+                          >
+                            <Text style={{ color: c.accent, fontSize: 16 }}>
+                              ⚙️
+                            </Text>
+                          </TouchableOpacity>
+                          {!item.isSystem && (
+                            <TouchableOpacity
+                              onPress={() =>
+                                handleDeleteEvent(item.id, item.isSystem)
+                              }
+                            >
+                              <Text style={{ color: c.danger, fontSize: 16 }}>
+                                🗑️
+                              </Text>
+                            </TouchableOpacity>
                           )}
                         </View>
                       </View>
-                      {!item.isSystem && (
-                        <TouchableOpacity
-                          onPress={() =>
-                            handleDeleteEvent(item.id, item.isSystem)
-                          }
-                        >
-                          <Text style={{ color: c.danger, fontSize: 18 }}>
-                            🗑️
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
               </View>
+
+              {editingEventMetrics && (
+                <EventMetricsEditor
+                  eventType={editingEventMetrics}
+                  onSave={(metrics) =>
+                    handleSaveEventMetrics(editingEventMetrics.id, metrics)
+                  }
+                  onCancel={() => setEditingEventMetrics(null)}
+                />
+              )}
+              </>
             )}
 
-            {/* ─── Pee Tab ─── */}
             {activeTab === "pee" && (
               <PeeConfigSection
                 intensity={peeIntensity}

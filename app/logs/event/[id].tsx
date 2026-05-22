@@ -20,8 +20,10 @@ import { useActiveProfile } from "@/src/hooks/useProfile";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
-import { getZoneColor, getZoneLabel, parseMetrics, getMetricZoneColor, getMetricZoneLabel, getMetricZoneEmoji } from "@/src/db/schema";
+import { getZoneColor, getZoneLabel, parseMetrics, getMetricZoneColor, getMetricZoneLabel } from "@/src/db/schema";
 import { useTheme } from "@/src/theme/useTheme";
+import { getUnit } from "@/src/units/registry";
+import type { EventMetric } from "@/src/units/types";
 
 function formatDateTime(ts: Date | string | number | undefined | null): string {
   if (!ts) return "--";
@@ -209,7 +211,7 @@ export default function EventDetailScreen() {
           </View>
         </View>
 
-        {/* Metadata display */}
+        {/* Legacy metadata display */}
         {metadataDisplay.length > 0 && !editing && (
           <View className="rounded-2xl p-5 gap-2" style={{ backgroundColor: c.card }}>
             <Text className="font-black text-[15px]" style={{ color: c.textBody }}>📊 Detalles</Text>
@@ -232,6 +234,52 @@ export default function EventDetailScreen() {
             ))}
           </View>
         )}
+
+        {/* Values display (metrics system) */}
+        {event.values && !editing && (() => {
+          const evMetrics: EventMetric[] = evType?.metrics
+            ? (() => { try { const p = JSON.parse(evType.metrics); return Array.isArray(p) ? p : []; } catch { return []; } })()
+            : [];
+          if (evMetrics.length === 0) return null;
+          let eventValues: Record<string, number> = {};
+          try { eventValues = JSON.parse(event.values); } catch {}
+          const entries = evMetrics
+            .map((m) => ({ m, v: eventValues[m.id] }))
+            .filter((e) => e.v != null && !isNaN(e.v));
+          if (entries.length === 0) return null;
+
+          return (
+            <View className="rounded-2xl p-5 gap-2" style={{ backgroundColor: c.card }}>
+              <Text className="font-black text-[15px]" style={{ color: c.textBody }}>📐 Mediciones</Text>
+              {entries.map(({ m, v }) => {
+                const u = getUnit(m.unitId);
+                const matchedZone = m.zones?.find((z) => v >= z.min && v <= z.max);
+                const zoneColor = matchedZone?.color;
+                const zoneLabel = matchedZone?.label;
+                return (
+                  <View
+                    key={m.id}
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      paddingVertical: 6,
+                      borderBottomWidth: 1,
+                      borderBottomColor: c.card,
+                    }}
+                  >
+                    <Text className="font-semibold text-sm" style={{ color: c.textMuted }}>
+                      {m.name}
+                    </Text>
+                    <Text style={{ color: zoneColor ?? c.textBody, fontWeight: "700", fontSize: 14 }}>
+                      {v}{u?.symbol ? ` ${u.symbol}` : ""}
+                      {zoneLabel ? ` · ${zoneLabel}` : ""}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          );
+        })()}
 
         {/* Notes */}
         {!editing && event.notes && (

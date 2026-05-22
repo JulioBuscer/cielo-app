@@ -84,6 +84,15 @@ export interface GrowthPoint {
   headCircMm:  number | null;
 }
 
+export interface MetricValueAgg {
+  metricId: string;
+  count:    number;
+  sum:      number;
+  min:      number;
+  max:      number;
+  avg:      number;
+}
+
 export interface PeriodStats {
   // Tomas
   feedingCount:        number;
@@ -102,6 +111,8 @@ export interface PeriodStats {
   diaperWithPoop:      number;
   // Otros eventos
   eventsByType:        Record<string, number>;
+  // Métricas de eventos por tipo (de la columna "values")
+  eventMetricAggs:     Record<string, MetricValueAgg[]>;  // keyed by eventTypeId
   // Comportamiento entre tomas
   interFeedingEvents:  InterFeedingEvent[];
   // Crecimiento
@@ -160,8 +171,35 @@ function computeStats(
 
   // ── Otros eventos ──
   const eventsByType: Record<string, number> = {};
-  for (const ev of events)
+  const eventMetricAggs: Record<string, Record<string, number[]>> = {};
+  for (const ev of events) {
     eventsByType[ev.eventTypeId] = (eventsByType[ev.eventTypeId] ?? 0) + 1;
+    if (ev.values) {
+      try {
+        const vals: Record<string, number> = JSON.parse(ev.values);
+        if (!eventMetricAggs[ev.eventTypeId]) eventMetricAggs[ev.eventTypeId] = {};
+        for (const [metricId, v] of Object.entries(vals)) {
+          if (!eventMetricAggs[ev.eventTypeId][metricId]) eventMetricAggs[ev.eventTypeId][metricId] = [];
+          eventMetricAggs[ev.eventTypeId][metricId].push(v);
+        }
+      } catch {}
+    }
+  }
+  const eventMetricAggsFinal: Record<string, MetricValueAgg[]> = {};
+  for (const [typeId, metrics] of Object.entries(eventMetricAggs)) {
+    eventMetricAggsFinal[typeId] = Object.entries(metrics).map(([metricId, vals]) => {
+      const count = vals.length;
+      const sum = vals.reduce((a, b) => a + b, 0);
+      return {
+        metricId,
+        count,
+        sum,
+        min: Math.min(...vals),
+        max: Math.max(...vals),
+        avg: count > 0 ? sum / count : 0,
+      };
+    });
+  }
 
   // ── Comportamiento entre tomas ──
   // Para cada evento (no pañal-ya contado, burp, vomit, etc.) calculamos
@@ -228,7 +266,7 @@ function computeStats(
     feedingCount, feedingTotalSec, feedingAvgSec, feedingByType, feedingBySubtype,
     sleepCount, sleepTotalSec, sleepAvgSec,
     diaperCount, diaperPeeAvg, diaperPoopAvg, diaperWithPoop,
-    eventsByType, interFeedingEvents, growthHistory, latestGrowth,
+    eventsByType, eventMetricAggs: eventMetricAggsFinal, interFeedingEvents, growthHistory, latestGrowth,
     diaperImageUris, range,
   };
 }

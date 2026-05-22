@@ -111,57 +111,45 @@ export function useLastGrowthLog(babyId?: string) {
         catch { return {}; }
       };
 
+      // Helper: extraer valor desde la nueva columna "values" (JSON)
+      const parseValues = (row: typeof evRows[0]): Record<string, number> => {
+        try { return row.values ? JSON.parse(row.values) : {}; }
+        catch { return {}; }
+      };
+
       // ── Mejor fuente para weightGrams ────────────────────────────────────
       // Candidatos de growth_logs
       const glWeight = glRows.find(g => g.weightGrams != null);
-      // Candidatos de timeline_events
-      const evWeight = weightEvents.find(e => parseMeta(e).weightGrams != null);
+      // Candidatos de timeline_events: metadata.weightGrams (legacy, en gramos)
+      const evWeightMeta = weightEvents.find(e => parseMeta(e).weightGrams != null);
+      // Candidatos de timeline_events: "values" (nuevo sistema, en kg → convertir a gramos)
+      const evWeightVal = weightEvents.find(e => parseValues(e).weight != null);
 
       let weightGrams: number | null = null;
       let weightTs:    number | null = null;
 
-      if (glWeight && evWeight) {
-        const glTs = new Date(glWeight.timestamp).getTime();
-        const evTs = new Date(evWeight.timestamp).getTime();
-        if (glTs >= evTs) {
-          weightGrams = glWeight.weightGrams;
-          weightTs    = glTs;
-        } else {
-          weightGrams = parseMeta(evWeight).weightGrams;
-          weightTs    = evTs;
-        }
-      } else if (glWeight) {
-        weightGrams = glWeight.weightGrams;
-        weightTs    = new Date(glWeight.timestamp).getTime();
-      } else if (evWeight) {
-        weightGrams = parseMeta(evWeight).weightGrams;
-        weightTs    = new Date(evWeight.timestamp).getTime();
-      }
+      // Tomar el más reciente entre las tres fuentes
+      const weightCandidates: { value: number; ts: number }[] = [];
+      if (glWeight) weightCandidates.push({ value: glWeight.weightGrams!, ts: new Date(glWeight.timestamp).getTime() });
+      if (evWeightMeta) weightCandidates.push({ value: parseMeta(evWeightMeta).weightGrams, ts: new Date(evWeightMeta.timestamp).getTime() });
+      if (evWeightVal) weightCandidates.push({ value: parseValues(evWeightVal).weight * 1000, ts: new Date(evWeightVal.timestamp).getTime() });
+      const bestWeight = weightCandidates.sort((a, b) => b.ts - a.ts)[0];
+      if (bestWeight) { weightGrams = bestWeight.value; weightTs = bestWeight.ts; }
 
       // ── Mejor fuente para heightMm ───────────────────────────────────────
       const glHeight = glRows.find(g => g.heightMm != null);
-      const evHeight = heightEvents.find(e => parseMeta(e).heightMm != null);
+      const evHeightMeta = heightEvents.find(e => parseMeta(e).heightMm != null);
+      const evHeightVal = heightEvents.find(e => parseValues(e).height != null);
 
       let heightMm: number | null = null;
       let heightTs: number | null = null;
 
-      if (glHeight && evHeight) {
-        const glTs = new Date(glHeight.timestamp).getTime();
-        const evTs = new Date(evHeight.timestamp).getTime();
-        if (glTs >= evTs) {
-          heightMm = glHeight.heightMm;
-          heightTs = glTs;
-        } else {
-          heightMm = parseMeta(evHeight).heightMm;
-          heightTs = evTs;
-        }
-      } else if (glHeight) {
-        heightMm = glHeight.heightMm;
-        heightTs = new Date(glHeight.timestamp).getTime();
-      } else if (evHeight) {
-        heightMm = parseMeta(evHeight).heightMm;
-        heightTs = new Date(evHeight.timestamp).getTime();
-      }
+      const heightCandidates: { value: number; ts: number }[] = [];
+      if (glHeight) heightCandidates.push({ value: glHeight.heightMm!, ts: new Date(glHeight.timestamp).getTime() });
+      if (evHeightMeta) heightCandidates.push({ value: parseMeta(evHeightMeta).heightMm, ts: new Date(evHeightMeta.timestamp).getTime() });
+      if (evHeightVal) heightCandidates.push({ value: parseValues(evHeightVal).height * 10, ts: new Date(evHeightVal.timestamp).getTime() });
+      const bestHeight = heightCandidates.sort((a, b) => b.ts - a.ts)[0];
+      if (bestHeight) { heightMm = bestHeight.value; heightTs = bestHeight.ts; }
 
       // ── headCircMm — solo viene de growth_logs (no hay evento de tipo head) ─
       const glHead = glRows.find(g => g.headCircMm != null);
