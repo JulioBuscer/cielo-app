@@ -22,12 +22,15 @@ import {
 } from "@/src/hooks/useTimeline";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
+import { useTheme } from "@/src/theme/useTheme";
 import type { EventMetric } from "@/src/units/types";
 import { getUnit, getUnitsByDimension } from "@/src/units/registry";
 
 const MEDICAL_TYPES = ["medication", "temperature", "vomit"];
 
 export default function EventNewScreen() {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const { preselect } = useLocalSearchParams<{ preselect?: string }>();
   const { data: baby } = useActiveBaby();
   const { data: profile } = useActiveProfile();
@@ -131,8 +134,8 @@ export default function EventNewScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#1A1A2E" }} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.surface }} edges={["top"]}>
+      <StatusBar barStyle="light-content" backgroundColor={c.headerBg ?? c.surface} />
 
       {/* Header */}
       <View
@@ -141,13 +144,13 @@ export default function EventNewScreen() {
           alignItems: "center",
           paddingHorizontal: 16,
           paddingVertical: 12,
-          backgroundColor: "#1A1A2E",
+          backgroundColor: c.headerBg ?? c.surface,
           borderBottomWidth: 1,
-          borderBottomColor: "#2A2A3E",
+          borderBottomColor: c.elevated,
         }}
       >
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={{ fontSize: 24 }}>✕</Text>
+          <Text style={{ fontSize: 24, color: c.textBody }}>✕</Text>
         </TouchableOpacity>
         <Text
           style={{
@@ -155,7 +158,7 @@ export default function EventNewScreen() {
             textAlign: "center",
             fontSize: 18,
             fontWeight: "900",
-            color: "#FFFFFF",
+            color: c.textBody,
           }}
         >
           📝 Nuevo Evento
@@ -174,7 +177,7 @@ export default function EventNewScreen() {
               <View key={category} style={{ gap: 8 }}>
                 <Text
                   style={{
-                    color: "#FF8AB3",
+                    color: c.accent,
                     fontWeight: "800",
                     fontSize: 14,
                     textTransform: "uppercase",
@@ -197,13 +200,13 @@ export default function EventNewScreen() {
                         paddingHorizontal: 16,
                         paddingVertical: 10,
                         borderRadius: 99,
-                        backgroundColor: "#2A2A3E",
+                        backgroundColor: c.elevated,
                       }}
                     >
                       <Text style={{ fontSize: 18 }}>{et.emoji}</Text>
                       <Text
                         style={{
-                          color: "#FFFFFF",
+                          color: c.textBody,
                           fontWeight: "700",
                           fontSize: 14,
                         }}
@@ -225,7 +228,7 @@ export default function EventNewScreen() {
                   flexDirection: "row",
                   alignItems: "center",
                   gap: 8,
-                  backgroundColor: "#FF8AB3",
+                  backgroundColor: c.accent,
                   paddingHorizontal: 16,
                   paddingVertical: 10,
                   borderRadius: 99,
@@ -240,28 +243,26 @@ export default function EventNewScreen() {
                 >
                   {eventTypes?.find((t) => t.id === selectedType)?.label}
                 </Text>
-                <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 16 }}>
-                  ✕
-                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 16 }}>✕</Text>
               </View>
             </TouchableOpacity>
 
             {/* Notes */}
             <View style={{ gap: 6 }}>
-              <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 13 }}>
+              <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
                 📝 Notas
               </Text>
               <TextInput
                 value={notes}
                 onChangeText={setNotes}
                 placeholder="Agregar nota..."
-                placeholderTextColor="#666"
+                placeholderTextColor={c.textDim}
                 multiline
                 style={{
-                  backgroundColor: "#2A2A3E",
+                  backgroundColor: c.elevated,
                   borderRadius: 12,
                   padding: 14,
-                  color: "#FFFFFF",
+                  color: c.textBody,
                   fontSize: 15,
                   minHeight: 80,
                   textAlignVertical: "top",
@@ -274,7 +275,7 @@ export default function EventNewScreen() {
               <View style={{ gap: 12 }}>
                 <Text
                   style={{
-                    color: "#FF8AB3",
+                    color: c.accent,
                     fontWeight: "800",
                     fontSize: 13,
                     textTransform: "uppercase",
@@ -309,14 +310,14 @@ export default function EventNewScreen() {
                     <View key={m.id} style={{ gap: 4 }}>
                       <Text
                         style={{
-                          color: "#BBBBBB",
+                          color: c.textMuted,
                           fontWeight: "700",
                           fontSize: 13,
                         }}
                       >
                         {m.name}{" "}
                         {m.unitId ? (
-                          <Text style={{ color: "#888" }}>({m.unitId})</Text>
+                          <Text style={{ color: c.textDim }}>({m.unitId})</Text>
                         ) : null}
                       </Text>
                       <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
@@ -326,14 +327,14 @@ export default function EventNewScreen() {
                             setValues((prev) => ({ ...prev, [m.id]: v }))
                           }
                           placeholder="0"
-                          placeholderTextColor="#666"
+                          placeholderTextColor={c.textDim}
                           keyboardType="numeric"
                           style={{
                             flex: 1,
-                            backgroundColor: "#2A2A3E",
+                            backgroundColor: c.elevated,
                             borderRadius: 12,
                             padding: 14,
-                            color: "#FFFFFF",
+                            color: c.textBody,
                             fontSize: 15,
                           }}
                         />
@@ -341,7 +342,7 @@ export default function EventNewScreen() {
                           <TouchableOpacity
                             onPress={cycleUnit}
                             style={{
-                              backgroundColor: "#2A2A3E",
+                              backgroundColor: c.elevated,
                               borderRadius: 12,
                               paddingHorizontal: 14,
                               paddingVertical: 14,
@@ -349,7 +350,7 @@ export default function EventNewScreen() {
                           >
                             <Text
                               style={{
-                                color: "#FF8AB3",
+                                color: c.accent,
                                 fontWeight: "800",
                                 fontSize: 14,
                               }}
@@ -367,7 +368,7 @@ export default function EventNewScreen() {
 
             {/* Date & Time */}
             <View style={{ gap: 6 }}>
-              <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 13 }}>
+              <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
                 🕐 Fecha y hora
               </Text>
               <DateTimePicker
@@ -380,15 +381,15 @@ export default function EventNewScreen() {
             {isMedical && (
               <View
                 style={{
-                  backgroundColor: "#3A0000",
+                  backgroundColor: c.danger + "20",
                   borderRadius: 12,
                   padding: 12,
                   borderLeftWidth: 4,
-                  borderLeftColor: "#FF0000",
+                  borderLeftColor: c.danger,
                 }}
               >
                 <Text
-                  style={{ color: "#FF6B6B", fontWeight: "700", fontSize: 13 }}
+                  style={{ color: c.danger, fontWeight: "700", fontSize: 13 }}
                 >
                   ⚠️ Esto pausará la toma activa para registrar el evento médico
                 </Text>
@@ -405,7 +406,7 @@ export default function EventNewScreen() {
             <TouchableOpacity onPress={() => setSelectedType(null)}>
               <Text
                 style={{
-                  color: "#888",
+                  color: c.textDim,
                   textAlign: "center",
                   fontWeight: "600",
                   fontSize: 14,
