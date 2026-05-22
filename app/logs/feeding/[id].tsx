@@ -96,7 +96,7 @@ export default function FeedingDetailScreen() {
   if (!session) {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: c.surface }} edges={["top"]}>
-        <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
+        <StatusBar barStyle="light-content" backgroundColor={c.headerBg} />
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <Text className="text-base" style={{ color: c.textDim }}>Cargando...</Text>
         </View>
@@ -113,7 +113,7 @@ export default function FeedingDetailScreen() {
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: c.surface }} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
+      <StatusBar barStyle="light-content" backgroundColor={c.headerBg} />
 
       {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b" style={{ backgroundColor: c.surface, borderBottomColor: c.elevated }}>
@@ -140,8 +140,8 @@ export default function FeedingDetailScreen() {
             <Text
               className="font-bold text-xs px-2.5 py-1 rounded-full"
               style={{
-                color: isOwn ? "#4CAF50" : c.accent,
-                backgroundColor: isOwn ? "#1A3A1A" : "#3A1A2E",
+                color: isOwn ? c.success : c.accent,
+                backgroundColor: isOwn ? `${c.success}20` : c.accentLight,
               }}
             >
               {isOwn ? "Tú" : "Otro cuidador"}
@@ -198,7 +198,7 @@ export default function FeedingDetailScreen() {
                 value={editNotes}
                 onChangeText={setEditNotes}
                 placeholder="Agregar nota..."
-                placeholderTextColor="#666"
+                placeholderTextColor={c.textMuted}
                 multiline
                 className="rounded-xl p-3.5 text-[15px]"
                 style={{ backgroundColor: c.surface, color: c.textBody, minHeight: 60, textAlignVertical: "top" }}
@@ -222,11 +222,11 @@ export default function FeedingDetailScreen() {
                     <View
                       style={{
                         width: 10, height: 10, borderRadius: 5,
-                        backgroundColor: ev.type === "start" ? "#4CAF50" : ev.type === "finish" ? "#FF6B6B" : c.accent,
+                        backgroundColor: ev.type === "start" ? c.success : ev.type === "finish" ? c.danger : c.accent,
                       }}
                     />
                     {i < statusEvents.length - 1 && (
-                      <View style={{ width: 2, flex: 1, minHeight: 16, backgroundColor: "#3A3A4E" }} />
+                      <View style={{ width: 2, flex: 1, minHeight: 16, backgroundColor: c.elevated }} />
                     )}
                   </View>
 

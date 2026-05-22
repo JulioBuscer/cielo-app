@@ -10,6 +10,7 @@ import {
   BOTTLE_SUBTYPE_LABELS,
 } from '@/src/hooks/useFeedingSessions';
 import type { FeedingSession } from '@/src/db/schema';
+import { useTheme } from '@/src/theme/useTheme';
 
 /**
  * Hook de timer preciso.
@@ -71,6 +72,7 @@ export function ActiveFeedingCard({ session }: { session: FeedingSession }) {
   const resume  = useResumeFeeding();
   const finish  = useFinishFeeding();
   const elapsed = usePreciseElapsed(session);
+  const { theme } = useTheme(); const c = theme.colors;
 
   const isActive = session.status === 'active';
   const { emoji, label } = FEEDING_LABELS[session.type as keyof typeof FEEDING_LABELS];
@@ -84,13 +86,13 @@ export function ActiveFeedingCard({ session }: { session: FeedingSession }) {
 
   return (
     <View style={{
-      backgroundColor: '#FFF3E0',
+      backgroundColor: c.elevated,
       borderWidth: 2,
-      borderColor: '#FFB74D',
+      borderColor: c.warning,
       borderRadius: 18,
       padding: 12,
       marginBottom: 6,
-      shadowColor: '#FFB74D',
+      shadowColor: c.warning,
       shadowOffset: { width: 0, height: 3 },
       shadowOpacity: 0.2,
       shadowRadius: 8,
@@ -101,10 +103,10 @@ export function ActiveFeedingCard({ session }: { session: FeedingSession }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={{ fontSize: 26 }}>{emoji}</Text>
           <View>
-            <Text style={{ fontWeight: '900', fontSize: 14, color: '#E65100' }}>
+            <Text style={{ fontWeight: '900', fontSize: 14, color: c.textBody }}>
               {label}{subLabel ? ` · ${subLabel}` : ''}
             </Text>
-            <Text style={{ fontSize: 11, color: '#BF360C', fontWeight: '600' }}>
+            <Text style={{ fontSize: 11, color: c.danger, fontWeight: '600' }}>
               Inició a las {startTime}
             </Text>
           </View>
@@ -112,17 +114,17 @@ export function ActiveFeedingCard({ session }: { session: FeedingSession }) {
 
         {/* Timer — muestra solo tiempo activo real */}
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ fontSize: 28, fontWeight: '900', color: '#E65100', letterSpacing: -0.5 }}>
+          <Text style={{ fontSize: 28, fontWeight: '900', color: c.textBody, letterSpacing: -0.5 }}>
             {formatDuration(elapsed)}
           </Text>
           <View style={{
-            backgroundColor: isActive ? '#D4EDDA' : '#FFF3CD',
+            backgroundColor: isActive ? c.success + '20' : c.warning + '20',
             paddingHorizontal: 8, paddingVertical: 2,
             borderRadius: 99, marginTop: 2,
           }}>
             <Text style={{
               fontSize: 10, fontWeight: '800',
-              color: isActive ? '#155724' : '#856404',
+              color: isActive ? c.success : c.warning,
             }}>
               {isActive ? '● EN CURSO' : '⏸ PAUSADA'}
             </Text>
@@ -137,15 +139,15 @@ export function ActiveFeedingCard({ session }: { session: FeedingSession }) {
             onPress={() => pause.mutate(session)}
             disabled={pause.isPending || resume.isPending || finish.isPending}
             style={{
-              flex: 1, backgroundColor: '#FFF3CD',
+              flex: 1, backgroundColor: c.warning + '20',
               borderRadius: 12, paddingVertical: 10,
               alignItems: 'center',
               opacity: pause.isPending ? 0.6 : 1,
             }}
           >
             {pause.isPending
-              ? <ActivityIndicator size="small" color="#856404" />
-              : <Text style={{ color: '#856404', fontWeight: '800', fontSize: 13 }}>⏸ Pausar</Text>
+              ? <ActivityIndicator size="small" color={c.warning} />
+              : <Text style={{ color: c.warning, fontWeight: '800', fontSize: 13 }}>⏸ Pausar</Text>
             }
           </TouchableOpacity>
         )}
@@ -155,15 +157,15 @@ export function ActiveFeedingCard({ session }: { session: FeedingSession }) {
             onPress={() => resume.mutate(session)}
             disabled={pause.isPending || resume.isPending || finish.isPending}
             style={{
-              flex: 1, backgroundColor: '#D4EDDA',
+              flex: 1, backgroundColor: c.success + '20',
               borderRadius: 12, paddingVertical: 10,
               alignItems: 'center',
               opacity: resume.isPending ? 0.6 : 1,
             }}
           >
             {resume.isPending
-              ? <ActivityIndicator size="small" color="#155724" />
-              : <Text style={{ color: '#155724', fontWeight: '800', fontSize: 13 }}>▶ Continuar</Text>
+              ? <ActivityIndicator size="small" color={c.success} />
+              : <Text style={{ color: c.success, fontWeight: '800', fontSize: 13 }}>▶ Continuar</Text>
             }
           </TouchableOpacity>
         )}
@@ -172,15 +174,15 @@ export function ActiveFeedingCard({ session }: { session: FeedingSession }) {
           onPress={() => finish.mutate(session)}
           disabled={pause.isPending || resume.isPending || finish.isPending}
           style={{
-            flex: 1, backgroundColor: '#FEE2E2',
+            flex: 1, backgroundColor: c.danger + '20',
             borderRadius: 12, paddingVertical: 10,
             alignItems: 'center',
             opacity: finish.isPending ? 0.6 : 1,
           }}
         >
           {finish.isPending
-            ? <ActivityIndicator size="small" color="#DC2626" />
-            : <Text style={{ color: '#DC2626', fontWeight: '800', fontSize: 13 }}>✓ Terminar</Text>
+            ? <ActivityIndicator size="small" color={c.danger} />
+            : <Text style={{ color: c.danger, fontWeight: '800', fontSize: 13 }}>✓ Terminar</Text>
           }
         </TouchableOpacity>
       </View>

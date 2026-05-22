@@ -1,5 +1,6 @@
 import { Modal, View, Text, TouchableOpacity, Pressable } from 'react-native';
 import { BOTTLE_SUBTYPE_LABELS, type BottleSubtype } from '@/src/hooks/useFeedingSessions';
+import { useTheme } from '@/src/theme/useTheme';
 
 export function BottleSubtypeModal({
   visible, onSelect, onClose,
@@ -9,6 +10,7 @@ export function BottleSubtypeModal({
   onClose: () => void;
 }) {
   const options = Object.entries(BOTTLE_SUBTYPE_LABELS) as [BottleSubtype, { emoji: string; label: string }][];
+  const { theme } = useTheme(); const c = theme.colors;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -18,7 +20,7 @@ export function BottleSubtypeModal({
       >
         <Pressable>
           <View style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: c.card,
             borderTopLeftRadius: 28, borderTopRightRadius: 28,
             padding: 20, paddingBottom: 36,
             shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
@@ -26,14 +28,14 @@ export function BottleSubtypeModal({
           }}>
             {/* Handle */}
             <View style={{
-              width: 40, height: 4, backgroundColor: '#FFD6E8',
+              width: 40, height: 4,               backgroundColor: c.elevated,
               borderRadius: 99, alignSelf: 'center', marginBottom: 20,
             }} />
 
-            <Text style={{ fontWeight: '900', fontSize: 18, color: '#2D1B26', textAlign: 'center', marginBottom: 4 }}>
+            <Text style={{ fontWeight: '900', fontSize: 18, color: c.textBody, textAlign: 'center', marginBottom: 4 }}>
               🍼 Tipo de Biberón
             </Text>
-            <Text style={{ fontSize: 13, color: '#9B7A88', fontWeight: '600', textAlign: 'center', marginBottom: 16 }}>
+            <Text style={{ fontSize: 13, color: c.textMuted, fontWeight: '600', textAlign: 'center', marginBottom: 16 }}>
               ¿Qué lleva el biberón?
             </Text>
 
@@ -43,18 +45,18 @@ export function BottleSubtypeModal({
                 onPress={() => onSelect(id)}
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: 14,
-                  backgroundColor: '#FFF0F5', borderRadius: 16,
+                  backgroundColor: c.surface, borderRadius: 16,
                   padding: 14, marginBottom: 8,
                 }}
                 activeOpacity={0.7}
               >
                 <Text style={{ fontSize: 28 }}>{emoji}</Text>
-                <Text style={{ fontSize: 16, fontWeight: '800', color: '#2D1B26' }}>{label}</Text>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: c.textBody }}>{label}</Text>
               </TouchableOpacity>
             ))}
 
             <TouchableOpacity onPress={onClose} style={{ marginTop: 8, paddingVertical: 12, alignItems: 'center' }}>
-              <Text style={{ color: '#9B7A88', fontWeight: '700' }}>Cancelar</Text>
+              <Text style={{ color: c.textMuted, fontWeight: '700' }}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </Pressable>

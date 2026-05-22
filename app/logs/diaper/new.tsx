@@ -51,13 +51,15 @@ function ScaleMeter({
   emoji: string;
   label?: string;
 }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const steps = Array.from({ length: max - min + 1 }, (_, i) => min + i);
   const zoneFor = (n: number) => zones.find((z) => n >= z.min && n <= z.max);
 
   return (
     <View style={{ gap: 4 }}>
       {label && (
-        <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 12 }}>
+        <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 12 }}>
           {label}
         </Text>
       )}
@@ -65,7 +67,7 @@ function ScaleMeter({
         {steps.map((n) => {
           const active = n <= value;
           const z = zoneFor(n);
-          const bgColor = active && z ? z.color : "#2A2A3E";
+          const bgColor = active && z ? z.color : c.card;
           return (
             <TouchableOpacity
               key={n}
@@ -79,7 +81,7 @@ function ScaleMeter({
                 alignItems: "center",
                 justifyContent: "center",
                 borderWidth: active ? 0 : 1,
-                borderColor: "#3A3A4E",
+                borderColor: c.elevated,
               }}
             >
               <Text style={{ fontSize: 14 }}>{z?.emoji ?? emoji}</Text>
@@ -92,7 +94,7 @@ function ScaleMeter({
           {zoneFor(value)?.emoji ? (
             <Text style={{ fontSize: 14 }}>{zoneFor(value)?.emoji}</Text>
           ) : null}
-          <Text style={{ color: zoneFor(value)?.color ?? "#888", fontWeight: "700", fontSize: 11 }}>
+          <Text style={{ color: zoneFor(value)?.color ?? c.textMuted, fontWeight: "700", fontSize: 11 }}>
             {zoneFor(value)?.label}
           </Text>
         </View>
@@ -110,10 +112,12 @@ function MetricSlider({
   value: number;
   onChange: (v: number) => void;
 }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const steps = Array.from({ length: metric.scaleMax - metric.scaleMin + 1 }, (_, i) => metric.scaleMin + i);
   return (
     <View style={{ gap: 4 }}>
-      <Text style={{ color: "#BBBBBB", fontWeight: "600", fontSize: 11 }}>
+      <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 11 }}>
         {metric.name}
       </Text>
       <View style={{ flexDirection: "row", gap: 4, flexWrap: "wrap" }}>
@@ -128,12 +132,12 @@ function MetricSlider({
                 width: 32,
                 height: 32,
                 borderRadius: 16,
-                backgroundColor: active && z ? z.color : "#2A2A3E",
+                backgroundColor: active && z ? z.color : c.card,
                 opacity: active ? 1 : 0.35,
                 alignItems: "center",
                 justifyContent: "center",
                 borderWidth: active ? 0 : 1,
-                borderColor: "#3A3A4E",
+                borderColor: c.elevated,
               }}
             >
               <Text style={{ fontSize: 12 }}>{z?.emoji ?? ""}</Text>
@@ -282,8 +286,8 @@ export default function DiaperNewScreen() {
   const isMedical = (id: string) => ["blood", "mucus", "diarrhea"].includes(id);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#1A1A2E" }} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.surface }} edges={["top"]}>
+      <StatusBar barStyle="light-content" backgroundColor={c.headerBg} />
 
       {/* Header */}
       <View
@@ -292,9 +296,9 @@ export default function DiaperNewScreen() {
           alignItems: "center",
           paddingHorizontal: 16,
           paddingVertical: 12,
-          backgroundColor: "#1A1A2E",
+          backgroundColor: c.surface,
           borderBottomWidth: 1,
-          borderBottomColor: "#2A2A3E",
+          borderBottomColor: c.card,
         }}
       >
         <TouchableOpacity onPress={() => router.back()}>
@@ -306,7 +310,7 @@ export default function DiaperNewScreen() {
             textAlign: "center",
             fontSize: 18,
             fontWeight: "900",
-            color: "#FFFFFF",
+            color: c.headerText,
           }}
         >
           🍑 Nuevo Pañal
@@ -320,7 +324,7 @@ export default function DiaperNewScreen() {
       >
         {/* ─── PIPÍ ─── */}
         <View style={{ gap: 10 }}>
-          <Text style={{ color: "#4FC3F7", fontWeight: "800", fontSize: 15 }}>
+          <Text style={{ color: c.growth, fontWeight: "800", fontSize: 15 }}>
             💧 Pipí
           </Text>
           <ScaleMeter
@@ -347,7 +351,7 @@ export default function DiaperNewScreen() {
 
         {/* ─── POPÓ ─── */}
         <View style={{ gap: 10 }}>
-          <Text style={{ color: "#8B4513", fontWeight: "800", fontSize: 15 }}>
+          <Text style={{ color: c.biological.poop, fontWeight: "800", fontSize: 15 }}>
             💩 Popó
           </Text>
           <ScaleMeter
@@ -397,15 +401,15 @@ export default function DiaperNewScreen() {
                       borderRadius: 99,
                       backgroundColor: selected
                         ? medical
-                          ? "#8B0000"
+                          ? c.danger
                           : c.accent
-                        : "#2A2A3E",
+                        : c.card,
                     }}
                   >
                     <Text style={{ fontSize: 16 }}>{obs.emoji}</Text>
                     <Text
                       style={{
-                        color: selected ? "#FFFFFF" : "#BBBBBB",
+                        color: selected ? c.textBody : c.textMuted,
                         fontWeight: "700",
                         fontSize: 13,
                       }}
@@ -432,7 +436,7 @@ export default function DiaperNewScreen() {
                   <View
                     key={obs.id}
                     style={{
-                      backgroundColor: "#2A2A3E",
+                      backgroundColor: c.card,
                       borderRadius: 12,
                       padding: 14,
                       gap: 10,
@@ -440,7 +444,7 @@ export default function DiaperNewScreen() {
                   >
                     <Text
                       style={{
-                        color: "#FFFFFF",
+                        color: c.textBody,
                         fontWeight: "700",
                         fontSize: 14,
                       }}
@@ -471,14 +475,14 @@ export default function DiaperNewScreen() {
             {Object.keys(selectedObs).some((id) => isMedical(id)) && (
               <View
                 style={{
-                  backgroundColor: "#3A0000",
+                  backgroundColor: c.danger,
                   borderRadius: 12,
                   padding: 12,
                   borderLeftWidth: 4,
-                  borderLeftColor: "#FF0000",
+                  borderLeftColor: c.danger,
                 }}
               >
-                <Text style={{ color: "#FF6B6B", fontWeight: "700", fontSize: 13 }}>
+                <Text style={{ color: c.danger, fontWeight: "700", fontSize: 13 }}>
                   ⚠️ Se detectaron observaciones que pueden requerir atención médica
                 </Text>
               </View>
@@ -488,20 +492,20 @@ export default function DiaperNewScreen() {
 
         {/* ─── PESO ─── */}
         <View style={{ gap: 6 }}>
-          <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 13 }}>
+          <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
             ⚖️ Peso del pañal (gramos)
           </Text>
           <TextInput
             value={weightGrams}
             onChangeText={setWeightGrams}
             placeholder="0"
-            placeholderTextColor="#666"
+            placeholderTextColor={c.textMuted}
             keyboardType="number-pad"
             style={{
-              backgroundColor: "#2A2A3E",
+              backgroundColor: c.card,
               borderRadius: 12,
               padding: 14,
-              color: "#FFFFFF",
+              color: c.textBody,
               fontSize: 18,
               fontWeight: "700",
             }}
@@ -521,7 +525,7 @@ export default function DiaperNewScreen() {
                 resizeMode="cover"
               />
               <TouchableOpacity onPress={() => setImageUri(null)}>
-                <Text style={{ color: "#FF6B6B", fontWeight: "700", fontSize: 13 }}>
+                <Text style={{ color: c.danger, fontWeight: "700", fontSize: 13 }}>
                   Eliminar foto
                 </Text>
               </TouchableOpacity>
@@ -531,7 +535,7 @@ export default function DiaperNewScreen() {
               onPress={handleImage}
               style={{
                 borderWidth: 2,
-                borderColor: "#2A2A3E",
+                borderColor: c.card,
                 borderStyle: "dashed",
                 borderRadius: 12,
                 padding: 24,
@@ -540,7 +544,7 @@ export default function DiaperNewScreen() {
               }}
             >
               <Text style={{ fontSize: 32 }}>📷</Text>
-              <Text style={{ color: "#888888", fontWeight: "600", fontSize: 13 }}>
+              <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 13 }}>
                 Agregar foto
               </Text>
             </TouchableOpacity>
@@ -554,7 +558,7 @@ export default function DiaperNewScreen() {
           onPress={handleSave}
           disabled={saving}
           style={{
-            backgroundColor: saving ? "#3A3A4E" : c.accent,
+            backgroundColor: saving ? c.elevated : c.accent,
             paddingVertical: 16,
             borderRadius: 99,
             alignItems: "center",
@@ -562,7 +566,7 @@ export default function DiaperNewScreen() {
         >
           <Text
             style={{
-              color: "#FFFFFF",
+              color: c.textBody,
               fontWeight: "900",
               fontSize: 16,
             }}

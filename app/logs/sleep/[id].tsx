@@ -84,7 +84,7 @@ export default function SleepDetailScreen() {
   if (!session) {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: c.surface }} edges={["top"]}>
-        <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
+        <StatusBar barStyle="light-content" backgroundColor={c.headerBg} />
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <Text className="text-base" style={{ color: c.textDim }}>Cargando...</Text>
         </View>
@@ -100,7 +100,7 @@ export default function SleepDetailScreen() {
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: c.surface }} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
+      <StatusBar barStyle="light-content" backgroundColor={c.headerBg} />
 
       {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b" style={{ backgroundColor: c.surface, borderBottomColor: c.elevated }}>
@@ -111,7 +111,7 @@ export default function SleepDetailScreen() {
           😴 Detalle de Siesta
         </Text>
         <TouchableOpacity onPress={handleStartEditing}>
-          <Text style={{ color: "#9B59B6", fontWeight: "700", fontSize: 14 }}>
+          <Text style={{ color: c.accent, fontWeight: "700", fontSize: 14 }}>
             {editing ? "Cancelar" : "✏️"}
           </Text>
         </TouchableOpacity>
@@ -121,14 +121,14 @@ export default function SleepDetailScreen() {
         {/* Session info card */}
         <View className="rounded-2xl p-5 gap-3" style={{ backgroundColor: c.card }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <Text style={{ color: "#9B59B6", fontWeight: "800", fontSize: 20 }}>
+            <Text style={{ color: c.accent, fontWeight: "800", fontSize: 20 }}>
               😴 Sesión de Sueño
             </Text>
             <Text
               className="font-bold text-xs px-2.5 py-1 rounded-full"
               style={{
-                color: isOwn ? "#4CAF50" : "#9B59B6",
-                backgroundColor: isOwn ? "#1A3A1A" : "#2A1A3E",
+                color: isOwn ? c.success : c.accent,
+                backgroundColor: isOwn ? `${c.success}20` : c.accentLight,
               }}
             >
               {isOwn ? "Tú" : "Otro cuidador"}
@@ -136,8 +136,8 @@ export default function SleepDetailScreen() {
           </View>
 
           {isActive && (
-            <View className="rounded-xl p-2.5 items-center" style={{ backgroundColor: "#2A1A3E" }}>
-              <Text style={{ color: "#9B59B6", fontWeight: "700", fontSize: 13 }}>
+            <View className="rounded-xl p-2.5 items-center" style={{ backgroundColor: c.accentLight }}>
+              <Text style={{ color: c.accent, fontWeight: "700", fontSize: 13 }}>
                 {session.status === "active" ? "🟢 En curso" : "🟡 En pausa"}
               </Text>
             </View>
@@ -158,7 +158,7 @@ export default function SleepDetailScreen() {
             </View>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
               <Text className="font-semibold text-[13px]" style={{ color: c.textDim }}>Duración</Text>
-              <Text style={{ color: "#9B59B6", fontWeight: "800", fontSize: 18 }}>{durationLabel}</Text>
+              <Text style={{ color: c.accent, fontWeight: "800", fontSize: 18 }}>{durationLabel}</Text>
             </View>
           </View>
         </View>
@@ -166,7 +166,7 @@ export default function SleepDetailScreen() {
         {/* Edit mode */}
         {editing && (
           <View className="rounded-2xl p-5 gap-4" style={{ backgroundColor: c.card }}>
-            <Text style={{ color: "#9B59B6", fontWeight: "800", fontSize: 15, textAlign: "center" }}>
+            <Text style={{ color: c.accent, fontWeight: "800", fontSize: 15, textAlign: "center" }}>
               ✏️ Editar tiempos
             </Text>
 
@@ -186,7 +186,7 @@ export default function SleepDetailScreen() {
                 value={editNotes}
                 onChangeText={setEditNotes}
                 placeholder="Agregar nota..."
-                placeholderTextColor="#666"
+                placeholderTextColor={c.textMuted}
                 multiline
                 className="rounded-xl p-3.5 text-[15px]"
                 style={{ backgroundColor: c.surface, color: c.textBody, minHeight: 60, textAlignVertical: "top" }}
@@ -210,11 +210,11 @@ export default function SleepDetailScreen() {
                     <View
                       style={{
                         width: 10, height: 10, borderRadius: 5,
-                        backgroundColor: ev.type === "start" ? "#4CAF50" : ev.type === "finish" ? "#FF6B6B" : "#9B59B6",
+                        backgroundColor: ev.type === "start" ? c.success : ev.type === "finish" ? c.danger : c.accent,
                       }}
                     />
                     {i < statusEvents.length - 1 && (
-                      <View style={{ width: 2, flex: 1, minHeight: 16, backgroundColor: "#3A3A4E" }} />
+                      <View style={{ width: 2, flex: 1, minHeight: 16, backgroundColor: c.elevated }} />
                     )}
                   </View>
 

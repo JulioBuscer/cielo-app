@@ -75,7 +75,7 @@ export default function EventDetailScreen() {
   if (!event) {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: c.surface }} edges={["top"]}>
-        <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
+        <StatusBar barStyle="light-content" backgroundColor={c.headerBg} />
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <Text className="text-base" style={{ color: c.textDim }}>Cargando...</Text>
         </View>
@@ -110,10 +110,10 @@ export default function EventDetailScreen() {
       }
       if (meta.peeHealth != null && meta.peeHealth > 0) {
         const obs = diaperObs?.find((o) => o.id === "pee_health");
-        metadataDisplay.push({ label: "💧 Pipí (color)", value: `🧪 ${meta.peeHealth}`, color: "#4FC3F7" });
+        metadataDisplay.push({ label: "💧 Pipí (color)", value: `🧪 ${meta.peeHealth}`, color: c.growth });
       }
       if (meta.poopHealth != null && meta.poopHealth > 0) {
-        metadataDisplay.push({ label: "💩 Popó (color)", value: `🧪 ${meta.poopHealth}`, color: "#8B4513" });
+        metadataDisplay.push({ label: "💩 Popó (color)", value: `🧪 ${meta.poopHealth}`, color: c.biological.poop });
       }
       if (meta.observationValues && typeof meta.observationValues === "object") {
         for (const [obsId, valOrMetrics] of Object.entries(meta.observationValues)) {
@@ -157,7 +157,7 @@ export default function EventDetailScreen() {
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: c.surface }} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
+      <StatusBar barStyle="light-content" backgroundColor={c.headerBg} />
 
       {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b" style={{ backgroundColor: c.surface, borderBottomColor: c.elevated }}>
@@ -184,8 +184,8 @@ export default function EventDetailScreen() {
             <Text
               className="font-bold text-xs px-2.5 py-1 rounded-full"
               style={{
-                color: isOwn ? "#4CAF50" : c.accent,
-                backgroundColor: isOwn ? "#1A3A1A" : "#3A1A2E",
+                color: isOwn ? c.success : c.accent,
+                backgroundColor: isOwn ? `${c.success}20` : c.accentLight,
               }}
             >
               {isOwn ? "Tú" : "Otro cuidador"}
@@ -222,11 +222,11 @@ export default function EventDetailScreen() {
                   justifyContent: "space-between",
                   paddingVertical: 6,
                   borderBottomWidth: i < metadataDisplay.length - 1 ? 1 : 0,
-                  borderBottomColor: "#2A2A3E",
+                  borderBottomColor: c.card,
                 }}
               >
                 <Text className="font-semibold text-sm" style={{ color: c.textMuted }}>{m.label}</Text>
-                <Text style={{ color: m.color ?? "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
+                <Text style={{ color: m.color ?? c.textBody, fontWeight: "700", fontSize: 14 }}>
                   {m.value}
                 </Text>
               </View>
@@ -258,7 +258,7 @@ export default function EventDetailScreen() {
                 value={editNotes}
                 onChangeText={setEditNotes}
                 placeholder="Agregar nota..."
-                placeholderTextColor="#666"
+                placeholderTextColor={c.textMuted}
                 multiline
                 className="rounded-xl p-3.5 text-[15px]"
                 style={{ backgroundColor: c.surface, color: c.textBody, minHeight: 60, textAlignVertical: "top" }}

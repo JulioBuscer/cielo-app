@@ -5,6 +5,7 @@ import {
   useSleepPreciseElapsed,
 } from '@/src/hooks/useSleepSessions';
 import type { SleepSession } from '@/src/db/schema';
+import { useTheme } from '@/src/theme/useTheme';
 
 export function ActiveSleepCard({ session }: { session: SleepSession }) {
   const pause   = usePauseSleep();
@@ -18,38 +19,39 @@ export function ActiveSleepCard({ session }: { session: SleepSession }) {
   });
 
   const busy = pause.isPending || resume.isPending || finish.isPending;
+  const { theme } = useTheme(); const c = theme.colors;
 
   return (
     <View style={{
-      backgroundColor: '#EEF2FF',
-      borderWidth: 2, borderColor: '#818CF8',
+      backgroundColor: c.elevated,
+      borderWidth: 2, borderColor: c.accent,
       borderRadius: 18, padding: 12, marginBottom: 6,
-      shadowColor: '#818CF8', shadowOffset: { width: 0, height: 3 },
+      shadowColor: c.accent, shadowOffset: { width: 0, height: 3 },
       shadowOpacity: 0.2, shadowRadius: 8, elevation: 3,
     }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={{ fontSize: 26 }}>😴</Text>
           <View>
-            <Text style={{ fontWeight: '900', fontSize: 14, color: '#3730A3' }}>
+            <Text style={{ fontWeight: '900', fontSize: 14, color: c.textBody }}>
               Sesión de Sueño
             </Text>
-            <Text style={{ fontSize: 11, color: '#4338CA', fontWeight: '600' }}>
+            <Text style={{ fontSize: 11, color: c.textBody, fontWeight: '600' }}>
               Inició a las {startTime}
             </Text>
           </View>
         </View>
 
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ fontSize: 28, fontWeight: '900', color: '#3730A3', letterSpacing: -0.5 }}>
+          <Text style={{ fontSize: 28, fontWeight: '900', color: c.textBody, letterSpacing: -0.5 }}>
             {formatDuration(elapsed)}
           </Text>
           <View style={{
-            backgroundColor: isActive ? '#C7D2FE' : '#E0E7FF',
+            backgroundColor: isActive ? c.surface : c.card,
             paddingHorizontal: 8, paddingVertical: 2,
             borderRadius: 99, marginTop: 2,
           }}>
-            <Text style={{ fontSize: 10, fontWeight: '800', color: isActive ? '#3730A3' : '#6366F1' }}>
+            <Text style={{ fontSize: 10, fontWeight: '800', color: isActive ? c.textBody : c.accentStrong }}>
               {isActive ? '💤 DURMIENDO' : '⏸ PAUSADO'}
             </Text>
           </View>
@@ -61,22 +63,22 @@ export function ActiveSleepCard({ session }: { session: SleepSession }) {
           <TouchableOpacity
             onPress={() => pause.mutate(session)}
             disabled={busy}
-            style={{ flex: 1, backgroundColor: '#E0E7FF', borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}
+            style={{ flex: 1, backgroundColor: c.card, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}
           >
             {pause.isPending
-              ? <ActivityIndicator size="small" color="#4338CA" />
-              : <Text style={{ color: '#4338CA', fontWeight: '800', fontSize: 13 }}>⏸ Pausar</Text>
+              ? <ActivityIndicator size="small" color={c.textBody} />
+              : <Text style={{ color: c.textBody, fontWeight: '800', fontSize: 13 }}>⏸ Pausar</Text>
             }
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
             onPress={() => resume.mutate(session)}
             disabled={busy}
-            style={{ flex: 1, backgroundColor: '#C7D2FE', borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}
+            style={{ flex: 1, backgroundColor: c.surface, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}
           >
             {resume.isPending
-              ? <ActivityIndicator size="small" color="#3730A3" />
-              : <Text style={{ color: '#3730A3', fontWeight: '800', fontSize: 13 }}>▶ Continuar</Text>
+              ? <ActivityIndicator size="small" color={c.textBody} />
+              : <Text style={{ color: c.textBody, fontWeight: '800', fontSize: 13 }}>▶ Continuar</Text>
             }
           </TouchableOpacity>
         )}
@@ -84,11 +86,11 @@ export function ActiveSleepCard({ session }: { session: SleepSession }) {
         <TouchableOpacity
           onPress={() => finish.mutate(session)}
           disabled={busy}
-          style={{ flex: 1, backgroundColor: '#FEE2E2', borderRadius: 12, paddingVertical: 10, alignItems: 'center', opacity: busy ? 0.6 : 1 }}
-        >
-          {finish.isPending
-            ? <ActivityIndicator size="small" color="#DC2626" />
-            : <Text style={{ color: '#DC2626', fontWeight: '800', fontSize: 13 }}>✓ Despertar</Text>
+          style={{ flex: 1, backgroundColor: c.danger + '20', borderRadius: 12, paddingVertical: 10, alignItems: 'center', opacity: busy ? 0.6 : 1 }}
+          >
+            {finish.isPending
+              ? <ActivityIndicator size="small" color={c.danger} />
+              : <Text style={{ color: c.danger, fontWeight: '800', fontSize: 13 }}>✓ Despertar</Text>
           }
         </TouchableOpacity>
       </View>
