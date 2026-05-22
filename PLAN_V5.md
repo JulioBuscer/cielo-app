@@ -178,7 +178,11 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 
 - [x] **Auto-detect display unit** — mostrar en m si >100cm, en kg si >1000g, etc.
 - [x] **Nombre real del cuidador en burbujas** — Reemplazar "Otro cuidador" por nombre real
-- [ ] **Curva de crecimiento** — Gráfica OMS con percentiles (peso, talla, cefálico)
+- [x] **Curva de crecimiento** — Gráfica OMS con percentiles (peso, talla, cefálico)
+  - [x] `src/growth/` — LMS data WHO (6 tablas: 3 métricas × 2 sexos, meses 0-60)
+  - [x] `percentiles.ts` — cálculo z-score/percentil, interpolación
+  - [x] `GrowthPercentileChart.tsx` — SVG con curvas P3/P15/P50/P85/P97
+  - [x] Integrado en historial de crecimiento (history.tsx)
 - [ ] **Estadísticas: gráficas de tendencia** — Líneas de tendencia diaria/semanal con SVG
 
 ### FASE 5: LIMPIEZA TÉCNICA

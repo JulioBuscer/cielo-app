@@ -11,6 +11,22 @@ import {
   mmToCm,
 } from "@/src/hooks/useGrowthLogs";
 import { BigButton } from "@/src/components/ui/BigButton";
+import { GrowthPercentileChart } from "@/src/growth/GrowthPercentileChart";
+import type { GrowthMetric } from "@/src/growth/whoData";
+
+function monthsBetween(birth: Date, ts: Date): number {
+  const m = (ts.getFullYear() - birth.getFullYear()) * 12
+    + (ts.getMonth() - birth.getMonth())
+    + (ts.getDate() - birth.getDate()) / 30.44;
+  return Math.max(0, Math.round(m * 10) / 10);
+}
+
+type GrowthRow = {
+  timestamp: Date;
+  weightGrams: number | null;
+  heightMm: number | null;
+  headCircMm: number | null;
+};
 
 function formatDate(ts: Date | string | number): string {
   const d = new Date(ts);
@@ -96,6 +112,54 @@ export default function GrowthHistoryScreen() {
           )}
         </View>
       )}
+
+      {/* WHO Percentile Chart */}
+      {baby && history && history.length > 0 && (baby.sex === "male" || baby.sex === "female") && (() => {
+        const birthDate = new Date(baby.birthDate);
+        const rows = history as GrowthRow[];
+        const metricConfigs: { key: GrowthMetric; color: string; val: (r: GrowthRow) => number | null }[] = [
+          { key: "weight", color: "#FFD700", val: (r) => r.weightGrams != null ? r.weightGrams / 1000 : null },
+          { key: "height", color: "#4CAF50", val: (r) => r.heightMm != null ? r.heightMm / 10 : null },
+          { key: "headCircumference", color: "#9B59B6", val: (r) => r.headCircMm != null ? r.headCircMm / 10 : null },
+        ];
+
+        return (
+          <View className="mx-4 mt-3 rounded-xl p-4" style={{ backgroundColor: c.card }}>
+            <Text className="font-black text-sm mb-2" style={{ color: c.textBody }}>
+              📈 Curva de Crecimiento (OMS)
+            </Text>
+            {metricConfigs.map(({ key, color, val }) => {
+              const pts = rows
+                .map((r) => ({ ts: new Date(r.timestamp), value: val(r) }))
+                .filter((p): p is { ts: Date; value: number } => p.value != null)
+                .reverse()
+                .map((p) => ({
+                  label: p.ts.toLocaleDateString("es-MX", { day: "numeric", month: "short" }),
+                  ageMonths: monthsBetween(birthDate, p.ts),
+                  value: p.value,
+                }));
+              if (pts.length < 1) return null;
+              return (
+                <View key={key} style={{ marginBottom: 8 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <Text style={{ color, fontWeight: "800", fontSize: 12 }}>
+                      {key === "weight" ? "⚖️ Peso" : key === "height" ? "📏 Talla" : "🧠 C. Cefálico"}
+                    </Text>
+                    <Text style={{ color: c.textMuted, fontSize: 10 }}>{pts.length} registros</Text>
+                  </View>
+                  <GrowthPercentileChart
+                    sex={baby.sex as "male" | "female"}
+                    metric={key}
+                    babyData={pts}
+                    color={color}
+                    height={200}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        );
+      })()}
 
       <ScrollView style={{ flex: 1, marginTop: 12 }} contentContainerStyle={{ padding: 16, gap: 0 }}>
         {/* Table header */}
