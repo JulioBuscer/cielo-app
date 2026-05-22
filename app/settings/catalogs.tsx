@@ -248,6 +248,7 @@ function EventMetricsEditor({
         id: generateId(),
         name: "",
         unitId: "count",
+        zones: [],
       },
     ]);
     setHasChanges(true);
@@ -560,7 +561,7 @@ function EventMetricsEditor({
             </View>
 
             <ZoneEditor
-              zones={m.zones as Zone[]}
+              zones={m.zones ?? []}
               onChange={(z) => updateMetricZones(idx, z)}
               showEmoji
             />
