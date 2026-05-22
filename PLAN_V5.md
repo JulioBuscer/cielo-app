@@ -176,7 +176,7 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 
 ### FASE 4: REFINAMIENTOS UX
 
-- [ ] **Auto-detect display unit** — mostrar en m si >100cm, en kg si >1000g, etc.
+- [x] **Auto-detect display unit** — mostrar en m si >100cm, en kg si >1000g, etc.
 - [ ] **Nombre real del cuidador en burbujas** — Reemplazar "Otro cuidador" por nombre real
 - [ ] **Curva de crecimiento** — Gráfica OMS con percentiles (peso, talla, cefálico)
 - [ ] **Estadísticas: gráficas de tendencia** — Líneas de tendencia diaria/semanal con SVG

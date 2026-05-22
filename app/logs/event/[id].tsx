@@ -23,6 +23,7 @@ import { BigButton } from "@/src/components/ui/BigButton";
 import { getZoneColor, getZoneLabel, parseMetrics, getMetricZoneColor, getMetricZoneLabel } from "@/src/db/schema";
 import { useTheme } from "@/src/theme/useTheme";
 import { getUnit } from "@/src/units/registry";
+import { findBestUnit } from "@/src/units/helpers";
 import type { EventMetric } from "@/src/units/types";
 
 function formatDateTime(ts: Date | string | number | undefined | null): string {
@@ -252,7 +253,16 @@ export default function EventDetailScreen() {
             <View className="rounded-2xl p-5 gap-2" style={{ backgroundColor: c.card }}>
               <Text className="font-black text-[15px]" style={{ color: c.textBody }}>📐 Mediciones</Text>
               {entries.map(({ m, v }) => {
-                const u = getUnit(m.unitId);
+                const defaultUnit = getUnit(m.unitId);
+                const dimension = defaultUnit?.dimension;
+                let displayUnit = defaultUnit;
+                let displayValue = v;
+                if (defaultUnit && dimension && dimension !== 'dimensionless') {
+                  const baseValue = defaultUnit.toBase(v);
+                  const best = findBestUnit(baseValue, dimension);
+                  displayUnit = best.unit;
+                  displayValue = best.displayValue;
+                }
                 const matchedZone = m.zones?.find((z) => v >= z.min && v <= z.max);
                 const zoneColor = matchedZone?.color;
                 const zoneLabel = matchedZone?.label;
@@ -271,7 +281,7 @@ export default function EventDetailScreen() {
                       {m.name}
                     </Text>
                     <Text style={{ color: zoneColor ?? c.textBody, fontWeight: "700", fontSize: 14 }}>
-                      {v}{u?.symbol ? ` ${u.symbol}` : ""}
+                      {displayValue.toFixed(1)}{displayUnit?.symbol ? ` ${displayUnit.symbol}` : ""}
                       {zoneLabel ? ` · ${zoneLabel}` : ""}
                     </Text>
                   </View>

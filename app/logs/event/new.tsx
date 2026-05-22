@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import { BigButton } from "@/src/components/ui/BigButton";
 import { useTheme } from "@/src/theme/useTheme";
 import type { EventMetric } from "@/src/units/types";
 import { getUnit, getUnitsByDimension } from "@/src/units/registry";
+import { findBestUnit } from "@/src/units/helpers";
 
 const MEDICAL_TYPES = ["medication", "temperature", "vomit"];
 
@@ -59,6 +60,23 @@ export default function EventNewScreen() {
       return [];
     }
   }, [selectedType, eventTypes]);
+
+  // Auto-detect initial display units based on metric scale
+  useEffect(() => {
+    for (const m of metrics) {
+      const u = getUnit(m.unitId);
+      if (!u || u.dimension === 'dimensionless') continue;
+      const refValue = m.scaleMax ?? m.scaleMin ?? 100;
+      const baseValue = u.toBase(refValue);
+      const best = findBestUnit(baseValue, u.dimension);
+      if (best.unit.id !== m.unitId) {
+        setDisplayUnits((prev) => {
+          if (prev[m.id]) return prev;
+          return { ...prev, [m.id]: best.unit.id };
+        });
+      }
+    }
+  }, [metrics]);
 
   const isMedical = selectedType ? MEDICAL_TYPES.includes(selectedType) : false;
 
