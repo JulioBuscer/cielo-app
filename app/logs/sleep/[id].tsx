@@ -40,8 +40,7 @@ export default function SleepDetailScreen() {
   const { data: statusEvents } = useSleepStatusEvents(id);
   const { data: profile } = useActiveProfile();
   const updateSleep = useUpdateSleepSession();
-  const preciseElapsed = session ? useSleepPreciseElapsed(session) : 0;
-
+  const preciseElapsed = useSleepPreciseElapsed(session);
   const [editing, setEditing] = useState(false);
   const [editStartedAt, setEditStartedAt] = useState<Date | null>(null);
   const [editEndedAt, setEditEndedAt] = useState<Date | null>(null);

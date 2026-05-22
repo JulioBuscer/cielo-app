@@ -209,21 +209,21 @@ async function _finishSleepSession(sessionId: string, profileId: string, now: Da
 
 // ─── HOOK: Timer preciso de sueño ────────────────────────────────────────────
 
-export function useSleepPreciseElapsed(session: SleepSession): number {
-  const { data: events } = useSleepStatusEvents(session.id);
+export function useSleepPreciseElapsed(session: SleepSession | null | undefined): number {
+  const { data: events } = useSleepStatusEvents(session?.id ?? '');
   const [, setTick]      = useState(0);
   const intervalRef      = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (session.status === 'active') {
+    if (session?.status === 'active') {
       intervalRef.current = setInterval(() => setTick(t => t + 1), 1000);
     } else {
       if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [session.status]);
+  }, [session?.status]);
 
-  if (!events || events.length === 0) return 0;
+  if (!session || !events || events.length === 0) return 0;
 
   let accumulated = 0;
   let lastActiveTs: number | null = null;

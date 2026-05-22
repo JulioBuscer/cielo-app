@@ -42,6 +42,7 @@ export default function EventDetailScreen() {
   const { data: profile } = useActiveProfile();
   const { data: baby } = useActiveBaby();
   const updateEvent = useUpdateTimelineEvent();
+  const { data: diaperObs } = useDiaperObservations();
 
   const [editing, setEditing] = useState(false);
   const [editTimestamp, setEditTimestamp] = useState<Date>(new Date());
@@ -82,8 +83,6 @@ export default function EventDetailScreen() {
       </SafeAreaView>
     );
   }
-
-  const { data: diaperObs } = useDiaperObservations();
 
   let metadataDisplay: { label: string; value: string; color?: string }[] = [];
   if (event.metadata) {
