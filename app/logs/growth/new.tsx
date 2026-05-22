@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTheme } from "@/src/theme/useTheme";
 import {
   View,
   Text,
@@ -23,6 +24,8 @@ import { BigButton } from "@/src/components/ui/BigButton";
 export default function GrowthNewScreen() {
   const { data: baby } = useActiveBaby();
   const { data: last } = useLastGrowthLog(baby?.id);
+  const { theme } = useTheme();
+  const c = theme.colors;
   const saveGrowth = useSaveGrowthLog();
 
   const [weightKg, setWeightKg] = useState("");
@@ -58,81 +61,40 @@ export default function GrowthNewScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#1A1A2E" }} edges={["top"]}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: c.surface }} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
 
       {/* Header */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          backgroundColor: "#1A1A2E",
-          borderBottomWidth: 1,
-          borderBottomColor: "#2A2A3E",
-        }}
-      >
+      <View className="flex-row items-center px-4 py-3 border-b" style={{ backgroundColor: c.surface, borderBottomColor: c.elevated }}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={{ fontSize: 24 }}>✕</Text>
         </TouchableOpacity>
-        <Text
-          style={{
-            flex: 1,
-            textAlign: "center",
-            fontSize: 18,
-            fontWeight: "900",
-            color: "#FFFFFF",
-          }}
-        >
+        <Text className="flex-1 text-center text-lg font-black" style={{ color: c.textBody }}>
           📏 Nuevo Registro
         </Text>
         <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20, gap: 20 }}
-      >
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 20 }}>
         {/* Last measurements summary */}
         {last && (
-          <View
-            style={{
-              backgroundColor: "#2A2A3E",
-              borderRadius: 12,
-              padding: 14,
-              flexDirection: "row",
-              justifyContent: "space-around",
-            }}
-          >
+          <View className="rounded-xl p-3.5 flex-row justify-around" style={{ backgroundColor: c.card }}>
             {last.weightGrams != null && (
               <View style={{ alignItems: "center", gap: 2 }}>
-                <Text style={{ color: "#888", fontSize: 11, fontWeight: "600" }}>
-                  Últ. Peso
-                </Text>
-                <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 16 }}>
-                  {gramsToKg(last.weightGrams)} kg
-                </Text>
+                <Text className="text-[11px] font-semibold" style={{ color: c.textDim }}>Últ. Peso</Text>
+                <Text className="font-black text-base" style={{ color: c.textBody }}>{gramsToKg(last.weightGrams)} kg</Text>
               </View>
             )}
             {last.heightMm != null && (
               <View style={{ alignItems: "center", gap: 2 }}>
-                <Text style={{ color: "#888", fontSize: 11, fontWeight: "600" }}>
-                  Últ. Talla
-                </Text>
-                <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 16 }}>
-                  {mmToCm(last.heightMm)} cm
-                </Text>
+                <Text className="text-[11px] font-semibold" style={{ color: c.textDim }}>Últ. Talla</Text>
+                <Text className="font-black text-base" style={{ color: c.textBody }}>{mmToCm(last.heightMm)} cm</Text>
               </View>
             )}
             {last.headCircMm != null && (
               <View style={{ alignItems: "center", gap: 2 }}>
-                <Text style={{ color: "#888", fontSize: 11, fontWeight: "600" }}>
-                  Últ. Cefálico
-                </Text>
-                <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 16 }}>
-                  {mmToCm(last.headCircMm)} cm
-                </Text>
+                <Text className="text-[11px] font-semibold" style={{ color: c.textDim }}>Últ. Cefálico</Text>
+                <Text className="font-black text-base" style={{ color: c.textBody }}>{mmToCm(last.headCircMm)} cm</Text>
               </View>
             )}
           </View>
@@ -140,98 +102,60 @@ export default function GrowthNewScreen() {
 
         {/* Weight */}
         <View style={{ gap: 6 }}>
-          <Text style={{ color: "#FFD700", fontWeight: "800", fontSize: 14 }}>
-            ⚖️ Peso (kg)
-          </Text>
+          <Text style={{ color: "#FFD700", fontWeight: "800", fontSize: 14 }}>⚖️ Peso (kg)</Text>
           <TextInput
             value={weightKg}
             onChangeText={setWeightKg}
             placeholder="0.000"
             placeholderTextColor="#666"
             keyboardType="decimal-pad"
-            style={{
-              backgroundColor: "#2A2A3E",
-              borderRadius: 12,
-              padding: 14,
-              color: "#FFFFFF",
-              fontSize: 20,
-              fontWeight: "700",
-            }}
+            className="rounded-xl p-3.5 text-xl font-bold" style={{ backgroundColor: c.card, color: c.textBody }}
           />
         </View>
 
         {/* Height */}
         <View style={{ gap: 6 }}>
-          <Text style={{ color: "#4CAF50", fontWeight: "800", fontSize: 14 }}>
-            📏 Estatura (cm)
-          </Text>
+          <Text style={{ color: "#4CAF50", fontWeight: "800", fontSize: 14 }}>📏 Estatura (cm)</Text>
           <TextInput
             value={heightCm}
             onChangeText={setHeightCm}
             placeholder="0.0"
             placeholderTextColor="#666"
             keyboardType="decimal-pad"
-            style={{
-              backgroundColor: "#2A2A3E",
-              borderRadius: 12,
-              padding: 14,
-              color: "#FFFFFF",
-              fontSize: 20,
-              fontWeight: "700",
-            }}
+            className="rounded-xl p-3.5 text-xl font-bold" style={{ backgroundColor: c.card, color: c.textBody }}
           />
         </View>
 
         {/* Head circumference */}
         <View style={{ gap: 6 }}>
-          <Text style={{ color: "#9B59B6", fontWeight: "800", fontSize: 14 }}>
-            🌀 C. Cefálica (cm)
-          </Text>
+          <Text style={{ color: "#9B59B6", fontWeight: "800", fontSize: 14 }}>🌀 C. Cefálica (cm)</Text>
           <TextInput
             value={headCircCm}
             onChangeText={setHeadCircCm}
             placeholder="0.0"
             placeholderTextColor="#666"
             keyboardType="decimal-pad"
-            style={{
-              backgroundColor: "#2A2A3E",
-              borderRadius: 12,
-              padding: 14,
-              color: "#FFFFFF",
-              fontSize: 20,
-              fontWeight: "700",
-            }}
+            className="rounded-xl p-3.5 text-xl font-bold" style={{ backgroundColor: c.card, color: c.textBody }}
           />
         </View>
 
         {/* Notes */}
         <View style={{ gap: 6 }}>
-          <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 13 }}>
-            📝 Notas
-          </Text>
+          <Text className="font-bold text-[13px]" style={{ color: c.textMuted }}>📝 Notas</Text>
           <TextInput
             value={notes}
             onChangeText={setNotes}
             placeholder="Opcional"
             placeholderTextColor="#666"
             multiline
-            style={{
-              backgroundColor: "#2A2A3E",
-              borderRadius: 12,
-              padding: 14,
-              color: "#FFFFFF",
-              fontSize: 15,
-              minHeight: 60,
-              textAlignVertical: "top",
-            }}
+            className="rounded-xl p-3.5 text-[15px]"
+            style={{ backgroundColor: c.card, color: c.textBody, minHeight: 60, textAlignVertical: "top" }}
           />
         </View>
 
         {/* Date & Time */}
         <View style={{ gap: 6 }}>
-          <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 13 }}>
-            🕐 Fecha y hora
-          </Text>
+          <Text className="font-bold text-[13px]" style={{ color: c.textMuted }}>🕐 Fecha y hora</Text>
           <DateTimePicker value={timestamp} onChange={setTimestamp} />
         </View>
 

@@ -90,6 +90,7 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 - [x] Modo edición completo con DateTimePicker fix (raw string state)
 - [x] KeyboardAvoidingView que no tapa inputs
 - [x] Zona de desarrollo: reset total con doble confirmación
+- [x] Se mantiene tal cual en la nueva navegación
 
 ### Estadísticas
 - [x] `useStats.ts` — hook con comparación vs período anterior
@@ -160,29 +161,73 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 - [x] **Event detail**: mostrar salud con colores/emojis resueltos
 - [x] **Share/Stats**: actualizar reportes y estadísticas
 
-### FASE 2: SISTEMA DE TEMA + REFINAMIENTO UX
+### FASE 2: SISTEMA DE TEMA + REESTRUCTURACIÓN NAVEGACIÓN
 > 📄 **[Plan detallado → THEME-SYSTEM.md](./THEME-SYSTEM.md)**
 
-**Objetivo:** Unificar todos los colores hardcodeados en un sistema de tokens semánticos con soporte claro/oscuro, detectando automáticamente la preferencia del SO con toggle manual en settings.
+**Problema:** NativeWind v4 + `darkMode: 'class'` + `dark:` variants no funciona en producción. Las variantes `dark:` no se resuelven aunque el wrapper `className="dark"` esté presente.
 
-- [ ] **Infraestructura de tema**
-  - Tokens semánticos en `tailwind.config.js` con variantes light/dark
-  - `ThemeProvider` con detección automática (`useColorScheme`) + toggle manual (AsyncStorage)
-  - Wrapper en `_layout.tsx`
-  - Toggle en settings
-- [ ] **Migración progresiva de componentes** (por orden de impacto):
-  - `src/components/ui/` — componentes base
-  - `app/dashboard/` — timeline principal
-  - `app/settings/` — settings completo
-  - `app/logs/` — pantallas de registro
-  - `app/stats/` — estadísticas
-- [ ] **Curva de crecimiento** — Gráfica simple con `react-native-svg` (ya instalado)
-- [ ] **Tab bar** — Navegación principal con tabs (💬 Chat · 📊 Stats · ⚙️ Settings)
+**Solución:** Abandonar `dark:` variants de NativeWind. Migrar a **sistema de temas propio con React Context + inline styles**, que funciona siempre, es predecible, y permite temas editables por el usuario.
+
+#### FASE 2.1: Infraestructura de Tema Contextual (nueva)
+
+- [ ] **`src/theme/types.ts`** — interfaz `AppTheme` con todos los tokens de color
+- [ ] **`src/theme/themes/light.ts`** — tema claro
+- [ ] **`src/theme/themes/dark.ts`** — tema oscuro
+- [ ] **`src/theme/ThemeProvider.tsx`** — React Context que provee el tema activo + setter
+- [ ] **`src/theme/useTheme.ts`** — hook `useTheme()` → `colors` (los valores directos)
+- [ ] **`src/theme/useThemeStyles.ts`** — hook `useThemeStyles(fn)` → memoiza StyleSheet por tema
+- [ ] **`src/theme/themeStorage.ts`** — load/save themes en AsyncStorage
+- [ ] **Reemplazar `src/hooks/useTheme.tsx`** — el ThemeProvider actual (className="dark") desaparece, el nuevo provee colores via context
+
+#### FASE 2.2: Settings como pantalla de lista (estilo WhatsApp)
+
+- [ ] **Tres puntitos (⋮) en dashboard header** → abre settings
+- [ ] **`app/settings/index.tsx`** — pantalla principal de ajustes con lista:
+  - 📝 Catálogos (eventos, pipí, popó, obs. pañal)
+  - 🎨 Gestor de temas
+  - 👤 Perfil del bebé
+  - 👥 Cuidadores
+  - ℹ️ Acerca de / Versión
+
+- [ ] **Mover `catalogs.tsx`** como sub-pantalla de settings
+
+#### FASE 2.3: Gestor de Temas (editor + selector)
+
+- [ ] **`app/settings/theme/index.tsx`** — lista de temas disponibles (Light, Dark, custom)
+- [ ] **`app/settings/theme/editor.tsx`** — editor visual de tema:
+  - Paletas de colores por token (surface, card, textBody, accent, headerBg...)
+  - Vista previa en vivo
+  - Guardar como nuevo tema / sobrescribir
+- [ ] **Selector de tema** en settings principal
+- [ ] **Persistencia** en AsyncStorage + carga al inicio
+
+#### FASE 2.4: Migración progresiva de componentes
+
+- [ ] **Migrar `TimelineBubbles.tsx`** — de className tokens → `const theme = useTheme()`
+- [ ] **Migrar `dashboard/index.tsx`**
+- [ ] **Migrar `app/settings/`** (catalogs + theme screens)
+- [ ] **Migrar `app/logs/`** (event/[id], feeding/[id], sleep/[id], growth/*, diaper/new)
+- [ ] **Migrar `app/stats/index.tsx`**
+- [ ] **Migrar componentes UI restantes** (ActiveFeedingCard, ActiveSleepCard, etc.)
+- [ ] **Migrar `_layout.tsx`** (splash screen)
+
+**Nota:** Se mantienen NativeWind utilities para layout (padding, margin, gap, flex, border-radius, font-size, font-weight). Solo los **colores** se mueven a inline styles con `useTheme()`.
+
+#### FASE 2.5: Limpieza
+
+- [ ] **Eliminar `tailwind.config.js` colors** — ya no necesitamos tokens semánticos ahí
+- [ ] **Eliminar `dark:` classNames** de todos los archivos
+- [ ] **Eliminar `darkMode: 'class'`** de tailwind.config.js
+- [ ] **Mantener NativeWind** para utilities no-color
+
+### FASE 3: REFINAMIENTOS UX
+
+- [ ] **Curva de crecimiento** — Gráfica simple con `react-native-svg`
 - [ ] **Nombre real del cuidador en burbujas** — Reemplazar "Otro cuidador" por nombre real
 - [ ] **Estadísticas: gráficas de tendencia** — Líneas de tendencia diaria/semanal con SVG
-- [ ] **Pantalla de configuración** — unificar settings (catálogos, perfiles, ajustes)
+- [ ] **Tab bar** — Navegación principal con tabs (💬 Chat · 📊 Stats · ⚙️ Settings) (opcional, después de fase 2)
 
-### FASE 3: LIMPIEZA TÉCNICA
+### FASE 4: LIMPIEZA TÉCNICA
 
 - [ ] **Eliminar dead code V3**
   - `useDiaperLogs.ts` — importa tabla `diaperLogs` que ya no existe
@@ -198,12 +243,11 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 
 - [ ] **`app/timeline/index.tsx`** — Eliminar placeholder (el dashboard ya es el timeline)
 
-### FASE 4: NICE TO HAVE
+### FASE 5: NICE TO HAVE
 
 - [ ] **Múltiples bebés** — schema lo soporta, falta UI de selección
 - [ ] **Múltiples cuidadores** — schema lo soporta, falta sync
 - [ ] **Notificaciones** — recordar cada X horas si no hay toma
-- [ ] **Export CSV/PDF** del historial completo
 - [ ] **Export CSV/PDF** del historial completo
 - [ ] **Compartir múltiples imágenes** vía react-native-share
 - [ ] **Estadísticas: curvas OMS** con percentiles
@@ -211,49 +255,161 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 
 ---
 
+## 🏗️ PLAN DE IMPLEMENTACIÓN — SISTEMA DE TEMA CONTEXTUAL
+
+### Arquitectura
+
+```
+src/theme/
+├── types.ts           → AppTheme interface (todos los tokens)
+├── themes/
+│   ├── light.ts       → Tema claro default
+│   └── dark.ts        → Tema oscuro default
+├── ThemeProvider.tsx   → React Context provider
+├── useTheme.ts        → Hook: const theme = useTheme()
+├── useThemeStyles.ts  → Hook: const styles = useThemeStyles((t) => StyleSheet.create({...}))
+└── themeStorage.ts    → AsyncStorage CRUD
+
+app/settings/
+├── index.tsx          → Lista de ajustes (nueva)
+└── theme/
+    ├── index.tsx      → Selector de tema
+    └── editor.tsx     → Editor visual de temas
+```
+
+### Interfaz AppTheme
+
+```ts
+interface AppTheme {
+  id: string;
+  name: string;
+  isBuiltIn: boolean;
+  colors: {
+    // Superficies
+    surface: string;
+    card: string;
+    elevated: string;
+    inputBg: string;
+    // Texto
+    textBody: string;
+    textMuted: string;
+    textDim: string;
+    textOnAccent: string;
+    // Acento
+    accent: string;
+    accentStrong: string;
+    accentLight: string;
+    // Header
+    headerBg: string;
+    headerText: string;
+    // Bordes
+    border: string;
+    // Timeline
+    bubbleOwn: string;
+    bubbleOther: string;
+    // Estados
+    success: string;
+    warning: string;
+    danger: string;
+    // Colores fijos (no cambian con tema)
+    biological: { pee: string; poop: string };
+    feeding: { bottle: string; breast: string };
+    growth: string;
+  };
+}
+```
+
+### Flujo de uso en componentes
+
+```tsx
+// Antes (NativeWind con dark:)
+<View className="bg-surface dark:bg-surface p-4 rounded-xl">
+  <Text className="text-textBody dark:text-textBody font-bold">Hola</Text>
+</View>
+
+// Después (Context + inline styles)
+function MiComponente() {
+  const { colors } = useTheme();
+  return (
+    <View style={{ backgroundColor: colors.surface, padding: 16, borderRadius: 12 }}>
+      <Text style={{ color: colors.textBody, fontWeight: 'bold' }}>Hola</Text>
+    </View>
+  );
+}
+
+// O con useThemeStyles (estilo StyleSheet)
+function MiComponente() {
+  const styles = useThemeStyles((t) => StyleSheet.create({
+    container: { backgroundColor: t.surface, padding: 16, borderRadius: 12 },
+    title: { color: t.textBody, fontWeight: 'bold' },
+  }));
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Hola</Text>
+    </View>
+  );
+}
+```
+
+### Orden de implementación
+
+1. **`src/theme/types.ts`** + temas light/dark
+2. **`ThemeProvider.tsx`** + `useTheme.ts` + `themeStorage.ts`
+3. **`useThemeStyles.ts`** — hook memoizado
+4. **Reemplazar `useTheme.tsx`** (el actual) con el nuevo ThemeProvider
+5. **Migrar 1 componente** (ej. TimelineBubbles) para validar el approach
+6. **Crear `app/settings/index.tsx`** con lista de opciones
+7. **Agregar ⋮ en dashboard header** → navega a settings
+8. **Mover catalogs.tsx** como sub-pantalla de settings
+9. **Crear gestor de temas** (selector + editor)
+10. **Migrar resto de componentes** progresivamente
+
+---
+
 ## 🧱 ARQUITECTURA
 
-### Flujo de navegación
+### Flujo de navegación (después de Fase 2)
 ```
-App Launch → _layout.tsx (runMigrations)
+App Launch → _layout.tsx (runMigrations + ThemeProvider)
   → app/index.tsx (check onboarding_done)
     → NO: /onboarding/welcome → /onboarding/role → /onboarding/baby → /dashboard
     → SÍ: /dashboard
+      → Header ⋮ → /settings (lista)
+        → /settings/catalogs
+        → /settings/theme
+        → /baby/profile
 ```
 
-### Estructura de archivos
+### Estructura de archivos (después de Fase 2)
 ```
 cielo-app/
 ├── app/
-│   ├── _layout.tsx              ← runMigrations lazy + providers
+│   ├── _layout.tsx              ← runMigrations lazy + ThemeProvider
 │   ├── index.tsx                ← Redirect según onboarding
 │   ├── baby/profile.tsx         ← Perfil bebé + avatar picker
-│   ├── dashboard/index.tsx      ← Timeline/chat principal
-│   ├── logs/
-│   │   ├── diaper/new.tsx       ← ✅ Pañal + foto
-│   │   ├── event/new.tsx        ← ✅ Evento genérico
-│   │   ├── event/[id].tsx       ← ✅ Detalle evento
-│   │   ├── feeding/retro.tsx    ← ✅ Toma rezagada
-│   │   ├── feeding/[id].tsx     ← ✅ Detalle toma
-│   │   ├── growth/new.tsx       ← ✅ Peso/estatura
-│   │   ├── growth/history.tsx   ← ✅ Historial crecimiento
-│   │   └── sleep/[id].tsx       ← ✅ Detalle siesta
-│   ├── onboarding/              ← ✅ Flujo completo
-│   ├── settings/catalogs.tsx    ← ✅ Catálogos custom
-│   ├── stats/index.tsx          ← ✅ Stats completas
-│   ├── report/generate.tsx      ← 🟡 Legacy V3 (reemplazar)
-│   └── timeline/index.tsx       ← 🟡 Placeholder (eliminar)
+│   ├── dashboard/index.tsx      ← Timeline/chat principal + ⋮ menu
+│   ├── settings/
+│   │   ├── index.tsx            ← Lista de ajustes (NUEVA)
+│   │   ├── catalogs.tsx         ← Catálogos custom (movido)
+│   │   └── theme/
+│   │       ├── index.tsx        ← Selector de tema (NUEVA)
+│   │       └── editor.tsx       ← Editor de temas (NUEVA)
+│   ├── logs/...
+│   ├── onboarding/...
+│   ├── stats/...
+│   └── timeline/...
 ├── src/
-│   ├── components/
-│   │   ├── charts/              ← ✅ SVG charts components
-│   │   └── ui/                  ← ✅ 10+ componentes
-│   ├── db/
-│   │   ├── client.ts            ← ✅ getDb() lazy + migraciones
-│   │   ├── migrations/          ← ⏳ Migraciones SQL
-│   │   └── schema.ts            ← ✅ V4.2 completo
-│   ├── hooks/                   ← ✅ Todos V4 menos dead code
-│   ├── services/                ← ✅ imageStorage, reportGenerator
-│   └── utils/                   ← ✅ id, shareReport
+│   ├── theme/                   ← NUEVO: sistema de temas contextual
+│   │   ├── types.ts
+│   │   ├── themes/
+│   │   ├── ThemeProvider.tsx
+│   │   ├── useTheme.ts
+│   │   ├── useThemeStyles.ts
+│   │   └── themeStorage.ts
+│   ├── components/...
+│   ├── db/...
+│   ├── hooks/...
+│   └── utils/...
 ```
 
 ### Stack técnico
@@ -263,25 +419,30 @@ cielo-app/
 | Routing | expo-router (file-based) |
 | DB | expo-sqlite + Drizzle ORM |
 | Cache/Estado | TanStack React Query v5 |
-| Estilo | NativeWind v4 + Tailwind v3 |
+| Estilo (layout) | NativeWind v4 + Tailwind v3 (padding, margin, flex, etc.) |
+| **Estilo (colores)** | **React Context + inline styles / StyleSheet** (NUEVO) |
 | Animación | react-native-reanimated v4 |
 | Cámara | expo-image-picker |
 | Archivos | expo-file-system |
 | Compartir | expo-sharing + RN Share |
 | Build | EAS Build (Android APK) |
+| **Tema** | **React Context + AsyncStorage** (NUEVO) |
 
 ---
 
-## 🔢 ORDEN DE IMPLEMENTACIÓN
+## 🔢 ORDEN DE IMPLEMENTACIÓN (actualizado)
 
 1. ✅ **Fase 1: Pantallas faltantes** — growth/new, growth/history, feeding/[id], sleep/[id], event/[id], feeding/retro, diaper/new, event/new
 2. ✅ **Fase 1.5: [Rediseño Pañal](./DIAPER-REDESIGN.md)** — pipímetro/popómetro + observaciones multi-métrica
-3. **Fase 2: [Sistema de Tema](./THEME-SYSTEM.md)** — tokens semánticos, ThemeProvider, migración progresiva
-4. **Tab bar** — navegación con tabs en lugar de header lleno de botones
-5. **Refinamientos UX** — curvas de crecimiento, gráficas tendencia, nombre cuidador
-6. **Dead code** — eliminar useDiaperLogs, useFeedingLogs, reportGenerator v3
-7. **Migración no-destructiva** — _layout.tsx sin DROP TABLE
-8. **Multi-bebé y sync** — fases v2.0+
+3. **FASE 2: [Sistema de Tema Contextual + Settings](./THEME-SYSTEM.md)**
+   - 2.1 Infraestructura de tema (types, provider, hooks, storage)
+   - 2.2 Settings como pantalla de lista (⋮ → settings)
+   - 2.3 Gestor de temas (selector + editor visual)
+   - 2.4 Migración progresiva de componentes (className → useTheme)
+   - 2.5 Limpieza (dark: classNames, tailwind colors)
+4. **Fase 3: Refinamientos UX** — curvas de crecimiento, gráficas, nombre cuidador
+5. **Fase 4: Dead code + limpieza técnica**
+6. **Fase 5: Multi-bebé, notificaciones, export**
 
 ---
 
@@ -311,7 +472,7 @@ adb logcat -s ReactNativeJS
 |---|---|
 | `app.json` | scheme: cieloaapp, newArchEnabled: true, userInterfaceStyle: dark |
 | `eas.json` | npmFlags: --legacy-peer-deps, profile preview → APK |
-| `tailwind.config.js` | Paleta dark personalizada (bg/text/cielo/pink/...) |
+| `tailwind.config.js` | Solo utilities de layout (no colores semánticos) después de Fase 2 |
 | `global.css` | @tailwind base/components/utilities |
 | `opencode.json` | skills.paths → .opencode/skills |
 
@@ -329,6 +490,7 @@ adb logcat -s ReactNativeJS
 | Timer de toma ignoraba pausas | sumar segmentos activos con `calcDurationSec()` |
 | DateTimePicker re-derivaba display del Date prop | Raw string state independiente por campo |
 | EAS Build sin peer-deps | `--legacy-peer-deps` en eas.json |
+| **NativeWind v4 `dark:` variants no resuelven en prod** | **Migrar a React Context + inline styles para colores** |
 
 ---
 

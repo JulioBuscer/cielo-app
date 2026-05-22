@@ -20,6 +20,7 @@ import { formatDuration } from "@/src/db/client";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { useActiveProfile } from "@/src/hooks/useProfile";
+import { useTheme } from "@/src/theme/useTheme";
 
 function formatDateTime(ts: Date | string | number | undefined | null): string {
   if (!ts) return "--";
@@ -32,6 +33,8 @@ function formatDateTime(ts: Date | string | number | undefined | null): string {
 }
 
 export default function SleepDetailScreen() {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: session } = useSleepSession(id);
   const { data: statusEvents } = useSleepStatusEvents(id);
@@ -80,10 +83,10 @@ export default function SleepDetailScreen() {
 
   if (!session) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#1A1A2E" }} edges={["top"]}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: c.surface }} edges={["top"]}>
         <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <Text style={{ color: "#888", fontSize: 16 }}>Cargando...</Text>
+          <Text className="text-base" style={{ color: c.textDim }}>Cargando...</Text>
         </View>
       </SafeAreaView>
     );
@@ -96,33 +99,15 @@ export default function SleepDetailScreen() {
       : "--";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#1A1A2E" }} edges={["top"]}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: c.surface }} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
 
       {/* Header */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          backgroundColor: "#1A1A2E",
-          borderBottomWidth: 1,
-          borderBottomColor: "#2A2A3E",
-        }}
-      >
+      <View className="flex-row items-center px-4 py-3 border-b" style={{ backgroundColor: c.surface, borderBottomColor: c.elevated }}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={{ fontSize: 24 }}>←</Text>
         </TouchableOpacity>
-        <Text
-          style={{
-            flex: 1,
-            textAlign: "center",
-            fontSize: 18,
-            fontWeight: "900",
-            color: "#FFFFFF",
-          }}
-        >
+        <Text className="flex-1 text-center text-lg font-black" style={{ color: c.textBody }}>
           😴 Detalle de Siesta
         </Text>
         <TouchableOpacity onPress={handleStartEditing}>
@@ -132,38 +117,18 @@ export default function SleepDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20, gap: 16 }}
-      >
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 16 }}>
         {/* Session info card */}
-        <View
-          style={{
-            backgroundColor: "#2A2A3E",
-            borderRadius: 16,
-            padding: 20,
-            gap: 12,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
+        <View className="rounded-2xl p-5 gap-3" style={{ backgroundColor: c.card }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <Text style={{ color: "#9B59B6", fontWeight: "800", fontSize: 20 }}>
               😴 Sesión de Sueño
             </Text>
             <Text
+              className="font-bold text-xs px-2.5 py-1 rounded-full"
               style={{
                 color: isOwn ? "#4CAF50" : "#9B59B6",
-                fontWeight: "700",
-                fontSize: 12,
                 backgroundColor: isOwn ? "#1A3A1A" : "#2A1A3E",
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                borderRadius: 99,
               }}
             >
               {isOwn ? "Tú" : "Otro cuidador"}
@@ -171,231 +136,93 @@ export default function SleepDetailScreen() {
           </View>
 
           {isActive && (
-            <View
-              style={{
-                backgroundColor: "#2A1A3E",
-                borderRadius: 12,
-                padding: 10,
-                alignItems: "center",
-              }}
-            >
+            <View className="rounded-xl p-2.5 items-center" style={{ backgroundColor: "#2A1A3E" }}>
               <Text style={{ color: "#9B59B6", fontWeight: "700", fontSize: 13 }}>
                 {session.status === "active" ? "🟢 En curso" : "🟡 En pausa"}
               </Text>
             </View>
           )}
 
-          <View
-            style={{
-              backgroundColor: "#1A1A2E",
-              borderRadius: 12,
-              padding: 14,
-              gap: 8,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-              }}
-            >
-              <Text style={{ color: "#888", fontWeight: "600", fontSize: 13 }}>
-                Inicio
-              </Text>
-              <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
-                {editing
-                  ? formatDateTime(editStartedAt!)
-                  : formatDateTime(session.startedAt)}
+          <View className="rounded-xl p-3.5 gap-2" style={{ backgroundColor: c.surface }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text className="font-semibold text-[13px]" style={{ color: c.textDim }}>Inicio</Text>
+              <Text className="font-bold text-sm" style={{ color: c.textBody }}>
+                {editing ? formatDateTime(editStartedAt!) : formatDateTime(session.startedAt)}
               </Text>
             </View>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-              }}
-            >
-              <Text style={{ color: "#888", fontWeight: "600", fontSize: 13 }}>
-                Fin
-              </Text>
-              <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
-                {editing
-                  ? editEndedAt
-                    ? formatDateTime(editEndedAt)
-                    : "—"
-                  : formatDateTime(session.endedAt)}
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text className="font-semibold text-[13px]" style={{ color: c.textDim }}>Fin</Text>
+              <Text className="font-bold text-sm" style={{ color: c.textBody }}>
+                {editing ? (editEndedAt ? formatDateTime(editEndedAt) : "—") : formatDateTime(session.endedAt)}
               </Text>
             </View>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-              }}
-            >
-              <Text style={{ color: "#888", fontWeight: "600", fontSize: 13 }}>
-                Duración
-              </Text>
-              <Text
-                style={{
-                  color: "#9B59B6",
-                  fontWeight: "800",
-                  fontSize: 18,
-                }}
-              >
-                {durationLabel}
-              </Text>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text className="font-semibold text-[13px]" style={{ color: c.textDim }}>Duración</Text>
+              <Text style={{ color: "#9B59B6", fontWeight: "800", fontSize: 18 }}>{durationLabel}</Text>
             </View>
           </View>
         </View>
 
         {/* Edit mode */}
         {editing && (
-          <View
-            style={{
-              backgroundColor: "#2A2A3E",
-              borderRadius: 16,
-              padding: 20,
-              gap: 16,
-            }}
-          >
-            <Text
-              style={{
-                color: "#9B59B6",
-                fontWeight: "800",
-                fontSize: 15,
-                textAlign: "center",
-              }}
-            >
+          <View className="rounded-2xl p-5 gap-4" style={{ backgroundColor: c.card }}>
+            <Text style={{ color: "#9B59B6", fontWeight: "800", fontSize: 15, textAlign: "center" }}>
               ✏️ Editar tiempos
             </Text>
 
             <View style={{ gap: 6 }}>
-              <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 12 }}>
-                Inicio
-              </Text>
-              <DateTimePicker
-                value={editStartedAt!}
-                onChange={setEditStartedAt}
-              />
+              <Text className="font-bold text-xs" style={{ color: c.textMuted }}>Inicio</Text>
+              <DateTimePicker value={editStartedAt!} onChange={setEditStartedAt} />
             </View>
 
             <View style={{ gap: 6 }}>
-              <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 12 }}>
-                Fin
-              </Text>
-              <DateTimePicker
-                value={editEndedAt ?? editStartedAt!}
-                onChange={setEditEndedAt}
-              />
+              <Text className="font-bold text-xs" style={{ color: c.textMuted }}>Fin</Text>
+              <DateTimePicker value={editEndedAt ?? editStartedAt!} onChange={setEditEndedAt} />
             </View>
 
             <View style={{ gap: 6 }}>
-              <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 12 }}>
-                📝 Notas
-              </Text>
+              <Text className="font-bold text-xs" style={{ color: c.textMuted }}>📝 Notas</Text>
               <TextInput
                 value={editNotes}
                 onChangeText={setEditNotes}
                 placeholder="Agregar nota..."
                 placeholderTextColor="#666"
                 multiline
-                style={{
-                  backgroundColor: "#1A1A2E",
-                  borderRadius: 12,
-                  padding: 14,
-                  color: "#FFFFFF",
-                  fontSize: 15,
-                  minHeight: 60,
-                  textAlignVertical: "top",
-                }}
+                className="rounded-xl p-3.5 text-[15px]"
+                style={{ backgroundColor: c.surface, color: c.textBody, minHeight: 60, textAlignVertical: "top" }}
               />
             </View>
 
-            <BigButton
-              title="💾 Guardar Cambios"
-              onPress={handleSaveEdit}
-              variant="primary"
-            />
+            <BigButton title="💾 Guardar Cambios" onPress={handleSaveEdit} variant="primary" />
           </View>
         )}
 
         {/* Status events timeline */}
         {statusEvents && statusEvents.length > 0 && (
-          <View
-            style={{
-              backgroundColor: "#2A2A3E",
-              borderRadius: 16,
-              padding: 20,
-              gap: 12,
-            }}
-          >
-            <Text
-              style={{
-                color: "#FFFFFF",
-                fontWeight: "800",
-                fontSize: 15,
-              }}
-            >
-              📋 Línea de tiempo
-            </Text>
+          <View className="rounded-2xl p-5 gap-3" style={{ backgroundColor: c.card }}>
+            <Text className="font-black text-[15px]" style={{ color: c.textBody }}>📋 Línea de tiempo</Text>
 
             {statusEvents.map((ev, i) => {
-              const info =
-                statusLabels[ev.type] ?? {
-                  emoji: "•",
-                  label: ev.type,
-                };
+              const info = statusLabels[ev.type] ?? { emoji: "•", label: ev.type };
               return (
-                <View
-                  key={ev.id}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "flex-start",
-                    gap: 12,
-                  }}
-                >
+                <View key={ev.id} style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
                   <View style={{ alignItems: "center", width: 20 }}>
                     <View
                       style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: 5,
-                        backgroundColor:
-                          ev.type === "start"
-                            ? "#4CAF50"
-                            : ev.type === "finish"
-                              ? "#FF6B6B"
-                              : "#9B59B6",
+                        width: 10, height: 10, borderRadius: 5,
+                        backgroundColor: ev.type === "start" ? "#4CAF50" : ev.type === "finish" ? "#FF6B6B" : "#9B59B6",
                       }}
                     />
                     {i < statusEvents.length - 1 && (
-                      <View
-                        style={{
-                          width: 2,
-                          flex: 1,
-                          minHeight: 16,
-                          backgroundColor: "#3A3A4E",
-                        }}
-                      />
+                      <View style={{ width: 2, flex: 1, minHeight: 16, backgroundColor: "#3A3A4E" }} />
                     )}
                   </View>
 
-                  <View
-                    style={{
-                      flex: 1,
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      paddingBottom: i < statusEvents.length - 1 ? 8 : 0,
-                    }}
-                  >
-                    <Text
-                      style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 14 }}
-                    >
+                  <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingBottom: i < statusEvents.length - 1 ? 8 : 0 }}>
+                    <Text className="font-semibold text-sm" style={{ color: c.textBody }}>
                       {info.emoji} {info.label}
                     </Text>
-                    <Text
-                      style={{ color: "#888", fontWeight: "500", fontSize: 12 }}
-                    >
+                    <Text className="font-medium text-xs" style={{ color: c.textDim }}>
                       {formatDateTime(ev.timestamp)}
                     </Text>
                   </View>
@@ -407,20 +234,9 @@ export default function SleepDetailScreen() {
 
         {/* Notes */}
         {!editing && session.notes && (
-          <View
-            style={{
-              backgroundColor: "#2A2A3E",
-              borderRadius: 16,
-              padding: 20,
-              gap: 6,
-            }}
-          >
-            <Text style={{ color: "#888", fontWeight: "700", fontSize: 12 }}>
-              📝 Notas
-            </Text>
-            <Text style={{ color: "#FFFFFF", fontWeight: "500", fontSize: 14 }}>
-              {session.notes}
-            </Text>
+          <View className="rounded-2xl p-5 gap-1.5" style={{ backgroundColor: c.card }}>
+            <Text className="font-bold text-xs" style={{ color: c.textDim }}>📝 Notas</Text>
+            <Text className="font-medium text-sm" style={{ color: c.textBody }}>{session.notes}</Text>
           </View>
         )}
 

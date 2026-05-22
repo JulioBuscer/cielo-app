@@ -26,7 +26,7 @@ import { getDb } from "@/src/db/client";
 import { eventTypes, diaperObservations } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
 import { useQueryClient } from "@tanstack/react-query";
-import { useThemeContext } from "@/src/hooks/useTheme";
+import { useTheme } from "@/src/theme/useTheme";
 import type { DiaperObservation, ObservationMetric, ObservationZone } from "@/src/db/schema";
 import { generateId } from "@/src/utils/id";
 
@@ -754,19 +754,20 @@ function PoopConfigSection({
 }
 
 function ThemeToggle() {
-  const { mode, isDark, setMode } = useThemeContext();
+  const { theme, activeId, setTheme } = useTheme();
+  const c = theme.colors;
+  const mode = activeId === "dark" ? "dark" : activeId === "light" ? "light" : "custom";
   return (
     <View
-      className="flex-row items-center justify-center bg-headerBg dark:bg-surface-dark pb-2"
-      style={{ gap: 8 }}
+      className="flex-row items-center justify-center pb-2"
+      style={{ gap: 8, backgroundColor: c.headerBg }}
     >
-      {(["system", "light", "dark"] as const).map((m) => {
+      {(["light", "dark"] as const).map((m) => {
         const active = mode === m;
-        const label = m === "system" ? "📱 Auto" : m === "light" ? "☀️ Claro" : "🌙 Oscuro";
         return (
           <TouchableOpacity
             key={m}
-            onPress={() => setMode(m)}
+            onPress={() => setTheme(m)}
             style={{
               paddingHorizontal: 14,
               paddingVertical: 6,
@@ -781,7 +782,7 @@ function ThemeToggle() {
                 fontSize: 13,
               }}
             >
-              {label}
+              {m === "light" ? "☀️ Claro" : "🌙 Oscuro"}
             </Text>
           </TouchableOpacity>
         );
@@ -791,6 +792,8 @@ function ThemeToggle() {
 }
 
 export default function CatalogsScreen() {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const { data: events } = useEventTypes();
   const { data: diaperObs } = useDiaperObservations();
   const createEvent = useCreateEventType();
@@ -942,7 +945,7 @@ export default function CatalogsScreen() {
   };
 
   return (
-    <SafeAreaView className="bg-headerBg dark:bg-surface-dark" style={{ flex: 1 }} edges={["top"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.headerBg }} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor="#FF8AB3" />
       <View
         className="flex-row items-center px-4"
@@ -971,7 +974,7 @@ export default function CatalogsScreen() {
       >
         {/* ─── Tabs ─── */}
         <View
-          className="flex-row bg-headerBg dark:bg-surface-dark px-4"
+          className="flex-row px-4" style={{ backgroundColor: c.headerBg }}
         >
           {[
             { key: "events" as const, label: "📝 Eventos" },
@@ -1025,7 +1028,7 @@ export default function CatalogsScreen() {
           </View>
         ) : (
           <ScrollView
-            className="bg-surface dark:bg-surface-dark flex-1"
+            className="flex-1" style={{ backgroundColor: c.surface }}
             contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"

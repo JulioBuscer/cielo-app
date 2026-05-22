@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StatusBar } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "@/src/theme/useTheme";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import {
   useGrowthHistory,
@@ -31,6 +32,8 @@ export default function GrowthHistoryScreen() {
   const { data: baby } = useActiveBaby();
   const { data: history } = useGrowthHistory(baby?.id);
   const { data: last } = useLastGrowthLog(baby?.id);
+  const { theme } = useTheme();
+  const c = theme.colors;
 
   const rows = useMemo(() => {
     if (!history) return [];
@@ -38,57 +41,27 @@ export default function GrowthHistoryScreen() {
       const prev = i < history.length - 1 ? history[i + 1] : null;
       return {
         ...row,
-        weightLabel:
-          row.weightGrams != null ? `${gramsToKg(row.weightGrams)} kg` : "-",
-        weightDiff: diffLabel(
-          row.weightGrams ?? null,
-          prev?.weightGrams ?? null
-        ),
-        heightLabel:
-          row.heightMm != null ? `${mmToCm(row.heightMm)} cm` : "-",
-        heightDiff: diffLabel(
-          row.heightMm ?? null,
-          prev?.heightMm ?? null
-        ),
-        headLabel:
-          row.headCircMm != null ? `${mmToCm(row.headCircMm)} cm` : "-",
-        headDiff: diffLabel(
-          row.headCircMm ?? null,
-          prev?.headCircMm ?? null
-        ),
+        weightLabel: row.weightGrams != null ? `${gramsToKg(row.weightGrams)} kg` : "-",
+        weightDiff: diffLabel(row.weightGrams ?? null, prev?.weightGrams ?? null),
+        heightLabel: row.heightMm != null ? `${mmToCm(row.heightMm)} cm` : "-",
+        heightDiff: diffLabel(row.heightMm ?? null, prev?.heightMm ?? null),
+        headLabel: row.headCircMm != null ? `${mmToCm(row.headCircMm)} cm` : "-",
+        headDiff: diffLabel(row.headCircMm ?? null, prev?.headCircMm ?? null),
         dateLabel: formatDate(row.timestamp),
       };
     });
   }, [history]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#1A1A2E" }} edges={["top"]}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: c.surface }} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
 
       {/* Header */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          backgroundColor: "#1A1A2E",
-          borderBottomWidth: 1,
-          borderBottomColor: "#2A2A3E",
-        }}
-      >
+      <View className="flex-row items-center px-4 py-3 border-b" style={{ backgroundColor: c.surface, borderBottomColor: c.elevated }}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={{ fontSize: 24 }}>✕</Text>
         </TouchableOpacity>
-        <Text
-          style={{
-            flex: 1,
-            textAlign: "center",
-            fontSize: 18,
-            fontWeight: "900",
-            color: "#FFFFFF",
-          }}
-        >
+        <Text className="flex-1 text-center text-lg font-black" style={{ color: c.textBody }}>
           📊 Historial de Crecimiento
         </Text>
         <View style={{ width: 32 }} />
@@ -96,22 +69,10 @@ export default function GrowthHistoryScreen() {
 
       {/* Last measurements summary */}
       {last && (
-        <View
-          style={{
-            backgroundColor: "#2A2A3E",
-            marginHorizontal: 16,
-            marginTop: 12,
-            borderRadius: 12,
-            padding: 14,
-            flexDirection: "row",
-            justifyContent: "space-around",
-          }}
-        >
+        <View className="mx-4 mt-3 rounded-xl p-3.5 flex-row justify-around" style={{ backgroundColor: c.card }}>
           {last.weightGrams != null && (
             <View style={{ alignItems: "center", gap: 2 }}>
-              <Text style={{ color: "#888", fontSize: 11, fontWeight: "600" }}>
-                Peso
-              </Text>
+              <Text className="text-[11px] font-semibold" style={{ color: c.textDim }}>Peso</Text>
               <Text style={{ color: "#FFD700", fontWeight: "800", fontSize: 16 }}>
                 {gramsToKg(last.weightGrams)} kg
               </Text>
@@ -119,9 +80,7 @@ export default function GrowthHistoryScreen() {
           )}
           {last.heightMm != null && (
             <View style={{ alignItems: "center", gap: 2 }}>
-              <Text style={{ color: "#888", fontSize: 11, fontWeight: "600" }}>
-                Talla
-              </Text>
+              <Text className="text-[11px] font-semibold" style={{ color: c.textDim }}>Talla</Text>
               <Text style={{ color: "#4CAF50", fontWeight: "800", fontSize: 16 }}>
                 {mmToCm(last.heightMm)} cm
               </Text>
@@ -129,9 +88,7 @@ export default function GrowthHistoryScreen() {
           )}
           {last.headCircMm != null && (
             <View style={{ alignItems: "center", gap: 2 }}>
-              <Text style={{ color: "#888", fontSize: 11, fontWeight: "600" }}>
-                C. Cefálico
-              </Text>
+              <Text className="text-[11px] font-semibold" style={{ color: c.textDim }}>C. Cefálico</Text>
               <Text style={{ color: "#9B59B6", fontWeight: "800", fontSize: 16 }}>
                 {mmToCm(last.headCircMm)} cm
               </Text>
@@ -140,89 +97,26 @@ export default function GrowthHistoryScreen() {
         </View>
       )}
 
-      <ScrollView
-        style={{ flex: 1, marginTop: 12 }}
-        contentContainerStyle={{ padding: 16, gap: 0 }}
-      >
+      <ScrollView style={{ flex: 1, marginTop: 12 }} contentContainerStyle={{ padding: 16, gap: 0 }}>
         {/* Table header */}
-        <View
-          style={{
-            flexDirection: "row",
-            backgroundColor: "#2A2A3E",
-            borderRadius: 12,
-            paddingVertical: 10,
-            paddingHorizontal: 12,
-            marginBottom: 4,
-          }}
-        >
-          <Text
-            style={{
-              flex: 2,
-              color: "#888",
-              fontWeight: "700",
-              fontSize: 11,
-              textTransform: "uppercase",
-            }}
-          >
-            Fecha
-          </Text>
-          <Text
-            style={{
-              flex: 2,
-              color: "#FFD700",
-              fontWeight: "700",
-              fontSize: 11,
-              textAlign: "center",
-              textTransform: "uppercase",
-            }}
-          >
-            Peso
-          </Text>
-          <Text
-            style={{
-              flex: 2,
-              color: "#4CAF50",
-              fontWeight: "700",
-              fontSize: 11,
-              textAlign: "center",
-              textTransform: "uppercase",
-            }}
-          >
-            Talla
-          </Text>
-          <Text
-            style={{
-              flex: 2,
-              color: "#9B59B6",
-              fontWeight: "700",
-              fontSize: 11,
-              textAlign: "right",
-              textTransform: "uppercase",
-            }}
-          >
-            Cefálico
-          </Text>
+        <View className="rounded-xl py-2.5 px-3 mb-1 flex-row" style={{ backgroundColor: c.card }}>
+          <Text className="flex-[2] font-bold text-[11px] uppercase" style={{ color: c.textDim }}>Fecha</Text>
+          <Text className="flex-[2] font-bold text-[11px] text-center uppercase" style={{ color: "#FFD700" }}>Peso</Text>
+          <Text className="flex-[2] font-bold text-[11px] text-center uppercase" style={{ color: "#4CAF50" }}>Talla</Text>
+          <Text className="flex-[2] font-bold text-[11px] text-right uppercase" style={{ color: "#9B59B6" }}>Cefálico</Text>
         </View>
 
         {rows.length === 0 && (
           <View style={{ paddingVertical: 60, alignItems: "center", gap: 8 }}>
             <Text style={{ fontSize: 40 }}>📏</Text>
-            <Text style={{ color: "#888", fontWeight: "600", fontSize: 15, textAlign: "center" }}>
+            <Text className="font-semibold text-[15px] text-center" style={{ color: c.textDim }}>
               Aún no hay registros de crecimiento
             </Text>
             <TouchableOpacity
               onPress={() => router.push("/logs/growth/new")}
-              style={{
-                backgroundColor: "#FF8AB3",
-                paddingHorizontal: 20,
-                paddingVertical: 10,
-                borderRadius: 99,
-                marginTop: 8,
-              }}
+              className="rounded-full px-5 py-2.5 mt-2" style={{ backgroundColor: c.accent }}
             >
-              <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 14 }}>
-                + Nuevo Registro
-              </Text>
+              <Text className="font-black text-sm" style={{ color: '#FFFFFF' }}>+ Nuevo Registro</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -238,66 +132,27 @@ export default function GrowthHistoryScreen() {
               borderBottomColor: "#2A2A3E",
             }}
           >
-            <Text
-              style={{
-                flex: 2,
-                color: "#BBBBBB",
-                fontWeight: "600",
-                fontSize: 12,
-              }}
-            >
-              {row.dateLabel}
-            </Text>
+            <Text className="flex-[2] font-semibold text-xs" style={{ color: c.textMuted }}>{row.dateLabel}</Text>
             <View style={{ flex: 2, alignItems: "center" }}>
-              <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 13 }}>
-                {row.weightLabel}
-              </Text>
+              <Text className="font-bold text-[13px]" style={{ color: c.textBody }}>{row.weightLabel}</Text>
               {row.weightDiff && (
-                <Text
-                  style={{
-                    color: row.weightDiff.startsWith("+")
-                      ? "#4CAF50"
-                      : "#FF6B6B",
-                    fontSize: 10,
-                    fontWeight: "600",
-                  }}
-                >
+                <Text style={{ color: row.weightDiff.startsWith("+") ? "#4CAF50" : "#FF6B6B", fontSize: 10, fontWeight: "600" }}>
                   {row.weightDiff}
                 </Text>
               )}
             </View>
             <View style={{ flex: 2, alignItems: "center" }}>
-              <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 13 }}>
-                {row.heightLabel}
-              </Text>
+              <Text className="font-bold text-[13px]" style={{ color: c.textBody }}>{row.heightLabel}</Text>
               {row.heightDiff && (
-                <Text
-                  style={{
-                    color: row.heightDiff.startsWith("+")
-                      ? "#4CAF50"
-                      : "#FF6B6B",
-                    fontSize: 10,
-                    fontWeight: "600",
-                  }}
-                >
+                <Text style={{ color: row.heightDiff.startsWith("+") ? "#4CAF50" : "#FF6B6B", fontSize: 10, fontWeight: "600" }}>
                   {row.heightDiff}
                 </Text>
               )}
             </View>
             <View style={{ flex: 2, alignItems: "flex-end" }}>
-              <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 13 }}>
-                {row.headLabel}
-              </Text>
+              <Text className="font-bold text-[13px]" style={{ color: c.textBody }}>{row.headLabel}</Text>
               {row.headDiff && (
-                <Text
-                  style={{
-                    color: row.headDiff.startsWith("+")
-                      ? "#4CAF50"
-                      : "#FF6B6B",
-                    fontSize: 10,
-                    fontWeight: "600",
-                  }}
-                >
+                <Text style={{ color: row.headDiff.startsWith("+") ? "#4CAF50" : "#FF6B6B", fontSize: 10, fontWeight: "600" }}>
                   {row.headDiff}
                 </Text>
               )}

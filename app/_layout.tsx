@@ -4,7 +4,7 @@ import { View, Text, ActivityIndicator } from "react-native";
 import { Slot } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { runMigrations } from "@/src/db/client";
-import { ThemeProvider } from "@/src/hooks/useTheme";
+import { ThemeProvider } from "@/src/theme/ThemeProvider";
 import packageJson from "@/package.json";
 
 const queryClient = new QueryClient();

@@ -20,6 +20,7 @@ import {
 } from "@/src/hooks/useFeedingSessions";
 import { useDiaperObservations, useSaveTimelineEvent } from "@/src/hooks/useTimeline";
 import { useCamera } from "@/src/hooks/useCamera";
+import { useTheme } from "@/src/theme/useTheme";
 import {
   parseMetrics,
   getMetricZoneColor,
@@ -155,6 +156,8 @@ function MetricSlider({
 }
 
 export default function DiaperNewScreen() {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const { data: baby } = useActiveBaby();
   const { data: profile } = useActiveProfile();
   const { data: activeFeeding } = useActiveFeedingSession(baby?.id);
@@ -373,7 +376,7 @@ export default function DiaperNewScreen() {
         {observations && observations.length > 0 && (
           <View style={{ gap: 8 }}>
             <Text
-              style={{ color: "#FF8AB3", fontWeight: "800", fontSize: 15 }}
+              style={{ color: c.accent, fontWeight: "800", fontSize: 15 }}
             >
               🔬 Observaciones
             </Text>
@@ -395,7 +398,7 @@ export default function DiaperNewScreen() {
                       backgroundColor: selected
                         ? medical
                           ? "#8B0000"
-                          : "#FF8AB3"
+                          : c.accent
                         : "#2A2A3E",
                     }}
                   >
@@ -507,7 +510,7 @@ export default function DiaperNewScreen() {
 
         {/* ─── FOTO ─── */}
         <View style={{ gap: 8 }}>
-          <Text style={{ color: "#FF8AB3", fontWeight: "800", fontSize: 15 }}>
+          <Text style={{ color: c.accent, fontWeight: "800", fontSize: 15 }}>
             📸 Foto
           </Text>
           {imageUri ? (
@@ -551,7 +554,7 @@ export default function DiaperNewScreen() {
           onPress={handleSave}
           disabled={saving}
           style={{
-            backgroundColor: saving ? "#3A3A4E" : "#FF8AB3",
+            backgroundColor: saving ? "#3A3A4E" : c.accent,
             paddingVertical: 16,
             borderRadius: 99,
             alignItems: "center",

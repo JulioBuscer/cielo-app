@@ -22,6 +22,7 @@ import {
 } from "@/src/hooks/useBaby";
 import { resetAllData } from "@/src/db/client";
 import { BigButton } from "@/src/components/ui/BigButton";
+import { useTheme } from "@/src/theme/useTheme";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { AvatarPicker } from "@/src/components/ui/AvatarPicker";
 import { useLastGrowthLog, gramsToKg, mmToCm } from "@/src/hooks/useGrowthLogs";
@@ -29,92 +30,32 @@ import { useLastGrowthLog, gramsToKg, mmToCm } from "@/src/hooks/useGrowthLogs";
 type Sex = "male" | "female" | "unknown";
 type Status = "healthy" | "sick" | "unknown";
 
-function InfoRow({
-  emoji,
-  label,
-  value,
-}: {
-  emoji: string;
-  label: string;
-  value: string;
-}) {
+function InfoRow({ emoji, label, value }: { emoji: string; label: string; value: string }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: "#FFF0F5",
-      }}
-    >
+    <View className="flex-row items-center py-3 border-b" style={{ borderBottomColor: c.border }}>
       <Text style={{ fontSize: 20, marginRight: 12 }}>{emoji}</Text>
       <View style={{ flex: 1 }}>
-        <Text
-          style={{
-            fontSize: 11,
-            fontWeight: "800",
-            color: "#9B7A88",
-            textTransform: "uppercase",
-            letterSpacing: 0.4,
-          }}
-        >
-          {label}
-        </Text>
-        <Text
-          style={{
-            fontSize: 15,
-            fontWeight: "700",
-            color: "#2D1B26",
-            marginTop: 1,
-          }}
-        >
-          {value}
-        </Text>
+        <Text className="text-[11px] font-black uppercase tracking-[0.4px]" style={{ color: c.textMuted }}>{label}</Text>
+        <Text className="text-[15px] font-bold mt-0.5" style={{ color: c.textBody }}>{value}</Text>
       </View>
     </View>
   );
 }
 
-function StatCard({
-  emoji,
-  label,
-  value,
-}: {
-  emoji: string;
-  label: string;
-  value: string;
-}) {
+function StatCard({ emoji, label, value }: { emoji: string; label: string; value: string }) {
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: "rgba(255,255,255,0.25)",
-        borderRadius: 16,
-        padding: 14,
-        alignItems: "center",
-      }}
-    >
+    <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 16, padding: 14, alignItems: "center" }}>
       <Text style={{ fontSize: 22, marginBottom: 4 }}>{emoji}</Text>
-      <Text style={{ fontSize: 15, fontWeight: "900", color: "#FFF" }}>
-        {value}
-      </Text>
-      <Text
-        style={{
-          fontSize: 10,
-          color: "rgba(255,255,255,0.8)",
-          fontWeight: "600",
-          marginTop: 2,
-          textAlign: "center",
-        }}
-      >
+      <Text style={{ fontSize: 15, fontWeight: "900", color: "#FFF" }}>{value}</Text>
+      <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.8)", fontWeight: "600", marginTop: 2, textAlign: "center" }}>
         {label}
       </Text>
     </View>
   );
 }
 
-// Tarjeta de medida con actual vs nacimiento
 function GrowthCard({
   emoji, label, current, birth, diffGrams, diffMm,
 }: {
@@ -127,41 +68,26 @@ function GrowthCard({
 }) {
   const diff = diffGrams ?? diffMm ?? null;
   const diffLabel = diff != null && diff > 0
-    ? `+${ diffGrams != null
-        ? (diff / 1000).toFixed(2) + ' kg'
-        : (diff / 10).toFixed(1) + ' cm'
-      }`
+    ? `+${diffGrams != null ? (diff / 1000).toFixed(2) + ' kg' : (diff / 10).toFixed(1) + ' cm'}`
     : null;
 
   return (
-    <View style={{
-      flex: 1,
-      backgroundColor: "rgba(255,255,255,0.25)",
-      borderRadius: 16,
-      padding: 12,
-      alignItems: "center",
-    }}>
+    <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 16, padding: 12, alignItems: "center" }}>
       <Text style={{ fontSize: 18, marginBottom: 2 }}>{emoji}</Text>
-      {/* Valor actual — grande y prominente */}
       <Text style={{ fontSize: 15, fontWeight: "900", color: "#FFF" }}>
         {current ?? "—"}
       </Text>
-      {/* Delta en verde */}
       {diffLabel && (
         <Text style={{ fontSize: 10, fontWeight: "900", color: "#A7F3D0", marginTop: 1 }}>
           {diffLabel} ↑
         </Text>
       )}
-      {/* Nacimiento — más pequeño, debajo */}
       {birth && (
         <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", marginTop: 3, fontWeight: "600" }}>
           nacer: {birth}
         </Text>
       )}
-      <Text style={{
-        fontSize: 9, color: "rgba(255,255,255,0.7)",
-        fontWeight: "700", textTransform: "uppercase", marginTop: 3,
-      }}>
+      <Text style={{ fontSize: 9, color: "rgba(255,255,255,0.7)", fontWeight: "700", textTransform: "uppercase", marginTop: 3 }}>
         {label}
       </Text>
     </View>
@@ -169,6 +95,8 @@ function GrowthCard({
 }
 
 export default function BabyProfile() {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const { data: baby } = useActiveBaby();
   const update = useUpdateBaby();
   const { data: lastGrowth } = useLastGrowthLog(baby?.id);
@@ -191,9 +119,7 @@ export default function BabyProfile() {
     setFormSex((baby.sex as Sex) ?? "unknown");
     setFormStatus((baby.status as Status) ?? "unknown");
     setFormBirth(new Date(baby.birthDate));
-    setFormWeightKg(
-      baby.weightBirthGrams ? String(baby.weightBirthGrams / 1000) : "",
-    );
+    setFormWeightKg(baby.weightBirthGrams ? String(baby.weightBirthGrams / 1000) : "");
     setFormHeightCm(baby.heightBirthMm ? String(baby.heightBirthMm / 10) : "");
     setFormEmoji((baby as any).avatarEmoji ?? "👶");
     setFormPhoto(baby.photoUri ?? null);
@@ -210,19 +136,14 @@ export default function BabyProfile() {
         sex: formSex,
         status: formStatus,
         birthDate: formBirth,
-        weightBirthGrams: formWeightKg
-          ? Math.round(parseFloat(formWeightKg) * 1000)
-          : null,
-        heightBirthMm: formHeightCm
-          ? Math.round(parseFloat(formHeightCm) * 10)
-          : null,
+        weightBirthGrams: formWeightKg ? Math.round(parseFloat(formWeightKg) * 1000) : null,
+        heightBirthMm: formHeightCm ? Math.round(parseFloat(formHeightCm) * 10) : null,
         avatarEmoji: formEmoji,
         photoUri: formPhoto ?? null,
       } as any,
       {
         onSuccess: () => setEditing(false),
-        onError: (e: any) =>
-          Alert.alert("Error", e?.message ?? "No se pudo guardar"),
+        onError: (e: any) => Alert.alert("Error", e?.message ?? "No se pudo guardar"),
       },
     );
   };
@@ -231,84 +152,38 @@ export default function BabyProfile() {
 
   const age = calcAge(baby.birthDate);
   const sexInfo = SEX_LABELS[baby.sex as Sex] ?? SEX_LABELS.unknown;
-  const statusInfo =
-    STATUS_LABELS[baby.status as Status] ?? STATUS_LABELS.unknown;
+  const statusInfo = STATUS_LABELS[baby.status as Status] ?? STATUS_LABELS.unknown;
   const birthStr = new Date(baby.birthDate).toLocaleString("es-MX", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
   const avatarEmoji = (baby as any).avatarEmoji ?? "👶";
   const photoUri = baby.photoUri ?? null;
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: "#FF8AB3" }}
-      edges={["top"]}
-    >
-      <StatusBar barStyle="light-content" backgroundColor="#FF8AB3" />
+    <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: c.headerBg }}>
+      <StatusBar barStyle="light-content" backgroundColor={c.accent} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={0}
       >
         {/* Header */}
-        <View
-          style={{
-            backgroundColor: "#FF8AB3",
-            paddingHorizontal: 16,
-            paddingVertical: 10,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => {
-              setEditing(false);
-              router.back();
-            }}
-          >
-            <Text style={{ color: "#FFFFFF", fontSize: 26, lineHeight: 28 }}>
-              ←
-            </Text>
+        <View className="flex-row items-center gap-3 px-4 py-2.5" style={{ backgroundColor: c.headerBg }}>
+          <TouchableOpacity onPress={() => { setEditing(false); router.back(); }}>
+            <Text className="text-[26px] leading-[28px]" style={{ color: c.headerText }}>←</Text>
           </TouchableOpacity>
 
-          {/* Avatar en header — solo muestra, no abre picker aquí */}
-          <View
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: "rgba(255,255,255,0.3)",
-              alignItems: "center",
-              justifyContent: "center",
-              overflow: "hidden",
-            }}
-          >
+          <View className="w-[44px] h-[44px] rounded-full items-center justify-center overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.3)" }}>
             {photoUri ? (
-              <Image
-                source={{ uri: photoUri }}
-                style={{ width: 44, height: 44 }}
-              />
+              <Image source={{ uri: photoUri }} style={{ width: 44, height: 44 }} />
             ) : (
               <Text style={{ fontSize: 24 }}>{avatarEmoji}</Text>
             )}
           </View>
 
           <View style={{ flex: 1 }}>
-            <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 17 }}>
-              {baby.nickname || baby.name}
-            </Text>
-            <Text
-              style={{
-                color: "rgba(255,255,255,0.85)",
-                fontSize: 12,
-                fontWeight: "600",
-              }}
-            >
+            <Text className="font-black text-[17px]" style={{ color: c.headerText }}>{baby.nickname || baby.name}</Text>
+            <Text className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.85)" }}>
               {age.label} · {statusInfo.emoji} {statusInfo.label}
             </Text>
           </View>
@@ -316,206 +191,82 @@ export default function BabyProfile() {
           <TouchableOpacity
             onPress={editing ? saveEdit : startEdit}
             disabled={update.isPending}
-            style={{
-              backgroundColor: "rgba(255,255,255,0.25)",
-              borderRadius: 99,
-              paddingHorizontal: 12,
-              paddingVertical: 5,
-            }}
+            className="rounded-full px-3 py-1"
+            style={{ backgroundColor: "rgba(255,255,255,0.25)" }}
           >
-            <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 13 }}>
-              {editing
-                ? update.isPending
-                  ? "..."
-                  : "💾 Guardar"
-                : "✏️ Editar"}
+            <Text className="font-black text-[13px]" style={{ color: c.headerText }}>
+              {editing ? (update.isPending ? "..." : "💾 Guardar") : "✏️ Editar"}
             </Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView
-          style={{ flex: 1, backgroundColor: "#FFFFFF" }}
+          className="flex-1"
+          style={{ backgroundColor: c.card }}
           contentContainerStyle={{ paddingBottom: 60 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
           {/* Stats en el header rosa */}
-          <View style={{ backgroundColor: "#FF8AB3", paddingHorizontal: 16, paddingBottom: 20, paddingTop: 4 }}>
+          <View className="px-4 pb-5 pt-1" style={{ backgroundColor: c.headerBg }}>
             <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
               <StatCard emoji="🎂" label="Edad" value={age.label} />
               <StatCard emoji="📅" label="Días de vida" value={`${age.days}`} />
             </View>
-            {/* Peso actual vs nacimiento */}
             <View style={{ flexDirection: "row", gap: 8 }}>
               <GrowthCard
-                emoji="⚖️"
-                label="Peso"
+                emoji="⚖️" label="Peso"
                 current={lastGrowth?.weightGrams != null ? `${gramsToKg(lastGrowth.weightGrams)} kg` : null}
                 birth={baby.weightBirthGrams != null ? `${gramsToKg(baby.weightBirthGrams)} kg` : null}
-                diffGrams={
-                  lastGrowth?.weightGrams != null && baby.weightBirthGrams != null
-                    ? lastGrowth.weightGrams - baby.weightBirthGrams
-                    : null
-                }
+                diffGrams={lastGrowth?.weightGrams != null && baby.weightBirthGrams != null ? lastGrowth.weightGrams - baby.weightBirthGrams : null}
               />
               <GrowthCard
-                emoji="📏"
-                label="Talla"
+                emoji="📏" label="Talla"
                 current={lastGrowth?.heightMm != null ? `${mmToCm(lastGrowth.heightMm)} cm` : null}
                 birth={baby.heightBirthMm != null ? `${mmToCm(baby.heightBirthMm)} cm` : null}
-                diffMm={
-                  lastGrowth?.heightMm != null && baby.heightBirthMm != null
-                    ? lastGrowth.heightMm - baby.heightBirthMm
-                    : null
-                }
+                diffMm={lastGrowth?.heightMm != null && baby.heightBirthMm != null ? lastGrowth.heightMm - baby.heightBirthMm : null}
               />
               {lastGrowth?.headCircMm != null && (
-                <GrowthCard
-                  emoji="🔵"
-                  label="Cráneo"
-                  current={`${mmToCm(lastGrowth.headCircMm)} cm`}
-                  birth={null}
-                  diffMm={null}
-                />
+                <GrowthCard emoji="🔵" label="Cráneo" current={`${mmToCm(lastGrowth.headCircMm)} cm`} birth={null} diffMm={null} />
               )}
             </View>
           </View>
 
-          <View style={{ backgroundColor: "#FFFFFF", padding: 16 }}>
-            {/* ── MODO SOLO LECTURA ── */}
+          <View className="p-4" style={{ backgroundColor: c.card }}>
             {!editing ? (
               <>
-                <InfoRow
-                  emoji={photoUri ? "🖼️" : avatarEmoji}
-                  label="Avatar"
-                  value={
-                    photoUri ? "Foto personalizada" : `Emoji: ${avatarEmoji}`
-                  }
-                />
+                <InfoRow emoji={photoUri ? "🖼️" : avatarEmoji} label="Avatar" value={photoUri ? "Foto personalizada" : `Emoji: ${avatarEmoji}`} />
                 <InfoRow emoji="👶" label="Nombre completo" value={baby.name} />
-                {baby.nickname && (
-                  <InfoRow emoji="💬" label="Apodo" value={baby.nickname} />
-                )}
-                <InfoRow
-                  emoji={sexInfo.emoji}
-                  label="Sexo"
-                  value={sexInfo.label}
-                />
-                <InfoRow
-                  emoji={statusInfo.emoji}
-                  label="Estado actual"
-                  value={statusInfo.label}
-                />
-                <InfoRow
-                  emoji="🕐"
-                  label="Fecha y hora de nacimiento"
-                  value={birthStr}
-                />
-                {baby.weightBirthGrams != null && (
-                  <InfoRow
-                    emoji="⚖️"
-                    label="Peso al nacer"
-                    value={`${(baby.weightBirthGrams / 1000).toFixed(3)} kg`}
-                  />
-                )}
-                {baby.heightBirthMm != null && (
-                  <InfoRow
-                    emoji="📏"
-                    label="Talla al nacer"
-                    value={`${(baby.heightBirthMm / 10).toFixed(1)} cm`}
-                  />
-                )}
-                <TouchableOpacity
-                  onPress={startEdit}
-                  style={{
-                    marginTop: 24,
-                    backgroundColor: "#FFE4EE",
-                    borderRadius: 16,
-                    padding: 14,
-                    alignItems: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: "#FF5C9A",
-                      fontWeight: "800",
-                      fontSize: 15,
-                    }}
-                  >
-                    ✏️ Editar datos
-                  </Text>
+                {baby.nickname && <InfoRow emoji="💬" label="Apodo" value={baby.nickname} />}
+                <InfoRow emoji={sexInfo.emoji} label="Sexo" value={sexInfo.label} />
+                <InfoRow emoji={statusInfo.emoji} label="Estado actual" value={statusInfo.label} />
+                <InfoRow emoji="🕐" label="Fecha y hora de nacimiento" value={birthStr} />
+                {baby.weightBirthGrams != null && <InfoRow emoji="⚖️" label="Peso al nacer" value={`${(baby.weightBirthGrams / 1000).toFixed(3)} kg`} />}
+                {baby.heightBirthMm != null && <InfoRow emoji="📏" label="Talla al nacer" value={`${(baby.heightBirthMm / 10).toFixed(1)} cm`} />}
+
+                <TouchableOpacity onPress={startEdit} className="mt-6 rounded-2xl p-3.5 items-center" style={{ backgroundColor: c.elevated }}>
+                  <Text className="font-black text-[15px]" style={{ color: c.accentStrong }}>✏️ Editar datos</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() => router.push("/settings/catalogs")}
-                  style={{
-                    marginTop: 12,
-                    backgroundColor: "#FFF0F5",
-                    borderRadius: 16,
-                    padding: 14,
-                    alignItems: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: "#9B7A88",
-                      fontWeight: "800",
-                      fontSize: 15,
-                    }}
-                  >
-                    🛠️ Personalizar Catálogos
-                  </Text>
+                <TouchableOpacity onPress={() => router.push("/settings/catalogs")} className="mt-3 rounded-2xl p-3.5 items-center" style={{ backgroundColor: c.surface }}>
+                  <Text className="font-black text-[15px]" style={{ color: c.textMuted }}>🛠️ Personalizar Catálogos</Text>
                 </TouchableOpacity>
               </>
             ) : (
-              /* ── MODO EDICIÓN ── */
               <View style={{ gap: 18 }}>
-                {/* Avatar picker centrado */}
+                {/* Avatar picker */}
                 <View style={{ alignItems: "center", paddingVertical: 8 }}>
-                  <Text
-                    style={{
-                      fontWeight: "800",
-                      fontSize: 11,
-                      color: "#9B7A88",
-                      marginBottom: 12,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Avatar de {formName || "el bebé"}
-                  </Text>
-                  <AvatarPicker
-                    emoji={formEmoji}
-                    photoUri={formPhoto}
-                    onEmojiChange={setFormEmoji}
-                    onPhotoChange={setFormPhoto}
-                    size={80}
-                  />
+                  <Text className="font-black text-[11px] mb-3 uppercase" style={{ color: c.textMuted }}>Avatar de {formName || "el bebé"}</Text>
+                  <AvatarPicker emoji={formEmoji} photoUri={formPhoto} onEmojiChange={setFormEmoji} onPhotoChange={setFormPhoto} size={80} />
                 </View>
 
                 {/* Nombre */}
                 <View>
-                  <Text
-                    style={{
-                      fontWeight: "800",
-                      fontSize: 11,
-                      color: "#9B7A88",
-                      marginBottom: 6,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Nombre
-                  </Text>
+                  <Text className="font-black text-[11px] mb-1.5 uppercase" style={{ color: c.textMuted }}>Nombre</Text>
                   <TextInput
-                    style={{
-                      backgroundColor: "#FFF0F5",
-                      borderRadius: 12,
-                      padding: 12,
-                      fontSize: 15,
-                      color: "#2D1B26",
-                      borderWidth: 1.5,
-                      borderColor: "#FFD6E8",
-                    }}
+                    className="rounded-xl p-3 text-[15px] border-[1.5px]"
+                    style={{ backgroundColor: c.surface, color: c.textBody, borderColor: c.accent + "4D" }}
                     value={formName}
                     onChangeText={setFormName}
                   />
@@ -523,29 +274,12 @@ export default function BabyProfile() {
 
                 {/* Apodo */}
                 <View>
-                  <Text
-                    style={{
-                      fontWeight: "800",
-                      fontSize: 11,
-                      color: "#9B7A88",
-                      marginBottom: 6,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Apodo (opcional)
-                  </Text>
+                  <Text className="font-black text-[11px] mb-1.5 uppercase" style={{ color: c.textMuted }}>Apodo (opcional)</Text>
                   <TextInput
-                    style={{
-                      backgroundColor: "#FFF0F5",
-                      borderRadius: 12,
-                      padding: 12,
-                      fontSize: 15,
-                      color: "#2D1B26",
-                      borderWidth: 1.5,
-                      borderColor: "#FFD6E8",
-                    }}
+                    className="rounded-xl p-3 text-[15px] border-[1.5px]"
+                    style={{ backgroundColor: c.surface, color: c.textBody, borderColor: c.accent + "4D" }}
                     placeholder="Ej: Mili, Emi…"
-                    placeholderTextColor="#9B7A88"
+                    placeholderTextColor={c.textMuted}
                     value={formNick}
                     onChangeText={setFormNick}
                   />
@@ -553,48 +287,20 @@ export default function BabyProfile() {
 
                 {/* Sexo */}
                 <View>
-                  <Text
-                    style={{
-                      fontWeight: "800",
-                      fontSize: 11,
-                      color: "#9B7A88",
-                      marginBottom: 8,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Sexo
-                  </Text>
+                  <Text className="font-black text-[11px] mb-2 uppercase" style={{ color: c.textMuted }}>Sexo</Text>
                   <View style={{ flexDirection: "row", gap: 8 }}>
-                    {(
-                      Object.entries(SEX_LABELS) as [
-                        Sex,
-                        { emoji: string; label: string },
-                      ][]
-                    ).map(([id, { emoji, label }]) => (
+                    {(Object.entries(SEX_LABELS) as [Sex, { emoji: string; label: string }][]).map(([id, { emoji, label }]) => (
                       <TouchableOpacity
                         key={id}
                         onPress={() => setFormSex(id)}
                         style={{
-                          flex: 1,
-                          alignItems: "center",
-                          paddingVertical: 10,
-                          borderRadius: 12,
-                          borderWidth: 2,
-                          backgroundColor:
-                            formSex === id ? "#FFE4EE" : "#FFF0F5",
-                          borderColor: formSex === id ? "#FF5C9A" : "#FFD6E8",
+                          flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 12, borderWidth: 2,
+                          backgroundColor: formSex === id ? c.elevated : c.surface,
+                          borderColor: formSex === id ? c.accentStrong : c.accent + "4D",
                         }}
                       >
                         <Text style={{ fontSize: 20 }}>{emoji}</Text>
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            fontWeight: "800",
-                            color: formSex === id ? "#FF5C9A" : "#9B7A88",
-                          }}
-                        >
-                          {label}
-                        </Text>
+                        <Text style={{ fontWeight: "900", fontSize: 11, color: formSex === id ? c.accentStrong : c.textMuted }}>{label}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -602,50 +308,20 @@ export default function BabyProfile() {
 
                 {/* Estado */}
                 <View>
-                  <Text
-                    style={{
-                      fontWeight: "800",
-                      fontSize: 11,
-                      color: "#9B7A88",
-                      marginBottom: 8,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    ¿Cómo está?
-                  </Text>
+                  <Text className="font-black text-[11px] mb-2 uppercase" style={{ color: c.textMuted }}>¿Cómo está?</Text>
                   <View style={{ flexDirection: "row", gap: 8 }}>
-                    {(
-                      Object.entries(STATUS_LABELS) as [
-                        Status,
-                        { emoji: string; label: string },
-                      ][]
-                    ).map(([id, { emoji, label }]) => (
+                    {(Object.entries(STATUS_LABELS) as [Status, { emoji: string; label: string }][]).map(([id, { emoji, label }]) => (
                       <TouchableOpacity
                         key={id}
                         onPress={() => setFormStatus(id)}
                         style={{
-                          flex: 1,
-                          alignItems: "center",
-                          paddingVertical: 10,
-                          borderRadius: 12,
-                          borderWidth: 2,
-                          backgroundColor:
-                            formStatus === id ? "#FFE4EE" : "#FFF0F5",
-                          borderColor:
-                            formStatus === id ? "#FF5C9A" : "#FFD6E8",
+                          flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 12, borderWidth: 2,
+                          backgroundColor: formStatus === id ? c.elevated : c.surface,
+                          borderColor: formStatus === id ? c.accentStrong : c.accent + "4D",
                         }}
                       >
                         <Text style={{ fontSize: 20 }}>{emoji}</Text>
-                        <Text
-                          style={{
-                            fontSize: 10,
-                            fontWeight: "800",
-                            color: formStatus === id ? "#FF5C9A" : "#9B7A88",
-                            textAlign: "center",
-                          }}
-                        >
-                          {label}
-                        </Text>
+                        <Text style={{ fontWeight: "900", fontSize: 10, textAlign: "center", color: formStatus === id ? c.accentStrong : c.textMuted }}>{label}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -653,80 +329,32 @@ export default function BabyProfile() {
 
                 {/* Fecha/hora nacimiento */}
                 <View>
-                  <Text
-                    style={{
-                      fontWeight: "800",
-                      fontSize: 11,
-                      color: "#9B7A88",
-                      marginBottom: 4,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Fecha y hora de nacimiento
-                  </Text>
-                  <Text
-                    style={{ fontSize: 11, color: "#9B7A88", marginBottom: 10 }}
-                  >
-                    Toca un campo, bórralo y escribe el nuevo valor 👇
-                  </Text>
+                  <Text className="font-black text-[11px] mb-1 uppercase" style={{ color: c.textMuted }}>Fecha y hora de nacimiento</Text>
+                  <Text className="text-[11px] mb-2.5" style={{ color: c.textMuted }}>Toca un campo, bórralo y escribe el nuevo valor 👇</Text>
                   <DateTimePicker value={formBirth} onChange={setFormBirth} />
                 </View>
 
                 {/* Peso y talla */}
                 <View style={{ flexDirection: "row", gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontWeight: "800",
-                        fontSize: 11,
-                        color: "#9B7A88",
-                        marginBottom: 6,
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      Peso al nacer (kg)
-                    </Text>
+                    <Text className="font-black text-[11px] mb-1.5 uppercase" style={{ color: c.textMuted }}>Peso al nacer (kg)</Text>
                     <TextInput
-                      style={{
-                        backgroundColor: "#FFF0F5",
-                        borderRadius: 12,
-                        padding: 12,
-                        fontSize: 15,
-                        color: "#2D1B26",
-                        borderWidth: 1.5,
-                        borderColor: "#FFD6E8",
-                      }}
+                      className="rounded-xl p-3 text-[15px] border-[1.5px]"
+                      style={{ backgroundColor: c.surface, color: c.textBody, borderColor: c.accent + "4D" }}
                       placeholder="3.250"
-                      placeholderTextColor="#9B7A88"
+                      placeholderTextColor={c.textMuted}
                       keyboardType="decimal-pad"
                       value={formWeightKg}
                       onChangeText={setFormWeightKg}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontWeight: "800",
-                        fontSize: 11,
-                        color: "#9B7A88",
-                        marginBottom: 6,
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      Talla al nacer (cm)
-                    </Text>
+                    <Text className="font-black text-[11px] mb-1.5 uppercase" style={{ color: c.textMuted }}>Talla al nacer (cm)</Text>
                     <TextInput
-                      style={{
-                        backgroundColor: "#FFF0F5",
-                        borderRadius: 12,
-                        padding: 12,
-                        fontSize: 15,
-                        color: "#2D1B26",
-                        borderWidth: 1.5,
-                        borderColor: "#FFD6E8",
-                      }}
+                      className="rounded-xl p-3 text-[15px] border-[1.5px]"
+                      style={{ backgroundColor: c.surface, color: c.textBody, borderColor: c.accent + "4D" }}
                       placeholder="50.0"
-                      placeholderTextColor="#9B7A88"
+                      placeholderTextColor={c.textMuted}
                       keyboardType="decimal-pad"
                       value={formHeightCm}
                       onChangeText={setFormHeightCm}
@@ -734,99 +362,37 @@ export default function BabyProfile() {
                   </View>
                 </View>
 
-                <BigButton
-                  label="💾 Guardar cambios"
-                  loading={update.isPending}
-                  disabled={!formName.trim()}
-                  onPress={saveEdit}
-                />
-                <BigButton
-                  label="Cancelar"
-                  variant="ghost"
-                  onPress={() => setEditing(false)}
-                />
+                <BigButton label="💾 Guardar cambios" loading={update.isPending} disabled={!formName.trim()} onPress={saveEdit} />
+                <BigButton label="Cancelar" variant="ghost" onPress={() => setEditing(false)} />
               </View>
             )}
 
             {/* Zona de peligro */}
             {!editing && (
-              <View
-                style={{
-                  marginTop: 32,
-                  borderTopWidth: 1,
-                  borderTopColor: "#FFE4EE",
-                  paddingTop: 20,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontWeight: "800",
-                    color: "#9B7A88",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                    marginBottom: 12,
-                  }}
-                >
-                  ⚠️ Zona de desarrollo
-                </Text>
+              <View className="mt-8 border-t pt-5" style={{ borderTopColor: c.elevated }}>
+                <Text className="font-black text-[11px] uppercase tracking-[0.5px] mb-3" style={{ color: c.textMuted }}>⚠️ Zona de desarrollo</Text>
                 <TouchableOpacity
                   onPress={() => {
-                    Alert.alert(
-                      "⚠️ Borrar todos los datos",
-                      "Se eliminarán todos los registros. Esta acción no se puede deshacer.",
-                      [
-                        { text: "Cancelar", style: "cancel" },
-                        {
-                          text: "🗑️ Borrar todo",
-                          style: "destructive",
-                          onPress: () =>
-                            Alert.alert(
-                              "¿Estás seguro?",
-                              "¿Confirmar reset total?",
-                              [
-                                { text: "No, cancelar", style: "cancel" },
-                                {
-                                  text: "Sí, borrar todo",
-                                  style: "destructive",
-                                  onPress: async () => {
-                                    try {
-                                      await resetAllData();
-                                      router.replace("/onboarding/welcome");
-                                    } catch (e: any) {
-                                      Alert.alert("Error", e?.message);
-                                    }
-                                  },
-                                },
-                              ],
-                            ),
-                        },
-                      ],
-                    );
+                    Alert.alert("⚠️ Borrar todos los datos", "Se eliminarán todos los registros. Esta acción no se puede deshacer.", [
+                      { text: "Cancelar", style: "cancel" },
+                      {
+                        text: "🗑️ Borrar todo", style: "destructive",
+                        onPress: () => Alert.alert("¿Estás seguro?", "¿Confirmar reset total?", [
+                          { text: "No, cancelar", style: "cancel" },
+                          { text: "Sí, borrar todo", style: "destructive", onPress: async () => {
+                            try {
+                              await resetAllData();
+                              router.replace("/onboarding/welcome");
+                            } catch (e: any) { Alert.alert("Error", e?.message); }
+                          }},
+                        ]),
+                      },
+                    ]);
                   }}
-                  style={{
-                    backgroundColor: "#FEE2E2",
-                    borderRadius: 14,
-                    padding: 14,
-                    alignItems: "center",
-                    borderWidth: 1,
-                    borderColor: "#FECACA",
-                  }}
+                  style={{ backgroundColor: "#FEE2E2", borderRadius: 14, padding: 14, alignItems: "center", borderWidth: 1, borderColor: "#FECACA" }}
                 >
-                  <Text
-                    style={{
-                      color: "#DC2626",
-                      fontWeight: "800",
-                      fontSize: 14,
-                    }}
-                  >
-                    🗑️ Borrar todos los datos
-                  </Text>
-                  <Text
-                    style={{ color: "#EF4444", fontSize: 11, marginTop: 3 }}
-                  >
-                    Vuelve al onboarding — útil para reiniciar
-                  </Text>
+                  <Text style={{ color: c.danger, fontWeight: "800", fontSize: 14 }}>🗑️ Borrar todos los datos</Text>
+                  <Text style={{ color: "#EF4444", fontSize: 11, marginTop: 3 }}>Vuelve al onboarding — útil para reiniciar</Text>
                 </TouchableOpacity>
               </View>
             )}

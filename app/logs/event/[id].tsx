@@ -21,6 +21,7 @@ import { useActiveBaby } from "@/src/hooks/useBaby";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { getZoneColor, getZoneLabel, parseMetrics, getMetricZoneColor, getMetricZoneLabel, getMetricZoneEmoji } from "@/src/db/schema";
+import { useTheme } from "@/src/theme/useTheme";
 
 function formatDateTime(ts: Date | string | number | undefined | null): string {
   if (!ts) return "--";
@@ -33,6 +34,8 @@ function formatDateTime(ts: Date | string | number | undefined | null): string {
 }
 
 export default function EventDetailScreen() {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: event } = useTimelineEvent(id);
   const { data: eventTypes } = useEventTypes();
@@ -71,10 +74,10 @@ export default function EventDetailScreen() {
 
   if (!event) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#1A1A2E" }} edges={["top"]}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: c.surface }} edges={["top"]}>
         <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <Text style={{ color: "#888", fontSize: 16 }}>Cargando...</Text>
+          <Text className="text-base" style={{ color: c.textDim }}>Cargando...</Text>
         </View>
       </SafeAreaView>
     );
@@ -87,41 +90,24 @@ export default function EventDetailScreen() {
     try {
       const meta = JSON.parse(event.metadata);
       if (meta.weightGrams != null)
-        metadataDisplay.push({
-          label: "Peso pañal",
-          value: `${meta.weightGrams}g`,
-        });
+        metadataDisplay.push({ label: "Peso pañal", value: `${meta.weightGrams}g` });
       if (meta.heightMm != null)
-        metadataDisplay.push({
-          label: "Estatura",
-          value: `${(meta.heightMm / 10).toFixed(1)} cm`,
-        });
+        metadataDisplay.push({ label: "Estatura", value: `${(meta.heightMm / 10).toFixed(1)} cm` });
       if (meta.headCircMm != null)
-        metadataDisplay.push({
-          label: "C. Cefálica",
-          value: `${(meta.headCircMm / 10).toFixed(1)} cm`,
-        });
+        metadataDisplay.push({ label: "C. Cefálica", value: `${(meta.headCircMm / 10).toFixed(1)} cm` });
       if (meta.celsius != null)
-        metadataDisplay.push({
-          label: "Temperatura",
-          value: `${meta.celsius}°C`,
-        });
+        metadataDisplay.push({ label: "Temperatura", value: `${meta.celsius}°C` });
       if (meta.medicineName)
         metadataDisplay.push({
           label: "Medicamento",
-          value: meta.dose
-            ? `${meta.medicineName} (${meta.dose})`
-            : meta.medicineName,
+          value: meta.dose ? `${meta.medicineName} (${meta.dose})` : meta.medicineName,
         });
       if (meta.peeIntensity > 0 || meta.poopIntensity > 0) {
         const parts: string[] = [];
-        if (meta.peeIntensity > 0)
-          parts.push(`💦 ${meta.peeIntensity}`);
-        if (meta.poopIntensity > 0)
-          parts.push(`💩 ${meta.poopIntensity}`);
+        if (meta.peeIntensity > 0) parts.push(`💦 ${meta.peeIntensity}`);
+        if (meta.poopIntensity > 0) parts.push(`💩 ${meta.poopIntensity}`);
         metadataDisplay.push({ label: "Pañal", value: parts.join(" · ") });
       }
-      // Pipímetro / Popómetro
       if (meta.peeHealth != null && meta.peeHealth > 0) {
         const obs = diaperObs?.find((o) => o.id === "pee_health");
         metadataDisplay.push({ label: "💧 Pipí (color)", value: `🧪 ${meta.peeHealth}`, color: "#4FC3F7" });
@@ -133,7 +119,6 @@ export default function EventDetailScreen() {
         for (const [obsId, valOrMetrics] of Object.entries(meta.observationValues)) {
           const obs = diaperObs?.find((o) => o.id === obsId);
           if (typeof valOrMetrics === "object" && valOrMetrics !== null) {
-            // New multi-metric format: { metricId: value }
             const metrics = obs ? parseMetrics(obs.metrics) : [];
             for (const [metricId, mVal] of Object.entries(valOrMetrics as Record<string, number>)) {
               const metric = metrics.find((m) => m.id === metricId);
@@ -144,14 +129,10 @@ export default function EventDetailScreen() {
                   color: getMetricZoneColor(metric, mVal),
                 });
               } else {
-                metadataDisplay.push({
-                  label: obs ? `${obs.emoji} ${obs.label}` : obsId,
-                  value: `${mVal}`,
-                });
+                metadataDisplay.push({ label: obs ? `${obs.emoji} ${obs.label}` : obsId, value: `${mVal}` });
               }
             }
           } else {
-            // Legacy format: { obsId: number }
             const color = getZoneColor(obs?.zones ?? null, valOrMetrics as number);
             const label = getZoneLabel(obs?.zones ?? null, valOrMetrics as number);
             metadataDisplay.push({
@@ -175,114 +156,53 @@ export default function EventDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#1A1A2E" }} edges={["top"]}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: c.surface }} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
 
       {/* Header */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          backgroundColor: "#1A1A2E",
-          borderBottomWidth: 1,
-          borderBottomColor: "#2A2A3E",
-        }}
-      >
+      <View className="flex-row items-center px-4 py-3 border-b" style={{ backgroundColor: c.surface, borderBottomColor: c.elevated }}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={{ fontSize: 24 }}>←</Text>
         </TouchableOpacity>
-        <Text
-          style={{
-            flex: 1,
-            textAlign: "center",
-            fontSize: 18,
-            fontWeight: "900",
-            color: "#FFFFFF",
-          }}
-        >
+        <Text className="flex-1 text-center text-lg font-black" style={{ color: c.textBody }}>
           {evType?.emoji ?? "📝"} {evType?.label ?? "Evento"}
         </Text>
         <TouchableOpacity onPress={handleStartEditing}>
-          <Text style={{ color: "#FF8AB3", fontWeight: "700", fontSize: 14 }}>
+          <Text className="font-bold text-sm" style={{ color: c.accent }}>
             {editing ? "Cancelar" : "✏️"}
           </Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20, gap: 16 }}
-      >
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 16 }}>
         {/* Event info card */}
-        <View
-          style={{
-            backgroundColor: "#2A2A3E",
-            borderRadius: 16,
-            padding: 20,
-            gap: 12,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 22 }}>
+        <View className="rounded-2xl p-5 gap-3" style={{ backgroundColor: c.card }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text className="font-black text-[22px]" style={{ color: c.textBody }}>
               {evType?.emoji ?? "📝"}
             </Text>
             <Text
+              className="font-bold text-xs px-2.5 py-1 rounded-full"
               style={{
-                color: isOwn ? "#4CAF50" : "#FF8AB3",
-                fontWeight: "700",
-                fontSize: 12,
+                color: isOwn ? "#4CAF50" : c.accent,
                 backgroundColor: isOwn ? "#1A3A1A" : "#3A1A2E",
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                borderRadius: 99,
               }}
             >
               {isOwn ? "Tú" : "Otro cuidador"}
             </Text>
           </View>
 
-          <View
-            style={{
-              backgroundColor: "#1A1A2E",
-              borderRadius: 12,
-              padding: 14,
-              gap: 8,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-              }}
-            >
-              <Text style={{ color: "#888", fontWeight: "600", fontSize: 13 }}>
-                Fecha y hora
-              </Text>
-              <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
-                {editing
-                  ? formatDateTime(editTimestamp)
-                  : formatDateTime(event.timestamp)}
+          <View className="rounded-xl p-3.5 gap-2" style={{ backgroundColor: c.surface }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text className="font-semibold text-[13px]" style={{ color: c.textDim }}>Fecha y hora</Text>
+              <Text className="font-bold text-sm" style={{ color: c.textBody }}>
+                {editing ? formatDateTime(editTimestamp) : formatDateTime(event.timestamp)}
               </Text>
             </View>
             {event.eventTypeId && (
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Text style={{ color: "#888", fontWeight: "600", fontSize: 13 }}>
-                  Tipo
-                </Text>
-                <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text className="font-semibold text-[13px]" style={{ color: c.textDim }}>Tipo</Text>
+                <Text className="font-bold text-sm" style={{ color: c.textBody }}>
                   {evType?.emoji} {evType?.label ?? event.eventTypeId}
                 </Text>
               </View>
@@ -292,17 +212,8 @@ export default function EventDetailScreen() {
 
         {/* Metadata display */}
         {metadataDisplay.length > 0 && !editing && (
-          <View
-            style={{
-              backgroundColor: "#2A2A3E",
-              borderRadius: 16,
-              padding: 20,
-              gap: 8,
-            }}
-          >
-            <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>
-              📊 Detalles
-            </Text>
+          <View className="rounded-2xl p-5 gap-2" style={{ backgroundColor: c.card }}>
+            <Text className="font-black text-[15px]" style={{ color: c.textBody }}>📊 Detalles</Text>
             {metadataDisplay.map((m, i) => (
               <View
                 key={i}
@@ -314,18 +225,8 @@ export default function EventDetailScreen() {
                   borderBottomColor: "#2A2A3E",
                 }}
               >
-                <Text
-                  style={{ color: "#BBBBBB", fontWeight: "600", fontSize: 14 }}
-                >
-                  {m.label}
-                </Text>
-                <Text
-                  style={{
-                    color: m.color ?? "#FFFFFF",
-                    fontWeight: "700",
-                    fontSize: 14,
-                  }}
-                >
+                <Text className="font-semibold text-sm" style={{ color: c.textMuted }}>{m.label}</Text>
+                <Text style={{ color: m.color ?? "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
                   {m.value}
                 </Text>
               </View>
@@ -335,81 +236,36 @@ export default function EventDetailScreen() {
 
         {/* Notes */}
         {!editing && event.notes && (
-          <View
-            style={{
-              backgroundColor: "#2A2A3E",
-              borderRadius: 16,
-              padding: 20,
-              gap: 6,
-            }}
-          >
-            <Text style={{ color: "#888", fontWeight: "700", fontSize: 12 }}>
-              📝 Notas
-            </Text>
-            <Text style={{ color: "#FFFFFF", fontWeight: "500", fontSize: 14 }}>
-              {event.notes}
-            </Text>
+          <View className="rounded-2xl p-5 gap-1.5" style={{ backgroundColor: c.card }}>
+            <Text className="font-bold text-xs" style={{ color: c.textDim }}>📝 Notas</Text>
+            <Text className="font-medium text-sm" style={{ color: c.textBody }}>{event.notes}</Text>
           </View>
         )}
 
         {/* Edit mode */}
         {editing && (
-          <View
-            style={{
-              backgroundColor: "#2A2A3E",
-              borderRadius: 16,
-              padding: 20,
-              gap: 16,
-            }}
-          >
-            <Text
-              style={{
-                color: "#FF8AB3",
-                fontWeight: "800",
-                fontSize: 15,
-                textAlign: "center",
-              }}
-            >
-              ✏️ Editar evento
-            </Text>
+          <View className="rounded-2xl p-5 gap-4" style={{ backgroundColor: c.card }}>
+            <Text className="font-black text-[15px] text-center" style={{ color: c.accent }}>✏️ Editar evento</Text>
 
             <View style={{ gap: 6 }}>
-              <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 12 }}>
-                Fecha y hora
-              </Text>
-              <DateTimePicker
-                value={editTimestamp}
-                onChange={setEditTimestamp}
-              />
+              <Text className="font-bold text-xs" style={{ color: c.textMuted }}>Fecha y hora</Text>
+              <DateTimePicker value={editTimestamp} onChange={setEditTimestamp} />
             </View>
 
             <View style={{ gap: 6 }}>
-              <Text style={{ color: "#BBBBBB", fontWeight: "700", fontSize: 12 }}>
-                📝 Notas
-              </Text>
+              <Text className="font-bold text-xs" style={{ color: c.textMuted }}>📝 Notas</Text>
               <TextInput
                 value={editNotes}
                 onChangeText={setEditNotes}
                 placeholder="Agregar nota..."
                 placeholderTextColor="#666"
                 multiline
-                style={{
-                  backgroundColor: "#1A1A2E",
-                  borderRadius: 12,
-                  padding: 14,
-                  color: "#FFFFFF",
-                  fontSize: 15,
-                  minHeight: 60,
-                  textAlignVertical: "top",
-                }}
+                className="rounded-xl p-3.5 text-[15px]"
+                style={{ backgroundColor: c.surface, color: c.textBody, minHeight: 60, textAlignVertical: "top" }}
               />
             </View>
 
-            <BigButton
-              title="💾 Guardar Cambios"
-              onPress={handleSaveEdit}
-              variant="primary"
-            />
+            <BigButton title="💾 Guardar Cambios" onPress={handleSaveEdit} variant="primary" />
           </View>
         )}
 

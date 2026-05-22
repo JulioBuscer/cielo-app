@@ -1,0 +1,32 @@
+import type { AppTheme } from "../types";
+
+export const lightTheme: AppTheme = {
+  id: "light",
+  name: "Claro",
+  isBuiltIn: true,
+  colors: {
+    surface: "#FFF0F5",
+    card: "#FFFFFF",
+    elevated: "#FFE4EE",
+    inputBg: "#FFF0F5",
+    textBody: "#2D1B26",
+    textMuted: "#9B7A88",
+    textDim: "#9B7A88",
+    textOnAccent: "#FFFFFF",
+    accent: "#FF8AB3",
+    accentStrong: "#FF5C9A",
+    accentLight: "#FFB7D5",
+    headerBg: "#FF8AB3",
+    headerText: "#FFFFFF",
+    border: "#FFE4EE",
+    bubbleOwn: "#FFB7D5",
+    bubbleOther: "#FFFFFF",
+    success: "#16A34A",
+    warning: "#F59E0B",
+    danger: "#DC2626",
+    whatsGreen: "#25D366",
+    biological: { pee: "#F5C842", poop: "#8B5E3C" },
+    feeding: { bottle: "#A855F7", breast: "#FF8AB3" },
+    growth: "#0EA5E9",
+  },
+};

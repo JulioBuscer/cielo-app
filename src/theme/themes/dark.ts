@@ -1,0 +1,32 @@
+import type { AppTheme } from "../types";
+
+export const darkTheme: AppTheme = {
+  id: "dark",
+  name: "Oscuro",
+  isBuiltIn: true,
+  colors: {
+    surface: "#1A1A2E",
+    card: "#2A2A3E",
+    elevated: "#3A3A4E",
+    inputBg: "#1A1A2E",
+    textBody: "#FFFFFF",
+    textMuted: "#BBBBBB",
+    textDim: "#666666",
+    textOnAccent: "#FFFFFF",
+    accent: "#FF8AB3",
+    accentStrong: "#FF5C9A",
+    accentLight: "#3A1A2E",
+    headerBg: "#1A1A2E",
+    headerText: "#FFFFFF",
+    border: "#3A3A4E",
+    bubbleOwn: "#3A1A2E",
+    bubbleOther: "#2A2A3E",
+    success: "#16A34A",
+    warning: "#F59E0B",
+    danger: "#DC2626",
+    whatsGreen: "#25D366",
+    biological: { pee: "#F5C842", poop: "#8B5E3C" },
+    feeding: { bottle: "#A855F7", breast: "#FF8AB3" },
+    growth: "#0EA5E9",
+  },
+};
