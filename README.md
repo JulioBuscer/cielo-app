@@ -48,8 +48,8 @@ Ver [Política de Privacidad](./docs/PRIVACY_POLICY.md) completa.
 
 ### Requisitos
 
-- Node.js 18+
-- Expo CLI
+- Node.js 22+
+- pnpm (v11+)
 - Android Studio (para emulador) o dispositivo Android físico
 
 ```bash
@@ -58,14 +58,25 @@ git clone https://github.com/juliobuscer/cielo-app.git
 cd cielo-app
 
 # Instalar dependencias
-npx expo install
-npm install --legacy-peer-deps
+pnpm install
 
-# Iniciar en desarrollo
-npx expo start --clear
+# Iniciar desarrollo (por USB/LAN)
+pnpm expo start --clear
+
+# Iniciar desarrollo (por Tunnel — si USB no funciona)
+pnpm expo start --tunnel --clear
+
+# Resetear datos del dispositivo
+adb shell pm clear com.buscer.cieloapp
+
+# Ver logs de la app
+adb logcat -s ReactNativeJS
 ```
 
-> ⚠️ Usar `--legacy-peer-deps` es necesario por un conflicto de peer deps de React 19.
+> ⚠️ Si encuentras errores de peer deps, ejecutar con `--legacy-peer-deps`:
+> ```bash
+> pnpm install --legacy-peer-deps
+> ```
 
 ---
 
