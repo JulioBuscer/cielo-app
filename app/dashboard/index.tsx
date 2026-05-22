@@ -136,15 +136,15 @@ function EventPickerModal({
             <TouchableOpacity
               key={t.id}
               onPress={() => onSelect(t.id)}
-              style={{ backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 6 }}
+              style={{ backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 48 }}
             >
               <Text style={{ fontSize: 20 }}>{t.emoji}</Text>
-              <Text style={{ fontWeight: "900", fontSize: 13, color: c.textBody }}>{t.label}</Text>
+              <Text style={{ fontWeight: "900", fontSize: 14, color: c.textBody }}>{t.label}</Text>
             </TouchableOpacity>
           ))}
           <TouchableOpacity
             onPress={onNewEvent}
-            style={{ backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: "transparent", borderStyle: "dashed" }}
+            style={{ backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 48, borderWidth: 1, borderColor: "transparent", borderStyle: "dashed" }}
           >
             <Text style={{ fontSize: 20 }}>➕</Text>
             <Text style={{ fontWeight: "900", fontSize: 13, color: c.textMuted }}>Nuevo</Text>
@@ -152,9 +152,9 @@ function EventPickerModal({
         </View>
         <TouchableOpacity
           onPress={onClose}
-          style={{ marginTop: 14, alignItems: "center", paddingVertical: 10 }}
+          style={{ marginTop: 14, alignItems: "center", paddingVertical: 14, minHeight: 48 }}
         >
-          <Text style={{ color: c.textMuted, fontWeight: "700" }}>Cancelar</Text>
+          <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 15 }}>Cancelar</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -344,14 +344,12 @@ export default function TimelineScreen() {
           gap: 10,
           paddingHorizontal: 16,
           paddingVertical: 10,
-          shadowColor: c.accentStrong,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.15,
-          shadowRadius: 6,
-          elevation: 4,
         }}
       >
-        <TouchableOpacity onPress={() => router.push("/baby/profile")}>
+        <TouchableOpacity
+          style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1, minHeight: 44 }}
+          onPress={() => router.push("/baby/profile")}
+        >
           <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,0.3)", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
             {babyPhotoUri ? (
               <Image
@@ -363,47 +361,31 @@ export default function TimelineScreen() {
               <Text style={{ fontSize: 22 }}>{babyAvatar}</Text>
             )}
           </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 17 }}>
+              {baby ? baby.nickname || baby.name : "Cielo"}
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "600" }}>
+              {baby
+                ? [
+                  activeSession ? "🍼 Comiendo" : null,
+                  sleepStatus,
+                  !activeSession && !sleepStatus
+                    ? `${calcAge(baby.birthDate).label} · ${STATUS_LABELS[(baby.status ?? "unknown") as keyof typeof STATUS_LABELS]?.emoji ?? ""}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join("  ·  ")
+                : "Cielo App"}
+            </Text>
+          </View>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={{ flex: 1 }}
-          onPress={() => router.push("/baby/profile")}
-        >
-          <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 17 }}>
-            {baby ? baby.nickname || baby.name : "Cielo"}
-          </Text>
-          <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "600" }}>
-            {baby
-              ? [
-                activeSession ? "🍼 Comiendo" : null,
-                sleepStatus,
-                !activeSession && !sleepStatus
-                  ? `${calcAge(baby.birthDate).label} · ${STATUS_LABELS[(baby.status ?? "unknown") as keyof typeof STATUS_LABELS]?.emoji ?? ""}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join("  ·  ")
-              : "Cielo App"}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => router.push("/stats")}
-          style={{ backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 }}
-        >
-          <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "900" }}>📊</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push("/logs/feeding/retro")}
-          style={{ backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 }}
-        >
-          <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "900" }}>⏱ Rezagada</Text>
-        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => router.push("/settings")}
-          style={{ backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 99, width: 34, height: 34, alignItems: "center", justifyContent: "center" }}
+          style={{ backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 99, width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
         >
-          <Text style={{ color: "#FFFFFF", fontSize: 18, fontWeight: "900", lineHeight: 18 }}>⋮</Text>
+          <Text style={{ color: "#FFFFFF", fontSize: 20, fontWeight: "900" }}>⋮</Text>
         </TouchableOpacity>
       </View>
 
@@ -502,6 +484,23 @@ export default function TimelineScreen() {
                 onPress={() => setShowEventPicker(true)}
                 disabled={!!loadingType}
               />
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 8, paddingHorizontal: 2 }}>
+              <TouchableOpacity
+                onPress={() => router.push("/stats")}
+                style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 99, backgroundColor: c.elevated, minHeight: 36 }}
+              >
+                <Text style={{ fontSize: 14 }}>📊</Text>
+                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "700" }}>Stats</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push("/logs/feeding/retro")}
+                style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 99, backgroundColor: c.elevated, minHeight: 36 }}
+              >
+                <Text style={{ fontSize: 14 }}>⏱</Text>
+                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "700" }}>Rezagada</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>

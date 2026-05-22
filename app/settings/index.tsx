@@ -32,7 +32,7 @@ export default function SettingsScreen() {
       >
         <TouchableOpacity
           onPress={() => router.back()}
-          style={{ paddingRight: 16 }}
+          style={{ paddingRight: 16, minWidth: 44, minHeight: 44, justifyContent: "center" }}
         >
           <Text style={{ color: c.headerText, fontSize: 26, lineHeight: 28 }}>
             ←
@@ -131,6 +131,7 @@ export default function SettingsScreen() {
                 alignItems: "center",
                 padding: 16,
                 gap: 14,
+                minHeight: 60,
                 borderBottomWidth: i < SETTINGS_ITEMS.length - 1 ? 1 : 0,
                 borderBottomColor: c.elevated,
               }}

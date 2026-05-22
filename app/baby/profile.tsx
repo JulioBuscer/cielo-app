@@ -248,10 +248,6 @@ export default function BabyProfile() {
                 <TouchableOpacity onPress={startEdit} className="mt-6 rounded-2xl p-3.5 items-center" style={{ backgroundColor: c.elevated }}>
                   <Text className="font-black text-[15px]" style={{ color: c.accentStrong }}>✏️ Editar datos</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => router.push("/settings/catalogs")} className="mt-3 rounded-2xl p-3.5 items-center" style={{ backgroundColor: c.surface }}>
-                  <Text className="font-black text-[15px]" style={{ color: c.textMuted }}>🛠️ Personalizar Catálogos</Text>
-                </TouchableOpacity>
               </>
             ) : (
               <View style={{ gap: 18 }}>

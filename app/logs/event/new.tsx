@@ -198,12 +198,13 @@ export default function EventNewScreen() {
                         alignItems: "center",
                         gap: 6,
                         paddingHorizontal: 16,
-                        paddingVertical: 10,
+                        paddingVertical: 14,
                         borderRadius: 99,
                         backgroundColor: c.elevated,
+                        minHeight: 48,
                       }}
                     >
-                      <Text style={{ fontSize: 18 }}>{et.emoji}</Text>
+                      <Text style={{ fontSize: 20 }}>{et.emoji}</Text>
                       <Text
                         style={{
                           color: c.textBody,
@@ -261,10 +262,10 @@ export default function EventNewScreen() {
                 style={{
                   backgroundColor: c.elevated,
                   borderRadius: 12,
-                  padding: 14,
+                  padding: 16,
                   color: c.textBody,
                   fontSize: 15,
-                  minHeight: 80,
+                  minHeight: 100,
                   textAlignVertical: "top",
                 }}
               />
@@ -321,31 +322,34 @@ export default function EventNewScreen() {
                         ) : null}
                       </Text>
                       <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-                        <TextInput
-                          value={values[m.id] ?? ""}
-                          onChangeText={(v) =>
-                            setValues((prev) => ({ ...prev, [m.id]: v }))
-                          }
-                          placeholder="0"
-                          placeholderTextColor={c.textDim}
-                          keyboardType="numeric"
-                          style={{
-                            flex: 1,
-                            backgroundColor: c.elevated,
-                            borderRadius: 12,
-                            padding: 14,
-                            color: c.textBody,
-                            fontSize: 15,
-                          }}
-                        />
+                          <TextInput
+                            value={values[m.id] ?? ""}
+                            onChangeText={(v) =>
+                              setValues((prev) => ({ ...prev, [m.id]: v }))
+                            }
+                            placeholder="0"
+                            placeholderTextColor={c.textDim}
+                            keyboardType="numeric"
+                            style={{
+                              flex: 1,
+                              backgroundColor: c.elevated,
+                              borderRadius: 12,
+                              padding: 16,
+                              color: c.textBody,
+                              fontSize: 16,
+                              minHeight: 48,
+                            }}
+                          />
                         {compatible.length > 1 && (
                           <TouchableOpacity
                             onPress={cycleUnit}
                             style={{
                               backgroundColor: c.elevated,
                               borderRadius: 12,
-                              paddingHorizontal: 14,
-                              paddingVertical: 14,
+                              paddingHorizontal: 16,
+                              paddingVertical: 16,
+                              minHeight: 48,
+                              justifyContent: "center",
                             }}
                           >
                             <Text
@@ -403,7 +407,7 @@ export default function EventNewScreen() {
               variant="primary"
             />
 
-            <TouchableOpacity onPress={() => setSelectedType(null)}>
+            <TouchableOpacity onPress={() => setSelectedType(null)} style={{ minHeight: 48, justifyContent: "center" }}>
               <Text
                 style={{
                   color: c.textDim,

@@ -1297,7 +1297,7 @@ export default function CatalogsScreen() {
       >
         <TouchableOpacity
           onPress={() => router.back()}
-          style={{ paddingRight: 16 }}
+          style={{ paddingRight: 16, minWidth: 44, minHeight: 44, justifyContent: "center" }}
         >
           <Text style={{ color: c.headerText, fontSize: 26, lineHeight: 28 }}>
             ←
