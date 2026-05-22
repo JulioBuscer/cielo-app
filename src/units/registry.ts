@@ -122,6 +122,22 @@ export const units: Record<string, Unit> = {
     toBase: (v) => v,
     fromBase: (v) => v,
   },
+  drop: {
+    id: "drop",
+    name: "Gota",
+    symbol: "gotas",
+    dimension: "dimensionless",
+    toBase: (v) => v,
+    fromBase: (v) => v,
+  },
+  sachet: {
+    id: "sachet",
+    name: "Sobre",
+    symbol: "sobre",
+    dimension: "dimensionless",
+    toBase: (v) => v,
+    fromBase: (v) => v,
+  },
 };
 
 export function getUnit(id: string): Unit | undefined {

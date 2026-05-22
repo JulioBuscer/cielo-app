@@ -645,16 +645,53 @@ function ObservationForm({
       style={{ flex: 1 }}
       contentContainerStyle={{ padding: 20, gap: 16 }}
     >
-      <Text
+      <View
         style={{
-          color: c.textBody,
-          fontWeight: "900",
-          fontSize: 18,
-          textAlign: "center",
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
         }}
       >
-        {initial ? "✏️ Editar observación" : "➕ Nueva observación"}
-      </Text>
+        <TouchableOpacity
+          onPress={onCancel}
+          style={{ minWidth: 44, minHeight: 44, justifyContent: "center" }}
+        >
+          <Text style={{ color: c.textBody, fontSize: 24 }}>←</Text>
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              color: c.textBody,
+              fontWeight: "900",
+              fontSize: 18,
+            }}
+          >
+            {initial ? "✏️ Editar observación" : "➕ Nueva observación"}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={!isValid}
+          style={{
+            backgroundColor: isValid ? c.accent : c.elevated,
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            borderRadius: 99,
+            minHeight: 44,
+            justifyContent: "center",
+          }}
+        >
+          <Text
+            style={{
+              color: c.textBody,
+              fontWeight: "800",
+              fontSize: 14,
+            }}
+          >
+            💾 Guardar
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={{ flexDirection: "row", gap: 12 }}>
         <View style={{ width: 60 }}>
@@ -849,44 +886,6 @@ function ObservationForm({
             />
           </View>
         ))}
-      </View>
-
-      <View style={{ flexDirection: "row", gap: 12 }}>
-        <TouchableOpacity
-          onPress={onCancel}
-          style={{
-            flex: 1,
-            paddingVertical: 12,
-            borderRadius: 99,
-            backgroundColor: c.card,
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 14 }}>
-            Cancelar
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleSave}
-          disabled={!isValid}
-          style={{
-            flex: 2,
-            paddingVertical: 12,
-            borderRadius: 99,
-            backgroundColor: isValid ? c.accent : c.elevated,
-            alignItems: "center",
-          }}
-        >
-          <Text
-            style={{
-              color: c.textBody,
-              fontWeight: "800",
-              fontSize: 14,
-            }}
-          >
-            {initial ? "💾 Guardar" : "➕ Crear"}
-          </Text>
-        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -1665,7 +1664,7 @@ export default function CatalogsScreen() {
                             onPress={() => setEditingEventMetrics(item)}
                           >
                             <Text style={{ color: c.accent, fontSize: 16 }}>
-                              ⚙️
+                              ✏️
                             </Text>
                           </TouchableOpacity>
                           {!item.isSystem && (
