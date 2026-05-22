@@ -130,7 +130,7 @@ export default function SleepDetailScreen() {
                 backgroundColor: isOwn ? `${c.success}20` : c.accentLight,
               }}
             >
-              {isOwn ? "Tú" : "Otro cuidador"}
+              {isOwn ? "Tú" : (profile?.name ?? "Otro cuidador")}
             </Text>
           </View>
 

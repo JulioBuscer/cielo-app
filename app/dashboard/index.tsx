@@ -293,7 +293,7 @@ export default function TimelineScreen() {
         <FeedingSessionBubble
           session={item.data}
           isOwn={isOwn}
-          profileName={!isOwn ? "Otro cuidador" : undefined}
+          profileName={!isOwn ? (profile?.name ?? "Otro cuidador") : undefined}
           onPress={() => router.push(`/logs/feeding/${item.data.id}`)}
         />
       );
@@ -304,7 +304,7 @@ export default function TimelineScreen() {
         <SleepSessionBubble
           session={item.data}
           isOwn={isOwn}
-          profileName={!isOwn ? "Otro cuidador" : undefined}
+          profileName={!isOwn ? (profile?.name ?? "Otro cuidador") : undefined}
           onPress={() => router.push(`/logs/sleep/${item.data.id}`)}
         />
       );
@@ -320,7 +320,7 @@ export default function TimelineScreen() {
         eventTypeEmoji={emoji}
         eventTypeLabel={label}
         isOwn={isOwn}
-        profileName={!isOwn ? "Otro cuidador" : undefined}
+        profileName={!isOwn ? (profile?.name ?? "Otro cuidador") : undefined}
         onPress={() => router.push(`/logs/event/${item.data.id}`)}
       />
     );
