@@ -168,7 +168,7 @@ export default function DiaperNewScreen() {
   const { data: observations } = useDiaperObservations();
   const pauseFeeding = usePauseFeeding();
   const saveEvent = useSaveTimelineEvent();
-  const { pickImage, takePhoto } = useCamera();
+  const { uri: camUri, takePhoto, pickImage, discard: discardPhoto } = useCamera();
 
   // Configs from AsyncStorage
   const [peeIntensityCfg, setPeeIntensityCfg] = useState(DEFAULT_PEE_INTENSITY);

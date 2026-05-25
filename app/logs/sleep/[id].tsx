@@ -72,7 +72,7 @@ export default function SleepDetailScreen() {
         babyId: session.babyId,
         startedAt: editStartedAt,
         endedAt: editEndedAt,
-        notes: editNotes || null,
+        notes: editNotes ?? undefined,
       });
       setEditing(false);
     } catch (e) {

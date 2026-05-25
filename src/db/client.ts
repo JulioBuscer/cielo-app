@@ -80,26 +80,7 @@ export async function runMigrations() {
   await _raw.execAsync(`PRAGMA journal_mode = WAL;`);
   await _raw.execAsync(`PRAGMA foreign_keys = ON;`);
 
-  // Detectar schema viejo (sin event_types) y limpiar
-  try {
-    await _raw.execAsync(`SELECT * FROM event_types LIMIT 1`);
-  } catch {
-    // Schema viejo → borrar todo y empezar limpio
-    await _raw.execAsync(`
-      DROP TABLE IF EXISTS diaper_logs;
-      DROP TABLE IF EXISTS feeding_logs;
-      DROP TABLE IF EXISTS growth_logs;
-      DROP TABLE IF EXISTS timeline_events;
-      DROP TABLE IF EXISTS feeding_status_events;
-      DROP TABLE IF EXISTS feeding_sessions;
-      DROP TABLE IF EXISTS diaper_observations;
-      DROP TABLE IF EXISTS event_types;
-      DROP TABLE IF EXISTS babies;
-      DROP TABLE IF EXISTS profiles;
-    `);
-  }
-
-  // Crear tablas
+  // Crear tablas si no existen (no-destructivo, preserva datos existentes)
   await _raw.execAsync(`
     CREATE TABLE IF NOT EXISTS profiles (
       id TEXT PRIMARY KEY NOT NULL,

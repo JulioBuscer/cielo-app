@@ -85,7 +85,7 @@ export default function FeedingDetailScreen() {
         babyId: session.babyId,
         startedAt: editStartedAt,
         endedAt: editEndedAt,
-        notes: editNotes || null,
+        notes: editNotes ?? undefined,
       });
       setEditing(false);
     } catch (e) {
