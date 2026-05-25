@@ -16,8 +16,8 @@ const SECTIONS = [
       { emoji: "🟡", label: "Amarillo oscuro", severity: "normal", note: "Puede necesitar más líquidos." },
       { emoji: "🟠", label: "Ámbar", severity: "info", note: "Ofrece pecho o agua si aplica." },
       { emoji: "🟠", label: "Naranja", severity: "info", note: "Podría ser por alimentos o poca hidratación." },
-      { emoji: "🔶", label: "Anaranjado rojizo", severity: "watch", note: "Podría ser sangre o pigmentos. Observa y consulta si persiste." },
-      { emoji: "🚨", label: "Café / Rojizo", severity: "alert", note: "Posible sangre. Consulta con tu pediatra." },
+      { emoji: "🔶", label: "Anaranjado rojizo", severity: "watch", note: "Podría indicar sangre. Observa y consulta si persiste. (Stanford Medicine)" },
+      { emoji: "🚨", label: "Café / Rojizo", severity: "alert", note: "Posible sangre. Consulta con tu pediatra. (Mayo Clinic)" },
     ],
   },
   {
@@ -26,27 +26,27 @@ const SECTIONS = [
     title: "Color de la popó",
     desc: "La popó del bebé cambia de color según la edad, alimentación y salud.",
     legend: [
-      { emoji: "🟢", label: "Verde", severity: "normal", note: "Común en bebés de pecho o por alimentos verdes." },
-      { emoji: "🟡", label: "Amarillo", severity: "normal", note: "Clásico en lactancia materna, aspecto mostaza." },
-      { emoji: "🟤", label: "Marrón", severity: "normal", note: "Normal en fórmula o al iniciar sólidos." },
-      { emoji: "🟠", label: "Naranja", severity: "info", note: "Puede ser por alimentos (zanahoria, camote)." },
-      { emoji: "🩻", label: "Arcilla / Gris", severity: "alert", note: "Poco común. Podría indicar problema hepático (vías biliares). Consulta con tu pediatra." },
-      { emoji: "💉", label: "Rojo", severity: "alert", note: "Sangre fresca. Puede ser fisura o alergia. Consulta con tu pediatra." },
-      { emoji: "⚫", label: "Negro", severity: "alert", note: "Sangre digerida (excepto meconio en recién nacidos). Consulta con tu pediatra." },
-      { emoji: "⚪", label: "Blanco", severity: "alert", note: "Puede indicar obstrucción biliar. Consulta con tu pediatra lo antes posible." },
+      { emoji: "🟢", label: "Verde", severity: "normal", note: "Común en bebés de pecho o por alimentos verdes. (Mayo Clinic)" },
+      { emoji: "🟡", label: "Amarillo", severity: "normal", note: "Clásico en lactancia materna, aspecto mostaza. (Mayo Clinic)" },
+      { emoji: "🟤", label: "Marrón", severity: "normal", note: "Normal en fórmula o al iniciar sólidos. (Mayo Clinic)" },
+      { emoji: "🟠", label: "Naranja", severity: "info", note: "Puede ser por alimentos (zanahoria, camote). (NHS)" },
+      { emoji: "🩻", label: "Arcilla / Gris", severity: "alert", note: "Poco común. Podría indicar problema hepático (vías biliares). Consulta con tu pediatra. (Mayo Clinic, AAP)" },
+      { emoji: "💉", label: "Rojo", severity: "alert", note: "Sangre fresca. Posible fisura anal o alergia a proteína. Consulta con tu pediatra. (Mayo Clinic, NHS)" },
+      { emoji: "⚫", label: "Negro", severity: "alert", note: "Sangre digerida (excepto meconio en RN). Consulta con tu pediatra. (Mayo Clinic, NHS)" },
+      { emoji: "⚪", label: "Blanco", severity: "alert", note: "Puede indicar obstrucción biliar. Consulta con tu pediatra lo antes posible. (Mayo Clinic, AAP)" },
     ],
   },
   {
     id: "poop-cons",
     icon: "💩",
     title: "Consistencia de la popó",
-    desc: "Basado en la Escala de Bristol adaptada para bebés.",
+    desc: "Basado en la Escala de Bristol (tipos 1-7) adaptada para bebés.",
     legend: [
-      { emoji: "💎", label: "Dura", severity: "alert", note: "Bolitas duras, estreñimiento. Ofrece más líquidos, consulta si persiste." },
-      { emoji: "🍫", label: "Sólida", severity: "normal", note: "Formada pero blanda, ideal." },
-      { emoji: "🥜", label: "Pastosa", severity: "normal", note: "Tipo mantequilla de maní, común en bebés." },
-      { emoji: "💧", label: "Líquida", severity: "info", note: "Pastosa o semilíquida, puede ser normal." },
-      { emoji: "🌊", label: "Acuosa", severity: "alert", note: "Muy líquida, posible diarrea. Vigila signos de deshidratación." },
+      { emoji: "💎", label: "Dura", severity: "alert", note: "Bristol tipo 1-2: bolitas duras, estreñimiento. Ofrece más líquidos, consulta si persiste. (NHS, Bristol Stool Chart)" },
+      { emoji: "🍫", label: "Sólida", severity: "normal", note: "Bristol tipo 3-4: formada pero blanda. (Bristol Stool Chart)" },
+      { emoji: "🥜", label: "Pastosa", severity: "normal", note: "Bristol tipo 5: tipo mantequilla de maní, común en bebés. (NHS, Bristol Stool Chart)" },
+      { emoji: "💧", label: "Líquida", severity: "info", note: "Bristol tipo 6: semilíquida. En lactancia materna puede ser normal. Si es muy frecuente o acuosa, pasa al nivel 5. (Bristol Stool Chart, NHS)" },
+      { emoji: "🌊", label: "Acuosa", severity: "alert", note: "Bristol tipo 7: diarrea. Vigila signos de deshidratación (boca seca, menos pañales mojados). (NHS, Bristol Stool Chart)" },
     ],
   },
 ];
@@ -59,11 +59,12 @@ const SEVERITY_STYLES: Record<string, { icon: string; label: string }> = {
 };
 
 const SOURCES = [
-  { label: "Mayo Clinic — Baby poop color", url: "https://www.mayoclinic.org/healthy-lifestyle/infant-and-toddler-health/expert-answers/baby-poop/faq-20057971" },
-  { label: "NHS — Baby poos and wees", url: "https://www.nhs.uk/conditions/baby/caring-for-a-newborn/baby-poo-and-wee/" },
-  { label: "Stanford Medicine — Newborn Urine Color", url: "https://www.stanfordchildrens.org/en/topic/default?id=newborn-urine-color-90-P02683" },
-  { label: "Bristol Stool Chart", url: "https://en.wikipedia.org/wiki/Bristol_stool_scale" },
-  { label: "American Academy of Pediatrics", url: "https://www.healthychildren.org/" },
+  { label: "Mayo Clinic — Guía de color de popó en bebés", url: "https://www.mayoclinic.org/healthy-lifestyle/infant-and-toddler-health/expert-answers/baby-poop/faq-20057971" },
+  { label: "NHS — Popó y pipí del bebé (colores y consistencias)", url: "https://www.nhs.uk/conditions/baby/caring-for-a-newborn/baby-poo-and-wee/" },
+  { label: "Stanford Medicine — Color de orina en recién nacidos", url: "https://www.stanfordchildrens.org/en/topic/default?id=newborn-urine-color-90-P02683" },
+  { label: "Bristol Stool Chart — Escala de consistencia (tipos 1-7)", url: "https://en.wikipedia.org/wiki/Bristol_stool_scale" },
+  { label: "HealthyChildren.org (AAP) — Signos de alerta en popó", url: "https://www.healthychildren.org/English/ages-stages/baby/diapers-clothing/Pages/Bowel-Movements.aspx" },
+  { label: "MedlinePlus — Deshidratación en bebés", url: "https://medlineplus.gov/ency/article/000982.htm" },
 ];
 
 const SPACING = 12;

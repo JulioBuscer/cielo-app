@@ -48,25 +48,25 @@ const DEFAULT_PEE_HEALTH = { enabled: true, min: 1, max: 8, zones: [
   { min: 4, max: 4, color: "#FFB300", label: "Amarillo oscuro", emoji: "🟡" },
   { min: 5, max: 5, color: "#FF8F00", label: "Ámbar",         emoji: "🟠" },
   { min: 6, max: 6, color: "#E65100", label: "Naranja",       emoji: "🟠" },
-  { min: 7, max: 7, color: "#BF360C", label: "Anaranjado rojizo", emoji: "🔶", isAlert: true, note: "Podría ser sangre o pigmentos. Observa y consulta si persiste." },
-  { min: 8, max: 8, color: "#8D6E63", label: "Café/Rojizo",   emoji: "🚨", isAlert: true, note: "Posible sangre. Consulta con tu pediatra." },
+  { min: 7, max: 7, color: "#BF360C", label: "Anaranjado rojizo", emoji: "🔶", isAlert: true, note: "Podría indicar sangre. Observa y consulta si persiste. (Stanford Medicine)" },
+  { min: 8, max: 8, color: "#8D6E63", label: "Café/Rojizo",   emoji: "🚨", isAlert: true, note: "Posible sangre. Consulta con tu pediatra. (Mayo Clinic)" },
 ] };
 const DEFAULT_POOP_HEALTH = { enabled: true, min: 1, max: 8, zones: [
   { min: 1, max: 1, color: "#8BC34A", label: "Verde",   emoji: "🟢" },
   { min: 2, max: 2, color: "#FFC107", label: "Amarillo", emoji: "🟡" },
   { min: 3, max: 3, color: "#8B4513", label: "Marrón",  emoji: "🟤" },
   { min: 4, max: 4, color: "#E65100", label: "Naranja", emoji: "🟠" },
-  { min: 5, max: 5, color: "#9E9E9E", label: "Arcilla", emoji: "🩻",  isAlert: true, note: "Poco común. Podría indicar problema hepático. Consulta con tu pediatra." },
-  { min: 6, max: 6, color: "#B71C1C", label: "Rojo",    emoji: "💉",  isAlert: true, note: "Sangre fresca. Puede ser fisura o alergia. Consulta con tu pediatra." },
-  { min: 7, max: 7, color: "#212121", label: "Negro",   emoji: "⚫",  isAlert: true, note: "Sangre digerida (excepto meconio en recién nacidos). Consulta con tu pediatra." },
-  { min: 8, max: 8, color: "#EEEEEE", label: "Blanco",  emoji: "⚪",  isAlert: true, note: "Puede indicar obstrucción biliar. Consulta con tu pediatra lo antes posible." },
+  { min: 5, max: 5, color: "#9E9E9E", label: "Arcilla", emoji: "🩻",  isAlert: true, note: "Poco común. Puede indicar problema hepático (vías biliares). Consulta con tu pediatra. (Mayo Clinic, AAP)" },
+  { min: 6, max: 6, color: "#B71C1C", label: "Rojo",    emoji: "💉",  isAlert: true, note: "Sangre fresca. Posible fisura anal o alergia a proteína. Consulta con tu pediatra. (Mayo Clinic, NHS)" },
+  { min: 7, max: 7, color: "#212121", label: "Negro",   emoji: "⚫",  isAlert: true, note: "Sangre digerida (excepto meconio en RN). Consulta con tu pediatra. (Mayo Clinic, NHS)" },
+  { min: 8, max: 8, color: "#EEEEEE", label: "Blanco",  emoji: "⚪",  isAlert: true, note: "Puede indicar obstrucción biliar. Consulta con tu pediatra lo antes posible. (Mayo Clinic, AAP)" },
 ] };
 const DEFAULT_POOP_CONSISTENCY = { min: 1, max: 5, zones: [
-  { min: 1, max: 1, color: "#6D4C41", label: "Dura",   emoji: "💎", isAlert: true, note: "Estreñimiento. Ofrece más líquidos, consulta si persiste." },
+  { min: 1, max: 1, color: "#6D4C41", label: "Dura",   emoji: "💎", isAlert: true, note: "Bristol tipo 1-2: estreñimiento. Ofrece más líquidos, consulta si persiste. (NHS, Bristol Stool Chart)" },
   { min: 2, max: 2, color: "#8D6E63", label: "Sólida", emoji: "🍫" },
   { min: 3, max: 3, color: "#A1887F", label: "Pastosa", emoji: "🥜" },
-  { min: 4, max: 4, color: "#BCAAA4", label: "Líquida", emoji: "💧" },
-  { min: 5, max: 5, color: "#EF5350", label: "Acuosa",  emoji: "🌊", isAlert: true, note: "Posible diarrea. Vigila signos de deshidratación." },
+  { min: 4, max: 4, color: "#BCAAA4", label: "Líquida", emoji: "💧", note: "En lactancia materna puede ser normal (BC tipo 6). Si es muy frecuente o acuosa, pasa al nivel 5." },
+  { min: 5, max: 5, color: "#EF5350", label: "Acuosa",  emoji: "🌊", isAlert: true, note: "Bristol tipo 7: diarrea. Vigila signos de deshidratación (boca seca, menos pañales mojados). (NHS, Bristol Stool Chart)" },
 ] };
 
 function ScaleMeter({
