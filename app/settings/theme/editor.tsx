@@ -12,7 +12,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/src/theme/useTheme";
 import { getThemeById, saveCustomTheme, getCustomThemes } from "@/src/theme/themeStorage";
-import { lightTheme, darkTheme, lavenderTheme } from "@/src/theme/themes";
+import { lightTheme, darkTheme } from "@/src/theme/themes";
 import type { AppTheme } from "@/src/theme/types";
 import { generateId } from "@/src/utils/id";
 

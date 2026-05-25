@@ -10,7 +10,7 @@ import {
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/src/theme";
-import { getAllThemes, deleteCustomTheme } from "@/src/theme/themeStorage";
+import { getAllThemes, deleteCustomTheme, saveCustomTheme } from "@/src/theme/themeStorage";
 import type { AppTheme } from "@/src/theme/types";
 
 function ThemeCard({
@@ -182,6 +182,40 @@ export default function ThemeSelectorScreen() {
 
   const load = async () => {
     const all = await getAllThemes();
+    const hasLavender = all.some((t) => t.id === "lavender");
+    if (!hasLavender) {
+      await saveCustomTheme({
+        id: "lavender",
+        name: "Lavender Dream",
+        isBuiltIn: false,
+        colors: {
+          surface: "#FEDFED",
+          card: "#FFFFFF",
+          elevated: "#F2E6F5",
+          inputBg: "#FFF5FA",
+          textBody: "#3D2B4F",
+          textMuted: "#7A5D88",
+          textDim: "#A58BB0",
+          textOnAccent: "#FFFFFF",
+          accent: "#8FA2D4",
+          accentStrong: "#AD81BE",
+          accentLight: "#D5B5EA",
+          headerBg: "#8FA2D4",
+          headerText: "#FFFFFF",
+          border: "#EEE2F5",
+          bubbleOwn: "#EADCF5",
+          bubbleOther: "#FFFFFF",
+          success: "#95D1AA",
+          warning: "#D4A85A",
+          danger: "#E07070",
+          whatsGreen: "#25D366",
+          biological: { pee: "#D4A85A", poop: "#8B7355" },
+          feeding: { bottle: "#95D1AA", breast: "#AD81BE" },
+          growth: "#72A098",
+        },
+      });
+      return load();
+    }
     setThemes(all);
   };
 
