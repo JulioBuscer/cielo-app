@@ -60,7 +60,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     (async () => {
       const saved = await getActiveThemeId();
       const savedMode: ThemeMode =
-        saved === "light" || saved === "dark" ? saved : "system";
+        saved === "light" || saved === "dark" ? saved : "custom";
       setMode(savedMode);
       const custom = await getCustomThemes();
       setCustomThemes(custom);

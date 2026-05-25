@@ -205,7 +205,7 @@ export default function ThemeSelectorScreen() {
           border: "#EEE2F5",
           bubbleOwn: "#EADCF5",
           bubbleOther: "#FFFFFF",
-          success: "#95D1AA",
+          success: "#2D7A4E",
           warning: "#D4A85A",
           danger: "#E07070",
           whatsGreen: "#25D366",

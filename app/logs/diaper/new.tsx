@@ -125,7 +125,7 @@ function ScaleMeter({
           {zoneFor(value)?.emoji ? (
             <Text style={{ fontSize: 14 }}>{zoneFor(value)?.emoji}</Text>
           ) : null}
-          <Text style={{ color: zoneFor(value)?.color ?? c.textMuted, fontWeight: "700", fontSize: 11 }}>
+          <Text style={{ color: c.textBody, fontWeight: "700", fontSize: 11 }}>
             {zoneFor(value)?.label}
           </Text>
         </View>
