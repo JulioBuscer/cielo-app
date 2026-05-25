@@ -202,39 +202,53 @@ export function TimelineBubble({
 
       {event.eventTypeId === "diaper" && meta && (
         <View style={{ marginBottom: 2 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 }}>
-            <View style={{ flexDirection: "row", gap: 3 }}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <View
-                  key={n}
-                  style={{
-                    width: 16, height: 16, borderRadius: 99,
-                    backgroundColor: n <= (meta.peeIntensity ?? 0) ? c.biological.pee : c.elevated,
-                  }}
-                />
-              ))}
-              <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "700", marginLeft: 4 }}>💧</Text>
+          {meta.peeIntensity > 0 && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <View style={{ flexDirection: "row", gap: 3 }}>
+                {Array.from({ length: meta.peeIntensity }, (_, i) => i + 1).map((n) => (
+                  <View key={n} style={{ width: 14, height: 14, borderRadius: 99, backgroundColor: c.biological.pee }} />
+                ))}
+              </View>
+              <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "700" }}>💧</Text>
+              {meta.peeHealth > 0 && (
+                <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "600" }}>· {meta.peeHealth}/8</Text>
+              )}
             </View>
-            <View style={{ flexDirection: "row", gap: 3 }}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <View
-                  key={n}
-                  style={{
-                    width: 16, height: 16, borderRadius: 99,
-                    backgroundColor: n <= (meta.poopIntensity ?? 0) ? c.biological.poop : c.elevated,
-                  }}
-                />
-              ))}
-              <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "700", marginLeft: 4 }}>💩</Text>
+          )}
+
+          {meta.poopIntensity > 0 && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <View style={{ flexDirection: "row", gap: 3 }}>
+                {Array.from({ length: meta.poopIntensity }, (_, i) => i + 1).map((n) => (
+                  <View key={n} style={{ width: 14, height: 14, borderRadius: 99, backgroundColor: c.biological.poop }} />
+                ))}
+              </View>
+              <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "700" }}>💩</Text>
+              {meta.poopHealth > 0 && (
+                <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "600" }}>· {meta.poopHealth}/5</Text>
+              )}
             </View>
-          </View>
+          )}
 
           {meta.observationIds?.length > 0 ? (
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
               {(meta.observationIds as string[]).map((id: string) => {
                 const obs = observations?.find((o) => o.id === id);
+                const obsMetrics = obs ? parseMetrics(obs.metrics) : [];
+                const obsValue = meta.observationValues?.[id];
+                const metricLabel = obs && obsMetrics.length > 0 && obsValue
+                  ? (() => {
+                      const m = obsMetrics[0];
+                      const v = obsValue[m.id];
+                      if (v != null) {
+                        const zone = m.zones?.find((z) => v >= z.min && v <= z.max);
+                        return zone ? `${obs.emoji} ${zone.label}` : `${obs.emoji} ${obs.label} ${v}`;
+                      }
+                      return null;
+                    })()
+                  : null;
                 const isAlert = ["blood", "mucus", "diarrhea"].includes(id);
-                const lbl = obs ? `${obs.emoji} ${obs.label}` : id;
+                const lbl = metricLabel ?? (obs ? `${obs.emoji} ${obs.label}` : id);
                 return (
                   <MetaTag key={id} label={lbl} color={isAlert ? c.danger : c.textMuted} bg={isAlert ? c.danger + "20" : c.surface} />
                 );
