@@ -206,6 +206,7 @@ export interface DiaperZone {
   max: number;
   color: string;
   label: string;
+  isAlert?: boolean;
 }
 
 export interface DiaperMetadata {
@@ -216,9 +217,12 @@ export interface DiaperMetadata {
   poopConsistency:     number;
   peeIntensityZone?:   { emoji: string; label: string } | null;
   poopIntensityZone?:  { emoji: string; label: string } | null;
-  peeHealthZone?:      { emoji: string; label: string } | null;
-  poopHealthZone?:     { emoji: string; label: string } | null;
-  poopConsistencyZone?:{ emoji: string; label: string } | null;
+  peeHealthZone?:      { emoji: string; label: string; isAlert?: boolean } | null;
+  poopHealthZone?:     { emoji: string; label: string; isAlert?: boolean } | null;
+  poopConsistencyZone?:{ emoji: string; label: string; isAlert?: boolean } | null;
+  peeHealthAlert?:     boolean;
+  poopHealthAlert?:    boolean;
+  poopConsistencyAlert?: boolean;
   observationIds:      string[];                // tags simples sin métricas
   observationValues:   Record<string, Record<string, number>> | null;  // { obsId: { metricId: valor } }
   imageUri?:           string;

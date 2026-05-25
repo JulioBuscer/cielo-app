@@ -244,7 +244,7 @@ export function TimelineBubble({
                 </Text>
               ) : meta.poopConsistency > 0 ? (
                 <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "600" }}>
-                  · {["", "Sólida", "Pastosa", "Líquida", "Acuosa"][meta.poopConsistency]}
+                  · {["", "Dura", "Sólida", "Pastosa", "Líquida", "Acuosa"][meta.poopConsistency]}
                 </Text>
               ) : null}
               {meta.poopHealthZone?.label ? (
@@ -259,45 +259,67 @@ export function TimelineBubble({
             </View>
           )}
 
-          {meta.observationIds?.length > 0 ? (
-            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-              {(meta.observationIds as string[]).map((id: string) => {
-                const obs = observations?.find((o) => o.id === id);
-                const obsMetrics = obs ? parseMetrics(obs.metrics) : [];
-                const obsValue = meta.observationValues?.[id];
-                const metricLabel = obs && obsMetrics.length > 0 && obsValue
-                  ? (() => {
+          {(() => {
+            const healthAlertTags: { label: string }[] = [];
+            if (meta.peeHealthAlert) {
+              const z = meta.peeHealthZone;
+              healthAlertTags.push({ label: `💧 ${z?.label ?? "Alerta"}` });
+            }
+            if (meta.poopHealthAlert) {
+              const z = meta.poopHealthZone;
+              healthAlertTags.push({ label: `💩 ${z?.label ?? "Alerta"}` });
+            }
+            if (meta.poopConsistencyAlert) {
+              const z = meta.poopConsistencyZone;
+              healthAlertTags.push({ label: `💩 ${z?.label ?? "Alerta"}` });
+            }
+
+            const hasObservations = (meta.observationIds?.length ?? 0) > 0;
+
+            if (healthAlertTags.length > 0 || hasObservations) {
+              return (
+                <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                  {healthAlertTags.map((t, i) => (
+                    <MetaTag key={`health-${i}`} label={t.label} color={c.danger} bg={c.danger + "20"} />
+                  ))}
+                  {hasObservations && (meta.observationIds as string[]).map((id: string) => {
+                    const obs = observations?.find((o) => o.id === id);
+                    const obsMetrics = obs ? parseMetrics(obs.metrics) : [];
+                    const obsValue = meta.observationValues?.[id];
+                    const metricLabel = obs && obsMetrics.length > 0 && obsValue
+                      ? (() => {
+                          const m = obsMetrics[0];
+                          const v = obsValue[m.id];
+                          if (v != null) {
+                            const zone = m.zones?.find((z) => v >= z.min && v <= z.max);
+                            return zone ? `${obs.emoji} ${zone.label}` : `${obs.emoji} ${obs.label} ${v}`;
+                          }
+                          return null;
+                        })()
+                      : null;
+                    const lbl = metricLabel ?? (obs ? `${obs.emoji} ${obs.label}` : id);
+                    const zoneInfo = (() => {
+                      if (!obsValue || !obsMetrics.length) return null;
                       const m = obsMetrics[0];
                       const v = obsValue[m.id];
-                      if (v != null) {
-                        const zone = m.zones?.find((z) => v >= z.min && v <= z.max);
-                        return zone ? `${obs.emoji} ${zone.label}` : `${obs.emoji} ${obs.label} ${v}`;
-                      }
-                      return null;
-                    })()
-                  : null;
-                const lbl = metricLabel ?? (obs ? `${obs.emoji} ${obs.label}` : id);
-                const zoneInfo = (() => {
-                  if (!obsValue || !obsMetrics.length) return null;
-                  const m = obsMetrics[0];
-                  const v = obsValue[m.id];
-                  if (v == null || !m.zones?.length) return null;
-                  const idx = m.zones.findIndex((z) => v >= z.min && v <= z.max);
-                  if (idx === -1) return null;
-                  const total = m.zones.length;
-                  if (idx === total - 1) return { color: c.danger, bg: c.danger + "20" };
-                  if (idx === 0) return { color: c.textMuted, bg: c.surface };
-                  return { color: c.warning, bg: c.warning + "20" };
-                })();
-                const tagStyle = zoneInfo ?? (obs?.isAlert ? { color: c.danger, bg: c.danger + "20" } : { color: c.textMuted, bg: c.surface });
-                return (
-                  <MetaTag key={id} label={lbl} color={tagStyle.color} bg={tagStyle.bg} />
-                );
-              })}
-            </View>
-          ) : (
-            <MetaTag label="✅ Sin alertas" color={c.success} bg={c.success + "20"} />
-          )}
+                      if (v == null || !m.zones?.length) return null;
+                      const idx = m.zones.findIndex((z) => v >= z.min && v <= z.max);
+                      if (idx === -1) return null;
+                      const total = m.zones.length;
+                      if (idx === total - 1) return { color: c.danger, bg: c.danger + "20" };
+                      if (idx === 0) return { color: c.textMuted, bg: c.surface };
+                      return { color: c.warning, bg: c.warning + "20" };
+                    })();
+                    const tagStyle = zoneInfo ?? (obs?.isAlert ? { color: c.danger, bg: c.danger + "20" } : { color: c.textMuted, bg: c.surface });
+                    return (
+                      <MetaTag key={id} label={lbl} color={tagStyle.color} bg={tagStyle.bg} />
+                    );
+                  })}
+                </View>
+              );
+            }
+            return <MetaTag label="✅ Sin alertas" color={c.success} bg={c.success + "20"} />;
+          })()}
         </View>
       )}
 

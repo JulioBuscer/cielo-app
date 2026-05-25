@@ -34,7 +34,7 @@ import { getUnit, getUnitsByDimension } from "@/src/units/registry";
 import { generateId } from "@/src/utils/id";
 
 const COLORS = ["#4CAF50", "#FFC107", "#FF9800", "#F44336", "#9C27B0", "#2196F3"];
-type Zone = { min: number; max: number; color: string; label: string; emoji?: string };
+type Zone = { min: number; max: number; color: string; label: string; emoji?: string; isAlert?: boolean };
 
 function ZoneEditor({
   zones,
@@ -1223,9 +1223,9 @@ export default function CatalogsScreen() {
     min: 1, max: 8,
     zones: [
       { min: 1, max: 2, color: "#4CAF50", label: "Transparente", emoji: "💧" },
-      { min: 3, max: 4, color: "#8BC34A", label: "Claro", emoji: "💦" },
-      { min: 5, max: 6, color: "#FFC107", label: "Amarillo", emoji: "🟡" },
-      { min: 7, max: 8, color: "#F44336", label: "Oscuro", emoji: "🟠" },
+      { min: 3, max: 4, color: "#8BC34A", label: "Claro",       emoji: "💦" },
+      { min: 5, max: 6, color: "#FFC107", label: "Amarillo",    emoji: "🟡" },
+      { min: 7, max: 8, color: "#F44336", label: "Oscuro",      emoji: "🟠", isAlert: true },
     ],
   });
 
@@ -1240,22 +1240,27 @@ export default function CatalogsScreen() {
     ],
   });
   const [poopConsistency, setPoopConsistency] = useState<ConfigRange & { zones: Zone[] }>({
-    min: 1, max: 4,
+    min: 1, max: 5,
     zones: [
-      { min: 1, max: 1, color: "#8D6E63", label: "Sólida",  emoji: "🍫" },
-      { min: 2, max: 2, color: "#A1887F", label: "Pastosa",   emoji: "🥜" },
-      { min: 3, max: 3, color: "#BCAAA4", label: "Líquida",   emoji: "💧" },
-      { min: 4, max: 4, color: "#EF5350", label: "Acuosa",    emoji: "🌊" },
+      { min: 1, max: 1, color: "#6D4C41", label: "Dura",   emoji: "💎", isAlert: true },
+      { min: 2, max: 2, color: "#8D6E63", label: "Sólida", emoji: "🍫" },
+      { min: 3, max: 3, color: "#A1887F", label: "Pastosa",  emoji: "🥜" },
+      { min: 4, max: 4, color: "#BCAAA4", label: "Líquida",  emoji: "💧" },
+      { min: 5, max: 5, color: "#EF5350", label: "Acuosa",   emoji: "🌊", isAlert: true },
     ],
   });
   const [poopHealth, setPoopHealth] = useState<HealthConfig>({
     enabled: false,
     min: 1, max: 8,
     zones: [
-      { min: 1, max: 2, color: "#8BC34A", label: "Verde", emoji: "🟢" },
-      { min: 3, max: 4, color: "#FFC107", label: "Amarillo", emoji: "🟡" },
-      { min: 5, max: 6, color: "#8B4513", label: "Marrón", emoji: "🟤" },
-      { min: 7, max: 8, color: "#3E2723", label: "Oscuro", emoji: "⚫" },
+      { min: 1, max: 1, color: "#8BC34A", label: "Verde",   emoji: "🟢" },
+      { min: 2, max: 2, color: "#FFC107", label: "Amarillo", emoji: "🟡" },
+      { min: 3, max: 3, color: "#8B4513", label: "Marrón",  emoji: "🟤" },
+      { min: 4, max: 4, color: "#E65100", label: "Naranja", emoji: "🟠" },
+      { min: 5, max: 5, color: "#9E9E9E", label: "Arcilla", emoji: "🩻",  isAlert: true },
+      { min: 6, max: 6, color: "#B71C1C", label: "Rojo",    emoji: "💉",  isAlert: true },
+      { min: 7, max: 7, color: "#212121", label: "Negro",   emoji: "⚫",  isAlert: true },
+      { min: 8, max: 8, color: "#EEEEEE", label: "Blanco",  emoji: "⚪",  isAlert: true },
     ],
   });
 
