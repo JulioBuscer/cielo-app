@@ -267,12 +267,11 @@ export default function DiaperNewScreen() {
         await pauseFeeding.mutateAsync(activeFeeding);
       }
 
-      const obsNoScale: string[] = [];
       const obsWithScale: Record<string, Record<string, number>> = {};
+      const allObsIds: string[] = [];
       for (const [id, metrics] of Object.entries(selectedObs)) {
-        if (Object.keys(metrics).length === 0) {
-          obsNoScale.push(id);
-        } else {
+        allObsIds.push(id);
+        if (Object.keys(metrics).length > 0) {
           obsWithScale[id] = metrics;
         }
       }
@@ -298,7 +297,7 @@ export default function DiaperNewScreen() {
           peeHealthZone,
           poopHealthZone,
           poopConsistencyZone: poopConsistencyZone ? { emoji: poopConsistencyZone.emoji ?? "", label: poopConsistencyZone.label } : null,
-          observationIds: obsNoScale,
+          observationIds: allObsIds,
           observationValues: Object.keys(obsWithScale).length > 0 ? obsWithScale : null,
           imageUri: imageUri ?? undefined,
           weightGrams: weightGrams.trim() ? parseInt(weightGrams) : undefined,

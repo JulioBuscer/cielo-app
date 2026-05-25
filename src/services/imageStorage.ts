@@ -8,18 +8,22 @@ async function ensureDir() {
   if (!info.exists) await FileSystem.makeDirectoryAsync(CIELO_DIR, { intermediates: true });
 }
 
+function randomId(): string {
+  return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+}
+
 export async function captureAndStore(): Promise<string | null> {
   const { granted } = await ImagePicker.requestCameraPermissionsAsync();
   if (!granted) return null;
 
   const result = await ImagePicker.launchCameraAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    mediaTypes: ['images'],
     quality: 0.7, allowsEditing: false, base64: false,
   });
 
   if (result.canceled || !result.assets[0]) return null;
   await ensureDir();
-  const dest = `${CIELO_DIR}${crypto.randomUUID()}.jpg`;
+  const dest = `${CIELO_DIR}${randomId()}.jpg`;
   await FileSystem.moveAsync({ from: result.assets[0].uri, to: dest });
   return dest;
 }

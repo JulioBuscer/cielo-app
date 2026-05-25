@@ -1,11 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { AppTheme } from "./types";
-import { lightTheme, darkTheme } from "./themes";
+import { lightTheme, darkTheme, lavenderTheme } from "./themes";
 
 const ACTIVE_KEY = "theme_active_id";
 const CUSTOM_KEY = "theme_custom_themes";
 
-const builtIn: AppTheme[] = [lightTheme, darkTheme];
+const builtIn: AppTheme[] = [lightTheme, darkTheme, lavenderTheme];
 
 export async function getActiveThemeId(): Promise<string> {
   const id = await AsyncStorage.getItem(ACTIVE_KEY);

@@ -231,6 +231,7 @@ export default function DiaperDetailScreen() {
   const [editTimestamp, setEditTimestamp] = useState<Date>(new Date());
   const [editNotes, setEditNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savedMeta, setSavedMeta] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -264,11 +265,9 @@ export default function DiaperDetailScreen() {
 
     // Rebuild selectedObs from saved data
     const obs: Record<string, Record<string, number>> = {};
-    // Simple tags (no metrics)
     for (const oid of meta.observationIds ?? []) {
       obs[oid] = {};
     }
-    // Tags with metric values
     if (meta.observationValues) {
       for (const [oid, vals] of Object.entries(meta.observationValues)) {
         obs[oid] = vals as Record<string, number>;
@@ -278,7 +277,8 @@ export default function DiaperDetailScreen() {
   }, [event, observations]);
 
   const isOwn = event?.profileId === profile?.id;
-  const meta = event?.metadata ? (() => { try { return JSON.parse(event.metadata); } catch { return {}; } })() : {};
+  const rawMeta: any = event?.metadata ? (() => { try { return JSON.parse(event.metadata); } catch { return {}; } })() : {};
+  const meta: any = savedMeta ?? rawMeta;
 
   const findZone = (cfg: { zones: { min: number; max: number; emoji?: string; label: string }[] }, value: number) =>
     cfg.zones.find((z) => value >= z.min && value <= z.max);
@@ -309,12 +309,11 @@ export default function DiaperDetailScreen() {
     if (!event || !baby) return;
     setSaving(true);
     try {
-      const obsNoScale: string[] = [];
       const obsWithScale: Record<string, Record<string, number>> = {};
+      const allObsIds: string[] = [];
       for (const [oid, metrics] of Object.entries(selectedObs)) {
-        if (Object.keys(metrics).length === 0) {
-          obsNoScale.push(oid);
-        } else {
+        allObsIds.push(oid);
+        if (Object.keys(metrics).length > 0) {
           obsWithScale[oid] = metrics;
         }
       }
@@ -341,12 +340,30 @@ export default function DiaperDetailScreen() {
           peeHealthZone,
           poopHealthZone,
           poopConsistencyZone: poopConsistencyZone ? { emoji: poopConsistencyZone.emoji ?? "", label: poopConsistencyZone.label } : null,
-          observationIds: obsNoScale,
+          observationIds: allObsIds,
           observationValues: Object.keys(obsWithScale).length > 0 ? obsWithScale : null,
           imageUri: imageUri ?? undefined,
           weightGrams: weightGrams.trim() ? parseInt(weightGrams) : undefined,
         },
       });
+
+      setSavedMeta({
+        peeIntensity,
+        poopIntensity,
+        peeHealth: peeHealthCfg.enabled ? peeHealth : null,
+        poopHealth: poopHealthCfg.enabled ? poopHealth : null,
+        poopConsistency,
+        peeIntensityZone: peeIntensityZone ? { emoji: peeIntensityZone.emoji ?? "", label: peeIntensityZone.label } : null,
+        poopIntensityZone: poopIntensityZone ? { emoji: poopIntensityZone.emoji ?? "", label: poopIntensityZone.label } : null,
+        peeHealthZone,
+        poopHealthZone,
+        poopConsistencyZone: poopConsistencyZone ? { emoji: poopConsistencyZone.emoji ?? "", label: poopConsistencyZone.label } : null,
+        observationIds: allObsIds,
+        observationValues: Object.keys(obsWithScale).length > 0 ? obsWithScale : null,
+        imageUri: imageUri ?? undefined,
+        weightGrams: weightGrams.trim() ? parseInt(weightGrams) : undefined,
+      } as Record<string, unknown>);
+
       setEditing(false);
     } catch (e) {
       Alert.alert("Error", "No se pudo actualizar el pañal");
