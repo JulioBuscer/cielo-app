@@ -283,6 +283,10 @@ export default function DiaperDetailScreen() {
   const isOwn = event?.profileId === profile?.id;
   const rawMeta: any = event?.metadata ? (() => { try { return JSON.parse(event.metadata); } catch { return {}; } })() : {};
   const meta: any = savedMeta ?? rawMeta;
+  const peeHealthAlert = !!(meta.peeHealthAlert ?? (meta.peeHealth ?? 0) >= 7);
+  const poopHealthAlert = !!(meta.poopHealthAlert ?? (meta.poopHealth ?? 0) >= 5);
+  const poopConsistencyAlert = !!(meta.poopConsistencyAlert ?? (meta.poopConsistency === 1 || meta.poopConsistency === 5));
+  const anyAlert = peeHealthAlert || poopHealthAlert || poopConsistencyAlert;
 
   const findZone = (cfg: { zones: { min: number; max: number; emoji?: string; label: string; isAlert?: boolean }[] }, value: number) =>
     cfg.zones.find((z) => value >= z.min && value <= z.max);
@@ -453,6 +457,41 @@ export default function DiaperDetailScreen() {
               </Text>
             )}
           </View>
+
+          {anyAlert && (
+            <View style={{ backgroundColor: c.danger + "20", borderRadius: 20, padding: 16, gap: 8, borderWidth: 1, borderColor: c.danger }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={{ fontSize: 18 }}>🚨</Text>
+                <Text style={{ color: c.danger, fontWeight: "900", fontSize: 15 }}>Se requiere atención médica</Text>
+              </View>
+              <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 12, lineHeight: 18 }}>
+                Se detectaron los siguientes signos de alerta:
+              </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                {peeHealthAlert && meta.peeHealthZone?.label && (
+                  <View style={{ backgroundColor: c.danger + "30", borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <Text style={{ color: c.danger, fontWeight: "800", fontSize: 12 }}>
+                      💧 {meta.peeHealthZone.label}
+                    </Text>
+                  </View>
+                )}
+                {poopHealthAlert && meta.poopHealthZone?.label && (
+                  <View style={{ backgroundColor: c.danger + "30", borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <Text style={{ color: c.danger, fontWeight: "800", fontSize: 12 }}>
+                      💩 {meta.poopHealthZone.label}
+                    </Text>
+                  </View>
+                )}
+                {poopConsistencyAlert && meta.poopConsistencyZone?.label && (
+                  <View style={{ backgroundColor: c.danger + "30", borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <Text style={{ color: c.danger, fontWeight: "800", fontSize: 12 }}>
+                      💩 {meta.poopConsistencyZone.label}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
 
           {/* ─── PIPÍ ─── */}
           {(meta.peeIntensity > 0 || (meta.peeHealth ?? 0) > 0) && (

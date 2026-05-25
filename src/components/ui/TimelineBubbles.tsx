@@ -10,6 +10,7 @@ import type {
   SleepSession,
   Profile,
   EventType,
+  DiaperMetadata,
 } from "@/src/db/schema";
 import type {
   FeedingType,
@@ -96,6 +97,17 @@ function parseEventValues(values: string | null): Record<string, number> {
 function parseMetrics(json: string | null): EventMetric[] {
   if (!json) return [];
   try { const p = JSON.parse(json); return Array.isArray(p) ? p : []; } catch { return []; }
+}
+
+function hasDiaperAlert(meta: DiaperMetadata): boolean {
+  if (meta.peeHealthAlert || meta.poopHealthAlert || meta.poopConsistencyAlert) return true;
+  const ph = meta.peeHealth ?? 0;
+  const poh = meta.poopHealth ?? 0;
+  const pc = meta.poopConsistency;
+  if (ph >= 7) return true;
+  if (poh >= 5) return true;
+  if (pc === 1 || pc === 5) return true;
+  return false;
 }
 
 function BubbleFooter({
@@ -198,6 +210,9 @@ export function TimelineBubble({
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
         <Text style={{ fontSize: 22 }}>{emoji}</Text>
         <Text style={{ fontWeight: "900", fontSize: 14, color: c.textBody }}>{label}</Text>
+        {event.eventTypeId === "diaper" && meta && hasDiaperAlert(meta as DiaperMetadata) && (
+          <Text style={{ fontSize: 14 }}> 🚨</Text>
+        )}
       </View>
 
       {event.eventTypeId === "diaper" && meta && (
@@ -260,18 +275,26 @@ export function TimelineBubble({
           )}
 
           {(() => {
-            const healthAlertTags: { label: string }[] = [];
-            if (meta.peeHealthAlert) {
+            const healthAlertTags: { label: string; alert: boolean }[] = [];
+            const ph = meta.peeHealth ?? 0;
+            const poh = meta.poopHealth ?? 0;
+            const pc = meta.poopConsistency;
+
+            const isPeeAlert = meta.peeHealthAlert || ph >= 7;
+            const isPoopAlert = meta.poopHealthAlert || poh >= 5;
+            const isConsAlert = meta.poopConsistencyAlert || pc === 1 || pc === 5;
+
+            if (isPeeAlert) {
               const z = meta.peeHealthZone;
-              healthAlertTags.push({ label: `💧 ${z?.label ?? "Alerta"}` });
+              healthAlertTags.push({ label: `💧 ${z?.label ?? "Alerta"}`, alert: true });
             }
-            if (meta.poopHealthAlert) {
+            if (isPoopAlert) {
               const z = meta.poopHealthZone;
-              healthAlertTags.push({ label: `💩 ${z?.label ?? "Alerta"}` });
+              healthAlertTags.push({ label: `💩 ${z?.label ?? "Alerta"}`, alert: true });
             }
-            if (meta.poopConsistencyAlert) {
+            if (isConsAlert) {
               const z = meta.poopConsistencyZone;
-              healthAlertTags.push({ label: `💩 ${z?.label ?? "Alerta"}` });
+              healthAlertTags.push({ label: `💩 ${z?.label ?? "Alerta"}`, alert: true });
             }
 
             const hasObservations = (meta.observationIds?.length ?? 0) > 0;
@@ -318,7 +341,7 @@ export function TimelineBubble({
                 </View>
               );
             }
-            return <MetaTag label="✅ Sin alertas" color={c.success} bg={c.success + "20"} />;
+            return null;
           })()}
         </View>
       )}
