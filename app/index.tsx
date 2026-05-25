@@ -8,7 +8,7 @@ export default function Index() {
 
   useEffect(() => {
     AsyncStorage.getItem('onboarding_done').then((done) => {
-      setTarget(done ? '/dashboard' : '/onboarding/welcome');
+      setTarget(done ? '/(tabs)' : '/onboarding/welcome');
     });
   }, []);
 

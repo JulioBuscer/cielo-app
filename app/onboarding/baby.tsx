@@ -32,7 +32,7 @@ export default function BabySetup() {
         avatarEmoji,
         photoUri:    photoUri ?? undefined,
       } as any,
-      { onSuccess: () => router.replace('/dashboard') }
+      { onSuccess: () => router.replace('/(tabs)') }
     );
   };
 
