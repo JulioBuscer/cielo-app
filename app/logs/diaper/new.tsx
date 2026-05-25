@@ -35,7 +35,12 @@ const DEFAULT_PEE_INTENSITY = { min: 1, max: 4, zones: [
   { min: 3, max: 3, color: "#1E88E5", label: "Normal",    emoji: "💦" },
   { min: 4, max: 4, color: "#0D47A1", label: "Mucha",     emoji: "🌊" },
 ] };
-const DEFAULT_POOP_INTENSITY = { min: 0, max: 5, zones: [{ min: 1, max: 2, color: "#8B4513", label: "Poco" }, { min: 3, max: 4, color: "#654321", label: "Normal" }, { min: 5, max: 5, color: "#3E2723", label: "Mucho" }] };
+const DEFAULT_POOP_INTENSITY = { min: 1, max: 4, zones: [
+  { min: 1, max: 1, color: "#D2B48C", label: "Poquitita", emoji: "💩" },
+  { min: 2, max: 2, color: "#A0785A", label: "Poquita",   emoji: "💩" },
+  { min: 3, max: 3, color: "#8B6914", label: "Normal",    emoji: "💩" },
+  { min: 4, max: 4, color: "#5C4033", label: "Mucha",     emoji: "💩💩" },
+] };
 const DEFAULT_PEE_HEALTH = { enabled: true, min: 1, max: 8, zones: [
   { min: 1, max: 1, color: "#E8F5E9", label: "Transparente",  emoji: "💧" },
   { min: 2, max: 2, color: "#FFF9C4", label: "Amarillo claro", emoji: "💛" },
@@ -85,7 +90,7 @@ function ScaleMeter({
       )}
       <View style={{ flexDirection: "row", gap: 4, flexWrap: "wrap" }}>
         {steps.map((n) => {
-          const active = n <= value;
+          const active = n === value;
           const z = zoneFor(n);
           const bgColor = active && z ? z.color : c.card;
           return (
@@ -142,7 +147,7 @@ function MetricSlider({
       </Text>
       <View style={{ flexDirection: "row", gap: 4, flexWrap: "wrap" }}>
         {steps.map((n) => {
-          const active = n <= value;
+          const active = n === value;
           const z = metric.zones.find((z) => n >= z.min && n <= z.max);
           return (
             <TouchableOpacity

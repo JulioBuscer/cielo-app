@@ -247,10 +247,22 @@ export function TimelineBubble({
                       return null;
                     })()
                   : null;
-                const isAlert = ["blood", "mucus", "diarrhea"].includes(id);
                 const lbl = metricLabel ?? (obs ? `${obs.emoji} ${obs.label}` : id);
+                const zoneInfo = (() => {
+                  if (!obsValue || !obsMetrics.length) return null;
+                  const m = obsMetrics[0];
+                  const v = obsValue[m.id];
+                  if (v == null || !m.zones?.length) return null;
+                  const idx = m.zones.findIndex((z) => v >= z.min && v <= z.max);
+                  if (idx === -1) return null;
+                  const total = m.zones.length;
+                  if (idx === total - 1) return { color: c.danger, bg: c.danger + "20" };
+                  if (idx === 0) return { color: c.textMuted, bg: c.surface };
+                  return { color: c.warning, bg: c.warning + "20" };
+                })();
+                const tagStyle = zoneInfo ?? (obs?.isAlert ? { color: c.danger, bg: c.danger + "20" } : { color: c.textMuted, bg: c.surface });
                 return (
-                  <MetaTag key={id} label={lbl} color={isAlert ? c.danger : c.textMuted} bg={isAlert ? c.danger + "20" : c.surface} />
+                  <MetaTag key={id} label={lbl} color={tagStyle.color} bg={tagStyle.bg} />
                 );
               })}
             </View>

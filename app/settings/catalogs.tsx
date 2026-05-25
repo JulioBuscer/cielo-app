@@ -1220,11 +1220,12 @@ export default function CatalogsScreen() {
 
   // ─── Poop config ───
   const [poopIntensity, setPoopIntensity] = useState<ConfigRange & { zones: Zone[] }>({
-    min: 0, max: 5,
+    min: 1, max: 4,
     zones: [
-      { min: 1, max: 2, color: "#8B4513", label: "Poco" },
-      { min: 3, max: 4, color: "#654321", label: "Normal" },
-      { min: 5, max: 5, color: "#3E2723", label: "Mucho" },
+      { min: 1, max: 1, color: "#D2B48C", label: "Poquitita", emoji: "💩" },
+      { min: 2, max: 2, color: "#A0785A", label: "Poquita",   emoji: "💩" },
+      { min: 3, max: 3, color: "#8B6914", label: "Normal",    emoji: "💩" },
+      { min: 4, max: 4, color: "#5C4033", label: "Mucha",     emoji: "💩💩" },
     ],
   });
   const [poopHealth, setPoopHealth] = useState<HealthConfig>({
