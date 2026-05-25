@@ -473,6 +473,13 @@ export default function HomeScreen() {
               />
 
               <QuickBtn
+                emoji="📏"
+                label="Medir"
+                bgColor={c.growth}
+                onPress={() => router.push("/logs/growth/new")}
+                disabled={!!loadingType}
+              />
+              <QuickBtn
                 emoji="🍼"
                 label="Biberón"
                 bgColor={c.feeding.bottle}

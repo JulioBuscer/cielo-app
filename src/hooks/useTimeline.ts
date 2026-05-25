@@ -82,7 +82,7 @@ export function useSaveTimelineEvent() {
       babyId: string;
       eventTypeId: string;
       metadata?: Record<string, unknown>;
-      values?: Record<string, number>;
+      values?: Record<string, unknown>;
       notes?: string;
       timestamp?: Date;
       feedingSessionId?: string;
@@ -107,7 +107,7 @@ export function useSaveTimelineEvent() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['timeline', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['timeline', 'last', vars.babyId] });
-      // Peso/estatura guardados como timeline_event deben refrescar el perfil del bebé
+      qc.invalidateQueries({ queryKey: ['calendar', vars.babyId], refetchType: 'all' });
       if (vars.eventTypeId === 'weight' || vars.eventTypeId === 'height') {
         qc.invalidateQueries({ queryKey: ['growth_last', vars.babyId] });
         qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
