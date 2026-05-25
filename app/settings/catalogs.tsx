@@ -34,7 +34,7 @@ import { getUnit, getUnitsByDimension } from "@/src/units/registry";
 import { generateId } from "@/src/utils/id";
 
 const COLORS = ["#4CAF50", "#FFC107", "#FF9800", "#F44336", "#9C27B0", "#2196F3"];
-type Zone = { min: number; max: number; color: string; label: string; emoji?: string; isAlert?: boolean };
+type Zone = { min: number; max: number; color: string; label: string; emoji?: string; isAlert?: boolean; note?: string };
 
 function ZoneEditor({
   zones,
@@ -174,6 +174,24 @@ function ZoneEditor({
               }}
             />
           )}
+          <TextInput
+            value={z.note ?? ""}
+            onChangeText={(v) => {
+              const copy = [...zones];
+              copy[i] = { ...copy[i], note: v };
+              onChange(copy);
+            }}
+            placeholder="Nota médica (opcional, ej: Sangre fresca. Consulta al pediatra)"
+            placeholderTextColor={c.textMuted}
+            style={{
+              backgroundColor: c.card,
+              borderRadius: 8,
+              padding: 6,
+              color: c.textBody,
+              fontSize: 11,
+              flex: 1,
+            }}
+          />
         </View>
       ))}
       <TouchableOpacity

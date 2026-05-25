@@ -48,25 +48,25 @@ const DEFAULT_PEE_HEALTH = { enabled: true, min: 1, max: 8, zones: [
   { min: 4, max: 4, color: "#FFB300", label: "Amarillo oscuro", emoji: "🟡" },
   { min: 5, max: 5, color: "#FF8F00", label: "Ámbar",         emoji: "🟠" },
   { min: 6, max: 6, color: "#E65100", label: "Naranja",       emoji: "🟠" },
-  { min: 7, max: 7, color: "#BF360C", label: "Anaranjado rojizo", emoji: "🔶", isAlert: true },
-  { min: 8, max: 8, color: "#8D6E63", label: "Café/Rojizo",   emoji: "🚨", isAlert: true },
+  { min: 7, max: 7, color: "#BF360C", label: "Anaranjado rojizo", emoji: "🔶", isAlert: true, note: "Podría ser sangre o pigmentos. Observa y consulta si persiste." },
+  { min: 8, max: 8, color: "#8D6E63", label: "Café/Rojizo",   emoji: "🚨", isAlert: true, note: "Posible sangre. Consulta con tu pediatra." },
 ] };
 const DEFAULT_POOP_HEALTH = { enabled: true, min: 1, max: 8, zones: [
   { min: 1, max: 1, color: "#8BC34A", label: "Verde",   emoji: "🟢" },
   { min: 2, max: 2, color: "#FFC107", label: "Amarillo", emoji: "🟡" },
   { min: 3, max: 3, color: "#8B4513", label: "Marrón",  emoji: "🟤" },
   { min: 4, max: 4, color: "#E65100", label: "Naranja", emoji: "🟠" },
-  { min: 5, max: 5, color: "#9E9E9E", label: "Arcilla", emoji: "🩻",  isAlert: true },
-  { min: 6, max: 6, color: "#B71C1C", label: "Rojo",    emoji: "💉",  isAlert: true },
-  { min: 7, max: 7, color: "#212121", label: "Negro",   emoji: "⚫",  isAlert: true },
-  { min: 8, max: 8, color: "#EEEEEE", label: "Blanco",  emoji: "⚪",  isAlert: true },
+  { min: 5, max: 5, color: "#9E9E9E", label: "Arcilla", emoji: "🩻",  isAlert: true, note: "Poco común. Podría indicar problema hepático. Consulta con tu pediatra." },
+  { min: 6, max: 6, color: "#B71C1C", label: "Rojo",    emoji: "💉",  isAlert: true, note: "Sangre fresca. Puede ser fisura o alergia. Consulta con tu pediatra." },
+  { min: 7, max: 7, color: "#212121", label: "Negro",   emoji: "⚫",  isAlert: true, note: "Sangre digerida (excepto meconio en recién nacidos). Consulta con tu pediatra." },
+  { min: 8, max: 8, color: "#EEEEEE", label: "Blanco",  emoji: "⚪",  isAlert: true, note: "Puede indicar obstrucción biliar. Consulta con tu pediatra lo antes posible." },
 ] };
 const DEFAULT_POOP_CONSISTENCY = { min: 1, max: 5, zones: [
-  { min: 1, max: 1, color: "#6D4C41", label: "Dura",   emoji: "💎", isAlert: true },
+  { min: 1, max: 1, color: "#6D4C41", label: "Dura",   emoji: "💎", isAlert: true, note: "Estreñimiento. Ofrece más líquidos, consulta si persiste." },
   { min: 2, max: 2, color: "#8D6E63", label: "Sólida", emoji: "🍫" },
   { min: 3, max: 3, color: "#A1887F", label: "Pastosa", emoji: "🥜" },
   { min: 4, max: 4, color: "#BCAAA4", label: "Líquida", emoji: "💧" },
-  { min: 5, max: 5, color: "#EF5350", label: "Acuosa",  emoji: "🌊", isAlert: true },
+  { min: 5, max: 5, color: "#EF5350", label: "Acuosa",  emoji: "🌊", isAlert: true, note: "Posible diarrea. Vigila signos de deshidratación." },
 ] };
 
 function ScaleMeter({
@@ -288,7 +288,7 @@ export default function DiaperDetailScreen() {
   const poopConsistencyAlert = !!(meta.poopConsistencyAlert ?? (meta.poopConsistency === 1 || meta.poopConsistency === 5));
   const anyAlert = peeHealthAlert || poopHealthAlert || poopConsistencyAlert;
 
-  const findZone = (cfg: { zones: { min: number; max: number; emoji?: string; label: string; isAlert?: boolean }[] }, value: number) =>
+  const findZone = (cfg: { zones: { min: number; max: number; emoji?: string; label: string; isAlert?: boolean; note?: string }[] }, value: number) =>
     cfg.zones.find((z) => value >= z.min && value <= z.max);
 
   const toggleObs = (obs: DiaperObservation) => {
@@ -345,9 +345,9 @@ export default function DiaperDetailScreen() {
           poopConsistency,
           peeIntensityZone: peeIntensityZone ? { emoji: peeIntensityZone.emoji ?? "", label: peeIntensityZone.label } : null,
           poopIntensityZone: poopIntensityZone ? { emoji: poopIntensityZone.emoji ?? "", label: poopIntensityZone.label } : null,
-          peeHealthZone: peeHealthZone ? { emoji: peeHealthZone.emoji ?? "", label: peeHealthZone.label, isAlert: peeHealthZone.isAlert } : null,
-          poopHealthZone: poopHealthZone ? { emoji: poopHealthZone.emoji ?? "", label: poopHealthZone.label, isAlert: poopHealthZone.isAlert } : null,
-          poopConsistencyZone: poopConsistencyZone ? { emoji: poopConsistencyZone.emoji ?? "", label: poopConsistencyZone.label, isAlert: poopConsistencyZone.isAlert } : null,
+          peeHealthZone: peeHealthZone ? { emoji: peeHealthZone.emoji ?? "", label: peeHealthZone.label, isAlert: peeHealthZone.isAlert, note: peeHealthZone.note } : null,
+          poopHealthZone: poopHealthZone ? { emoji: poopHealthZone.emoji ?? "", label: poopHealthZone.label, isAlert: poopHealthZone.isAlert, note: poopHealthZone.note } : null,
+          poopConsistencyZone: poopConsistencyZone ? { emoji: poopConsistencyZone.emoji ?? "", label: poopConsistencyZone.label, isAlert: poopConsistencyZone.isAlert, note: poopConsistencyZone.note } : null,
           peeHealthAlert: !!peeHealthZone?.isAlert,
           poopHealthAlert: !!poopHealthZone?.isAlert,
           poopConsistencyAlert: !!poopConsistencyZone?.isAlert,
@@ -366,9 +366,9 @@ export default function DiaperDetailScreen() {
         poopConsistency,
         peeIntensityZone: peeIntensityZone ? { emoji: peeIntensityZone.emoji ?? "", label: peeIntensityZone.label } : null,
         poopIntensityZone: poopIntensityZone ? { emoji: poopIntensityZone.emoji ?? "", label: poopIntensityZone.label } : null,
-        peeHealthZone: peeHealthZone ? { emoji: peeHealthZone.emoji ?? "", label: peeHealthZone.label, isAlert: peeHealthZone.isAlert } : null,
-        poopHealthZone: poopHealthZone ? { emoji: poopHealthZone.emoji ?? "", label: poopHealthZone.label, isAlert: poopHealthZone.isAlert } : null,
-        poopConsistencyZone: poopConsistencyZone ? { emoji: poopConsistencyZone.emoji ?? "", label: poopConsistencyZone.label, isAlert: poopConsistencyZone.isAlert } : null,
+        peeHealthZone: peeHealthZone ? { emoji: peeHealthZone.emoji ?? "", label: peeHealthZone.label, isAlert: peeHealthZone.isAlert, note: peeHealthZone.note } : null,
+        poopHealthZone: poopHealthZone ? { emoji: poopHealthZone.emoji ?? "", label: poopHealthZone.label, isAlert: poopHealthZone.isAlert, note: poopHealthZone.note } : null,
+        poopConsistencyZone: poopConsistencyZone ? { emoji: poopConsistencyZone.emoji ?? "", label: poopConsistencyZone.label, isAlert: poopConsistencyZone.isAlert, note: poopConsistencyZone.note } : null,
         peeHealthAlert: !!peeHealthZone?.isAlert,
         poopHealthAlert: !!poopHealthZone?.isAlert,
         poopConsistencyAlert: !!poopConsistencyZone?.isAlert,
@@ -521,6 +521,12 @@ export default function DiaperDetailScreen() {
                   </View>
                 </View>
               )}
+              {meta.peeHealthZone?.note && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.danger + "12", borderRadius: 10, padding: 8 }}>
+                  <Text style={{ fontSize: 14 }}>🚨</Text>
+                  <Text style={{ flex: 1, fontSize: 11, fontWeight: "600", color: c.textBody, lineHeight: 16 }}>{meta.peeHealthZone.note}</Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -552,6 +558,12 @@ export default function DiaperDetailScreen() {
                   </View>
                 </View>
               )}
+              {meta.poopConsistencyZone?.note && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.danger + "12", borderRadius: 10, padding: 8 }}>
+                  <Text style={{ fontSize: 14 }}>🚨</Text>
+                  <Text style={{ flex: 1, fontSize: 11, fontWeight: "600", color: c.textBody, lineHeight: 16 }}>{meta.poopConsistencyZone.note}</Text>
+                </View>
+              )}
               {meta.poopHealthZone?.label && (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <Text style={{ fontSize: 18 }}>{meta.poopHealthZone.emoji || "🎨"}</Text>
@@ -561,6 +573,12 @@ export default function DiaperDetailScreen() {
                       {meta.poopHealthZone.label}
                     </Text>
                   </View>
+                </View>
+              )}
+              {meta.poopHealthZone?.note && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.danger + "12", borderRadius: 10, padding: 8 }}>
+                  <Text style={{ fontSize: 14 }}>🚨</Text>
+                  <Text style={{ flex: 1, fontSize: 11, fontWeight: "600", color: c.textBody, lineHeight: 16 }}>{meta.poopHealthZone.note}</Text>
                 </View>
               )}
             </View>

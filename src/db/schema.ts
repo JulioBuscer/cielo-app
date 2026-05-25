@@ -164,6 +164,7 @@ export interface ObservationZone {
   color: string;
   label: string;
   emoji: string;
+  note?: string;
 }
 
 export interface ObservationMetric {
@@ -217,9 +218,9 @@ export interface DiaperMetadata {
   poopConsistency:     number;
   peeIntensityZone?:   { emoji: string; label: string } | null;
   poopIntensityZone?:  { emoji: string; label: string } | null;
-  peeHealthZone?:      { emoji: string; label: string; isAlert?: boolean } | null;
-  poopHealthZone?:     { emoji: string; label: string; isAlert?: boolean } | null;
-  poopConsistencyZone?:{ emoji: string; label: string; isAlert?: boolean } | null;
+  peeHealthZone?:      { emoji: string; label: string; isAlert?: boolean; note?: string } | null;
+  poopHealthZone?:     { emoji: string; label: string; isAlert?: boolean; note?: string } | null;
+  poopConsistencyZone?:{ emoji: string; label: string; isAlert?: boolean; note?: string } | null;
   peeHealthAlert?:     boolean;
   poopHealthAlert?:    boolean;
   poopConsistencyAlert?: boolean;
