@@ -518,6 +518,13 @@ export default function TimelineScreen() {
                 <Text style={{ fontSize: 14 }}>⏱</Text>
                 <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "700" }}>Rezagada</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push("/resources")}
+                style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 99, backgroundColor: c.elevated, minHeight: 36 }}
+              >
+                <Text style={{ fontSize: 14 }}>📖</Text>
+                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "700" }}>Recursos</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
