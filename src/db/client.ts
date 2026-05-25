@@ -300,9 +300,15 @@ export async function runMigrations() {
     `);
   }
 
-  // Seed diaper_observations
+  // Seed/update diaper_observations (no-destructivo: actualiza system, ignora custom)
   for (const obs of DEFAULT_DIAPER_OBSERVATIONS) {
     const isAlert = obs.isAlert ? 1 : 0;
+    // Actualizar métricas de observaciones system existentes
+    await _raw.execAsync(
+      `UPDATE diaper_observations SET emoji='${obs.emoji}', label='${obs.label}', is_alert=${isAlert}, metrics='${obs.metrics}'
+       WHERE id='${obs.id}' AND is_system=1;`
+    );
+    // Insertar si no existe (nuevas observaciones system)
     await _raw.execAsync(
       `INSERT OR IGNORE INTO diaper_observations (id, emoji, label, is_system, is_alert, metrics, sort_order, active, created_at)
        VALUES ('${obs.id}', '${obs.emoji}', '${obs.label}', 1, ${isAlert}, '${obs.metrics}', 0, 1, ${now});`
