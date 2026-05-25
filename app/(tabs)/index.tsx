@@ -33,6 +33,7 @@ import {
   useSaveTimelineEvent,
   useEventTypes,
 } from "@/src/hooks/useTimeline";
+import { useWakeWindows, getWakeReference } from "@/src/hooks/useWakeWindows";
 import { ActiveFeedingCard } from "@/src/components/ui/ActiveFeedingCard";
 import { ActiveSleepCard } from "@/src/components/ui/ActiveSleepCard";
 import { BottleSubtypeModal } from "@/src/components/ui/BottleSubtypeModal";
@@ -194,6 +195,23 @@ export default function HomeScreen() {
   const babyAvatar = (baby as any)?.avatarEmoji ?? "👶";
   const babyPhotoUri = baby?.photoUri ?? null;
 
+  const wakeWindows = useWakeWindows(
+    sleepHistory?.filter((s) => s.status === "finished") ?? [],
+    baby ? new Date(baby.birthDate) : null,
+  );
+  const wakeMap = useMemo(() => {
+    const m = new Map<string, { durationMs: number; windowIndex: number; expectedMin: number; expectedMax: number }>();
+    for (const ww of wakeWindows) {
+      m.set(ww.nextSleepId, {
+        durationMs: ww.durationMs,
+        windowIndex: ww.windowIndex,
+        expectedMin: getWakeReference(baby ? Math.floor((Date.now() - new Date(baby.birthDate).getTime()) / 86400000) : 0).minMin,
+        expectedMax: getWakeReference(baby ? Math.floor((Date.now() - new Date(baby.birthDate).getTime()) / 86400000) : 0).maxMin,
+      });
+    }
+    return m;
+  }, [wakeWindows, baby]);
+
   type TLItem =
     | { kind: "event"; data: NonNullable<typeof tlEvents>[0]; ts: number }
     | { kind: "session"; data: NonNullable<typeof sessions>[0]; ts: number }
@@ -315,6 +333,7 @@ export default function HomeScreen() {
     }
     if (item.kind === "sleep") {
       const isOwn = item.data.profileId === profile?.id;
+      const prevWW = wakeMap.get(item.data.id);
       return (
         <SleepSessionBubble
           session={item.data}
@@ -322,6 +341,7 @@ export default function HomeScreen() {
           isFirstInGroup={isFirstInGroup}
           profile={isOwn ? undefined : itemProfile}
           onPress={() => router.push(`/logs/sleep/${item.data.id}`)}
+          prevWakeWindow={prevWW ?? null}
         />
       );
     }

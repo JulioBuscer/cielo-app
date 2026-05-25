@@ -490,13 +490,14 @@ export function FeedingSessionBubble({
 }
 
 export function SleepSessionBubble({
-  session, isOwn, isFirstInGroup, profile, onPress,
+  session, isOwn, isFirstInGroup, profile, onPress, prevWakeWindow,
 }: {
   session: SleepSession;
   isOwn: boolean;
   isFirstInGroup: boolean;
   profile?: Profile;
   onPress?: () => void;
+  prevWakeWindow?: { durationMs: number; windowIndex: number; expectedMin: number; expectedMax: number } | null;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -537,6 +538,28 @@ export function SleepSessionBubble({
           <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 12 }}>💤 {formatDuration(session.durationSec)}</Text>
         </View>
       )}
+
+      {prevWakeWindow && (() => {
+        const totalMin = Math.round(prevWakeWindow.durationMs / 60000);
+        const expectedMin = prevWakeWindow.expectedMin;
+        const expectedMax = prevWakeWindow.expectedMax;
+        const inRange = totalMin >= expectedMin && totalMin <= expectedMax;
+        const tooLong = totalMin > expectedMax;
+        const label = `${totalMin}m`.replace(/(\d+)m/, (_, m) => { const h = Math.floor(+m/60); const r = +m%60; return h>0 ? `${h}h ${r}m` : `${r}m`; });
+        const statusEmoji = inRange ? "✅" : tooLong ? "⚠️" : "⚡";
+        const statusText = tooLong
+          ? "Posible sobrecansancio"
+          : totalMin < expectedMin
+            ? "Ventana muy corta"
+            : "En rango";
+        return (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4, marginBottom: 4 }}>
+            <Text style={{ fontSize: 11, color: inRange ? "#10B981" : tooLong ? "#F59E0B" : "#6366F1", fontWeight: "700" }}>
+              ⏱ Ventana {label} · Esperado: {Math.floor(expectedMin/60)}h-{Math.floor(expectedMax/60)}h {statusEmoji}
+            </Text>
+          </View>
+        );
+      })()}
 
       {session.notes && (
         <Text style={{ fontSize: 14, color: c.textBody, marginTop: 2 }}>{session.notes}</Text>
