@@ -105,3 +105,36 @@ médica**, porque ninguna escala médica para esto existe.
 > orinó 10 veces, con un gap máximo de 2.5h" y sentirse segura aunque solo 3 de
 > esos hayan sido normales. La frecuencia y el gap son mejores indicadores de
 > hidratación que la intensidad.
+
+## Escalas de popó: sangre y moco
+
+Para APLV (Alergia a la Proteína de Leche de Vaca), se añadieron escalas
+granulares basadas en la experiencia de una mamá que documenta en WhatsApp:
+
+### Sangre (3 niveles)
+
+| Nivel | Nombre | Emoji | Implicación |
+|-------|--------|-------|-------------|
+| 1 | Puntito | 🩸 | Mínima, apenas visible. Seguimiento de tolerancia. |
+| 2 | Hilito | 🩸 | Rastro pequeño, marrón/rojizo. Exposición baja. |
+| 3 | Abundante | 🚨 | Sangre visible en toda la popó. Llamar al pediatra. |
+
+### Moco (4 niveles)
+
+| Nivel | Nombre | Emoji | Señal |
+|-------|--------|-------|-------|
+| 1 | Mínima | 🔬 | Hilos apenas visibles. Remisión. |
+| 2 | Poca | 🤧 | Moco visible pero escaso. Exposición leve. |
+| 3 | Moderada | 😷 | Moco evidente. Reacción activa. |
+| 4 | Excesiva | 💦 | Moco cubre la popó. Valorar llamar al pediatra. |
+
+### Notas
+
+- Los tags de sangre y moco se guardan en `observationIds` + `observationValues`
+  (para la intensidad numérica) en el metadata del evento de pañal.
+- El catálogo `diaper_observations` permite que cada familia agregue sus
+  propias observaciones custom desde `settings/catalogs.tsx`.
+- Las observaciones con `is_alert: true` se renderizan en rojo en la burbuja.
+- Con la alimentación complementaria (~6 meses), la consistencia y color
+  variarán naturalmente — el app permite notas libres para registrar
+  "Alimento nuevo: huevo → moco 2 + hilito".

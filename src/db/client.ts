@@ -38,21 +38,23 @@ const DEFAULT_DIAPER_OBSERVATIONS = [
   {
     id: 'blood',    emoji: '🩸', label: 'Sangre',    isAlert: true,
     metrics: JSON.stringify([
-      { id: 'intensity', name: 'Intensidad', scaleMin: 1, scaleMax: 10,
+      { id: 'intensity', name: 'Intensidad', scaleMin: 1, scaleMax: 3,
         zones: [
-          { min: 1,  max: 3,  color: '#4CAF50', label: 'Leve',       emoji: '🩸' },
-          { min: 4,  max: 7,  color: '#FFC107', label: 'Moderado',   emoji: '🔴' },
-          { min: 8,  max: 10, color: '#F44336', label: 'Severo',     emoji: '🚨' },
+          { min: 1, max: 1, color: '#FF9800', label: 'Puntito',   emoji: '🩸' },
+          { min: 2, max: 2, color: '#FF5722', label: 'Hilito',    emoji: '🩸' },
+          { min: 3, max: 3, color: '#D32F2F', label: 'Abundante', emoji: '🚨' },
         ] },
     ]),
   },
   {
     id: 'mucus',    emoji: '🤧', label: 'Mucosidad', isAlert: true,
     metrics: JSON.stringify([
-      { id: 'default', name: 'Cantidad', scaleMin: 1, scaleMax: 10,
+      { id: 'default', name: 'Cantidad', scaleMin: 1, scaleMax: 4,
         zones: [
-          { min: 1,  max: 5,  color: '#4CAF50', label: 'Poca',       emoji: '🤧' },
-          { min: 6,  max: 10, color: '#FFC107', label: 'Excesiva',   emoji: '💦' },
+          { min: 1, max: 1, color: '#C8E6C9', label: 'Mínima',  emoji: '🔬' },
+          { min: 2, max: 2, color: '#FFE082', label: 'Poca',     emoji: '🤧' },
+          { min: 3, max: 3, color: '#FFB74D', label: 'Moderada', emoji: '😷' },
+          { min: 4, max: 4, color: '#EF5350', label: 'Excesiva', emoji: '💦' },
         ] },
     ]),
   },
