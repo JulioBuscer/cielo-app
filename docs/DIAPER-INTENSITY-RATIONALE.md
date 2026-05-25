@@ -138,3 +138,27 @@ granulares basadas en la experiencia de una mamá que documenta en WhatsApp:
 - Con la alimentación complementaria (~6 meses), la consistencia y color
   variarán naturalmente — el app permite notas libres para registrar
   "Alimento nuevo: huevo → moco 2 + hilito".
+
+## Escala de color de heces (popómetro)
+
+Escala visible por defecto en el formulario de pañal, con 5 colores clínicamente
+significativos:
+
+| Valor | Color | Emoji | Interpretación |
+|-------|-------|-------|----------------|
+| 1 | Amarilla | 💛 | Normal en lactancia materna |
+| 2 | Café | 🤎 | Normal, especialmente con fórmula o sólidos |
+| 3 | Verde | 💚 | Variante normal (47% de bebés sanos lo presentan). Solo alerta si va acompañado de moco/sangre/diarrea. |
+| 4 | Naranja | 🟠 | Normal con sólidos (betacaroteno: zanahoria, camote, etc.) |
+| 5 | Alerta | 🚨 | Rojo (sangre), Negro (sangre digerida, después de meconio), Blanco (hígado). Requiere consulta. |
+
+Los colores de alerta (5) se complementan con los tags de observación `blood`
+(con sus 3 niveles de intensidad) y otros tags que el usuario agregue.
+
+### Referencias
+
+- AAP: "Green is a variant of normal, so it's not usually something we need to
+  be too concerned about." — [NY Presbyterian](https://www.nyp.org/healthmatters/what-to-know-about-baby-poop-colors)
+- Estudio HELMi (2024): 47% de 1052 bebés sanos presentaron heces verdes al
+  menos 1 semana. — [European Journal of Pediatrics](https://link.springer.com/article/10.1007/s00431-024-05625-0)
+- Mayo Clinic: guía de colores — solo alerta rojo, negro (posmeconio), blanco. — [Mayo Clinic](https://www.mayoclinic.org/healthy-lifestyle/infant-and-toddler-health/expert-answers/baby-poop/faq-20057971)

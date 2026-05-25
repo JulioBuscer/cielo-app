@@ -32,7 +32,13 @@ import type { DiaperObservation, ObservationMetric } from "@/src/db/schema";
 const DEFAULT_PEE_INTENSITY = { min: 1, max: 8, zones: [{ min: 1, max: 3, color: "#4CAF50", label: "Saludable" }, { min: 4, max: 6, color: "#FFC107", label: "Precaución" }, { min: 7, max: 8, color: "#F44336", label: "Alerta" }] };
 const DEFAULT_POOP_INTENSITY = { min: 0, max: 5, zones: [{ min: 1, max: 2, color: "#8B4513", label: "Poco" }, { min: 3, max: 4, color: "#654321", label: "Normal" }, { min: 5, max: 5, color: "#3E2723", label: "Mucho" }] };
 const DEFAULT_PEE_HEALTH = { enabled: false, min: 1, max: 8, zones: [] };
-const DEFAULT_POOP_HEALTH = { enabled: false, min: 1, max: 8, zones: [] };
+const DEFAULT_POOP_HEALTH = { enabled: true, min: 1, max: 5, zones: [
+  { min: 1, max: 1, color: "#D4A373", label: "Amarilla", emoji: "💛" },
+  { min: 2, max: 2, color: "#8B6914", label: "Café",     emoji: "🤎" },
+  { min: 3, max: 3, color: "#66BB6A", label: "Verde",    emoji: "💚" },
+  { min: 4, max: 4, color: "#FF9800", label: "Naranja",  emoji: "🟠" },
+  { min: 5, max: 5, color: "#B71C1C", label: "Alerta",   emoji: "🚨" },
+] };
 
 function ScaleMeter({
   value,
@@ -365,8 +371,8 @@ export default function DiaperNewScreen() {
           />
           {poopHealthCfg.enabled && (
             <ScaleMeter
-              label="Popómetro (color de heces)"
-              emoji="🔬"
+              label="Color"
+              emoji="🎨"
               value={poopHealth}
               onChange={setPoopHealth}
               min={poopHealthCfg.min}
