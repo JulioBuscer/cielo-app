@@ -30,13 +30,23 @@ Fila circular one-hand:
 [🤱 Pecho] [🍼 Leche] [💧 Pañal] [😴 Sueño] [📏 Medir] [+]
 ```
 
-- `📏 Medir` reemplaza weight/height/head_circumference como eventos sueltos
+- `📏 Medir` unifica peso + talla + CC + fotos (múltiples imágenes) en un solo formulario
 - `[+]` = "otro" → menú expandido con: 🛁 Baño, 🤸 Tummy Time, 🎮 Juego, 🤮 Vómito, 💊 Meds, 🌡️ Temp, 📝 Nota
 - Los más usados se reordenan solos (o el usuario los personaliza desde Perfil)
 
 ---
 
-## 3. Sección "Análisis" — estructura completa
+## 3. Migración de eventos viejos
+
+Los eventos existentes de tipo `weight`, `height`, `head_circumference` se migran a un solo evento `measurement`:
+- Eventos en el mismo minuto se fusionan en una sola medición
+- Eventos solitarios se convierten a `measurement` con solo ese valor
+- Peso inicial de nacimiento del perfil del bebé se migra como primera medición
+- Migración one-time, ejecutada al abrir la app después de la actualización
+
+---
+
+## 4. Sección "Análisis" — estructura completa
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -47,200 +57,198 @@ Fila circular one-hand:
 └──────────────────────────────────────────────┘
 ```
 
-### 📅 Calendario (inspirado en Flo)
-- Vista **mensual** con dots de colores (💧💩🤱😴📏) en cada día
-- Tap en un día → cards apiladas de ese día (resumen + eventos)
-- Vista **semanal** (swipe horizontal)
-- Vista **diaria** → timeline vertical de ese día
-- **Patrones visuales**: detecta rachas (3 días sin popó → posible estreñimiento)
-- Navegación: deslizar entre meses, botón "Hoy"
+### 📅 Calendario (vista mensual)
+- Vista **mensual** con dots de colores (💧💩🤱😴📏🛁🤮) en cada día
+- Tap en un día → sheet con resumen numérico + timeline vertical de ese día
+- Navegación: swipe entre meses, botón "Hoy"
+- **Patrones visuales**: detecta rachas (3 días sin popó, X popós líquidas seguidas)
 
 ### 📊 Resumen del día / semana / mes
-Selector arriba: [Hoy] [7 días] [30 días] [Personalizado]
+Selector: [Hoy] [7 días] [30 días]
 
 **Hoy:**
 - 🧮 Pañales: X mojados · Y sucios · Z totales
-- 🤱 Pecho: X sesiones · Y min total · Z min promedio
+- 🤱 Pecho: X sesiones · Y min total
 - 🍼 Fórmula: X ml total
-- 😴 Sueño: Xh Ym total · última ventana Xh
-- 📏 Última medición: X kg · Y cm
+- 😴 Sueño: Xh Ym total · última ventana Xh (comparada con esperado para su edad)
+- 📏 Última medición: X kg · Y cm · Z cm CC
 
-**7 días (tendencias):**
-- Mini gráfica de pañales mojados/día
-- Horas sueño promedio
-- Número de tomas/día
-- ⚠️ Alertas: "Baby tuvo X popós líquidas en Y días"
-
-**30 días (patrones generales):**
-- Curva de peso (si hay suficientes mediciones)
-- Patrón de sueño (se duerme más tarde? más siestas?)
-- Comparativa períodos
+**7 días:** mini gráficas de tendencias, alertas de patrón
+**30 días:** curvas, comparativas, patrones generales
 
 ### 📈 Curvas de Crecimiento (OMS)
-- Peso/edad (0-24m o 0-5a según edad)
-- Talla/edad
-- CC/edad
-- IMC/edad
-- Percentiles marcados en la curva
-- **Fotos de crecimiento**: timeline visual con fotos del bebé en cada medición
+- Peso/edad, Talla/edad, CC/edad, IMC/edad
+- Percentiles
+- Fotos de crecimiento (múltiples por medición) en timeline visual
 
 ### 📋 Historial completo
-- Lista de TODOS los eventos, ordenados por fecha descendente
-- **Filtros**: por tipo (pañal/toma/sueño/medición/actividad/salud), por fecha, por texto
-- Tap → detail page
-- **Búsqueda** por texto en notas
+- Todos los eventos, filtrable por tipo, fecha, texto
+- Búsqueda
 
-### 📤 Exportar / Compartir
-- Reporte resumen para pediatra (PDF)
-- Período seleccionable
-- Incluye: resumen de pañales, alimentación, sueño, curva de crecimiento
+### 📤 Exportar
+- Reporte PDF para pediatra
 
 ---
 
-## 4. Dominios de datos (todos los tipos de evento)
+## 5. Ventanas de sueño (Wake Windows) — Automáticas
 
-### 4.1 🍼 Alimentación
-| Subtipo | Datos | Estado |
-|---------|-------|--------|
-| 🤱 Pecho | Izquierdo/derecho, duración, cuál terminó | ✅ |
-| 🍼 Fórmula | Volumen ml, marca, preparación | ✅ |
-| 🥣 **Complementaria** | Alimento, grupo, cantidad, reacción | 🆕 |
-| 🥜 **Alérgenos** | Cuál, fecha, reacción, nivel exposición | 🆕 |
+### Fuentes consultadas
+- Cleveland Clinic (Dr. Barrett, pediatra)
+- National Sleep Foundation
+- HealthyChildren.org (AAP)
+- Sleep.com (expertos en sueño pediátrico)
+- Mustela USA (revisión médica)
+- Dr. Craig Canapari, MD (director del Yale Pediatric Sleep Center)
 
-**Complementaria — estructura de alimentos:**
-- **Grupos**: frutas, verduras, proteínas, cereales, lácteos, legumbres
-- **Propiedades**: laxante, astringente, ambos, neutro
-- **Seguimiento**: primera vez, aceptación, textura (puré/triturado/sólido)
-- **Alérgenos mayores**: huevo, pescado, mariscos, cacahuate, nueces, soya, trigo, leche — llevar registro de cuándo se introdujo cada uno y reacción
-
-### 4.2 😴 Sueño
-| Dato | Estado |
-|------|--------|
-| Inicio/fin de sesión | ✅ |
-| Ventanas de sueño (wake windows) | 🆕 |
-| Calidad (inquieto/tranquilo) | 🆕 |
-| Patrón semanal | 🆕 |
-| Cómputo automático de ventanas entre sesiones | 🆕 |
-
-### 4.3 💧 Pañal
-| Dato | Estado |
-|------|--------|
-| Pipí intensidad + color | ✅ |
-| Popó intensidad + color + consistencia | ✅ |
-| Observaciones (sangre, moco) | ✅ |
-| Peso del pañal | ✅ |
-| Foto | ✅ |
-
-### 4.4 📏 Crecimiento
-| Dato | Estado |
-|------|--------|
-| Peso | ✅ (separado) |
-| Talla | ✅ (separado) |
-| CC | ✅ (separado) |
-| **Unificado 📏** | 🆕 |
-| Curva OMS | 🆕 |
-| Fotos de crecimiento | 🆕 |
-
-### 4.5 🛁 Actividades
-| Tipo | Datos |
-|------|-------|
-| Tummy Time | Duración, estado (feliz/lloró), foto |
-| Baño | Duración, productos usados |
-| Juego | Tipo, con quién |
-| Paseo | Duración, clima |
-| **Hitos** | Cuál, fecha, descripción, foto (ej: "rodó por primera vez") |
-
-### 4.6 🤮 Salud
-| Tipo | Datos |
-|------|-------|
-| Temperatura | °C, método, síntomas |
-| Medicamento | Nombre, dosis, vía |
-| Vómito | Cantidad, aspecto |
-| Síntomas | Tos, congestión, erupción, etc. |
-| Dentición | Cuál diente, fecha, molestias |
-
----
-
-## 5. Calendario — vista unificada
-
-El calendario es el **corazón de Análisis**. Muestra todo en un solo vistazo:
-
-**Vista mensual:**
+### Cálculo automático
 ```
-     Abril 2026
-  L  M  M  J  V  S  D
-          1  2  3  4  5
-  ●● ●  ●  ●  ●● ●● ●
-  6  7  8  9  10 11 12
-  ●  ●● ●  ●  ●  ●  ●
+wake_window = inicio_siguiente_sueño - fin_anterior_sueño
+```
+Se calcula automáticamente entre sesiones de sueño registradas. Si solo hay una sesión, no se muestra ventana (comparamos con "ahora" para la ventana actual).
+
+### Tabla de referencia por edad (consolidada de fuentes)
+
+| Edad | Ventana esperada | Siestas/día | Sueño total/24h |
+|------|-----------------|-------------|-----------------|
+| 0-4 semanas | 35-60 min | 6+ | 15-18h |
+| 1-2 meses | 60-90 min | 4-5 | 15-18h |
+| 3-4 meses | 75-120 min (1.25-2h) | 3-4 | 14-15h |
+| 5-7 meses | 2-3h | 3 | 14-15h |
+| 7-10 meses | 2.5-3.5h | 2-3 | 13-14h |
+| 11-14 meses | 3-4.5h | 1-2 | 12-14h |
+| 14-24 meses | 4-6h | 1 | 12-14h |
+| 2+ años | 5-7h si siesta | 0-1 | 11-13h |
+
+### Display
+```
+😴 Ventana de sueño
+   · 2h 15m · Esperado: 2h - 3h ✅
+   · Antes de siesta #2
+   
+😴 Ventana de sueño  
+   · 4h 30m · Esperado: 2.5h - 3.5h ⚠️
+   · Posible sobrecansancio
 ```
 
-Cada día tiene dots de colores:
-- 💧 azul = pipí
-- 💩 marrón = popó
-- 🤱 rosa = pecho
-- 🍼 naranja = fórmula/biberón
-- 😴 azul oscuro = sueño
-- 📏 verde = medición
-- 🛁 celeste = baño/actividad
-- 🤮 rojo = salud/meds
-
-**Tap en día** → sheet con:
-- Resumen numérico del día
-- Timeline vertical con los eventos
-
-**Doble tap** → detalle completo del día
-
-**Vista semana**: swipe horizontal, 7 columnas con eventos apilados
-
-**Vista año**: heatmap (como GitHub contributions pero con colores de eventos)
+### Notas importantes
+- La primera ventana del día suele ser la más corta
+- La última ventana (antes de dormir) es la más larga
+- Si la siesta fue corta (<45min), la siguiente ventana se acorta
+- Mostrar siempre como "referencia", no como regla estricta
+- Fuente: Cleveland Clinic, AAP, National Sleep Foundation
 
 ---
 
-## 6. Estrategia de implementación (por fases)
+## 6. Alimentación complementaria
 
-### Fase 1 — Base (ahora)
-- ✅ Bottom navigation (3 tabs)
-- ✅ Quick actions: +📏 (unificar peso/talla/CC)
-- ✅ Eliminar weight/height/CC como eventos sueltos
-- ✅ Análisis con subtabs: [📅 Calendario] [📊 Resumen] [📈 Curvas]
-- ✅ Resumen del día con contadores
-- ✅ Formulario 📏 Medir
+### Catálogo precargado (OMS/ESPGHAN) + personalizable
 
-### Fase 2 — Calendario + Historial
-- [ ] Vista calendario mensual con dots
-- [ ] Tap en día → sheet resumen
-- [ ] Historial completo con filtros
-- [ ] Búsqueda
-- [ ] Wake windows automáticos
+**Grupos de alimentos:**
+- 🍎 Frutas (manzana, pera, plátano, papaya, aguacate...)
+- 🥕 Verduras (zanahoria, calabaza, papa, camote, brócoli...)
+- 🥩 Proteínas (pollo, res, pescado, huevo, tofu...)
+- 🌾 Cereales (arroz, avena, quinoa, maíz...)
+- 🧀 Lácteos (yogur, queso...)
+- 🫘 Legumbres (frijol, lenteja, garbanzo...)
 
-### Fase 3 — Curvas OMS + Fotos
-- [ ] Curvas de crecimiento interactivas
-- [ ] Fotos de crecimiento
-- [ ] Reporte exportable
+**Propiedades por alimento:**
+- Laxante 💧 (papaya, ciruela, pera)
+- Astringente 🪨 (plátano, manzana, arroz)
+- Ambos 🔄
+- Neutro ⚪
+
+**Alérgenos mayores (seguimiento obligatorio):**
+🥜🥚🐟🌰🫘🌾🥛
+
+Registro de introducción: fecha, primera vez, reacción, foto
+
+---
+
+## 7. Dominios de datos (resumen)
+
+| Dominio | Estado | Prioridad |
+|---------|--------|-----------|
+| 💧 Pañal | ✅ Completo | — |
+| 🤱🍼 Alimentación (leche) | ✅ Base | F1 |
+| 😴 Sueño | ✅ Base + wake windows 🆕 | F2 |
+| 📏 Crecimiento (unificado + curvas + fotos) | 🆕 | F1 |
+| 📅 Calendario mensual | 🆕 | F1 |
+| 📊 Resúmenes diarios/semanales | 🆕 | F1 |
+| 📋 Historial con filtros | 🆕 | F2 |
+| 🥣 Alimentación complementaria | 🆕 | F4 |
+| 🥜 Seguimiento alérgenos | 🆕 | F4 |
+| 🛁 Actividades (tummy time, baño, juego, hitos) | 🆕 | F5 |
+| 🤮 Salud (temperatura, medicamentos, síntomas) | 🆕 | F5 |
+| 📤 Exportar PDF | 🆕 | F3 |
+| 📈 Curvas OMS interactivas | 🆕 | F3 |
+
+---
+
+## 8. Formulario "📏 Medir"
+
+```tsx
+📏 Nueva medición — {fecha_hora}
+
+Peso:    [____] kg (obligatorio)
+Talla:   [____] cm (opcional)
+CC:      [____] cm (opcional)
+
+Fotos:   [+ Agregar foto] (múltiples, swipe gallery)
+         [img1] [img2] [img3] +   
+
+Nota:    [________________]
+
+[💾 Guardar]
+```
+
+Se guarda como evento tipo `measurement`. En el timeline: `📏 3.2 kg · 54 cm · 36 cm · +2 fotos`
+
+---
+
+## 9. Preguntas respondidas (sesión actual)
+
+1. **Eventos viejos** → Migrar a medición unificada, incluyendo peso inicial del perfil
+2. **Wake windows** → Automáticos, con tabla de referencia por edad (Cleveland Clinic, AAP, NSF)
+3. **Catálogo alimentos** → Precargado OMS + personalizable
+4. **Calendario** → solo vista mensual por ahora
+5. **Fotos crecimiento** → Múltiples imágenes por medición, en galería swipe
+
+---
+
+## 10. Fases de implementación
+
+### Fase 1 — Base (siguiente)
+- [ ] Bottom navigation (3 tabs)
+- [ ] Quick action 📏 Medir (unificado peso+talla+CC+fotos)
+- [ ] Migración de eventos viejos weight/height/CC a measurement
+- [ ] Análisis con subtabs: [📅 Calendario] [📊 Resumen] [📈 Curvas]
+- [ ] Resumen del día con contadores
+- [ ] Calendario mensual con dots + sheet diario
+
+### Fase 2 — Sueño + Historial
+- [ ] Wake windows automáticos con tabla referencias
+- [ ] Historial completo con filtros y búsqueda
+- [ ] Vista semanal en resumen
+
+### Fase 3 — Curvas OMS + Exportar
+- [ ] Curvas interactivas peso/talla/CC/IMC
+- [ ] Galería de fotos de crecimiento
+- [ ] Exportar PDF
 
 ### Fase 4 — Complementaria
-- [ ] Catálogo de alimentos
+- [ ] Catálogo de alimentos OMS
 - [ ] Registro de alimentación complementaria
 - [ ] Seguimiento de alérgenos
-- [ ] Tabla de propiedades (laxante/astringente)
 
 ### Fase 5 — Actividades + Salud
 - [ ] Tummy Time, Baño, Juego, Hitos
 - [ ] Temperatura, Medicamentos, Síntomas
-- [ ] Vista año / heatmap
-- [ ] Exportar PDF para pediatra
+- [ ] Exportar PDF completo para pediatra
 
 ---
 
-## 7. Preguntas a definir
-
-1. **Crecimiento**: unificamos peso+talla+CC en un solo evento "📏 Medición". ¿Los eventos antiguos (weight, height, head_circumference separados) los migramos a un solo evento o los dejamos como están?
-
-2. **Wake windows**: ¿las calculamos automáticamente entre sesiones de sueño o el usuario las registra manual?
-
-3. **Alimentación complementaria**: ¿carga de alimentos desde un catálogo precargado (OMS/ESPGHAN) o 100% libre?
-
-4. **Calendario**: las vistas de semana y año las dejamos para después y empezamos solo con mensual?
-
-5. **Fotos de crecimiento**: ¿las asociamos al evento 📏 Medición o van en una galería aparte?
+## 11. Backlog adicional
+- Tip/tranquilidad contextual cuando hay múltiples popós líquidas en poco tiempo
+- Personalización de quick actions (orden, cuáles mostrar)
+- Notificaciones de ventanas de sueño
+- Vista año (heatmap tipo GitHub contributions)
