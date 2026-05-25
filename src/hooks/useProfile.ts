@@ -32,3 +32,10 @@ export function useActiveProfile() {
     },
   });
 }
+
+export function useProfiles() {
+  return useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => getDb().select().from(profiles),
+  });
+}

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useActiveBaby, calcAge, STATUS_LABELS } from "@/src/hooks/useBaby";
-import { useActiveProfile } from "@/src/hooks/useProfile";
+import { useActiveProfile, useProfiles } from "@/src/hooks/useProfile";
 import {
   useActiveFeedingSession,
   useFeedingHistory,
@@ -173,6 +173,11 @@ export default function TimelineScreen() {
 
   const { data: baby } = useActiveBaby();
   const { data: profile } = useActiveProfile();
+  const { data: allProfiles } = useProfiles();
+  const profileMap = useMemo(() => {
+    const m = new Map(allProfiles?.map((p) => [p.id, p]) ?? []);
+    return m;
+  }, [allProfiles]);
   const { data: activeSession } = useActiveFeedingSession(baby?.id);
   const { data: activeSleep } = useActiveSleepSession(baby?.id);
   const { data: tlEvents } = useTimeline(baby?.id, 60);
@@ -285,7 +290,16 @@ export default function TimelineScreen() {
       });
   };
 
-  const renderItem = ({ item }: { item: TLItem }) => {
+  const renderItem = ({ item, index }: { item: TLItem; index: number }) => {
+    function getProfileId(t: TLItem): string | null {
+      if (t.kind === "date") return null;
+      return t.data.profileId;
+    }
+    const prevItem = index > 0 ? items[index - 1] : null;
+    const itemProfileId = getProfileId(item);
+    const isFirstInGroup = !prevItem || prevItem.kind === "date" || getProfileId(prevItem) !== itemProfileId;
+    const itemProfile = itemProfileId ? profileMap.get(itemProfileId) : undefined;
+
     if (item.kind === "date") return <DateSeparator date={item.date} />;
     if (item.kind === "session") {
       const isOwn = item.data.profileId === profile?.id;
@@ -293,7 +307,8 @@ export default function TimelineScreen() {
         <FeedingSessionBubble
           session={item.data}
           isOwn={isOwn}
-          profileName={!isOwn ? (profile?.name ?? "Otro cuidador") : undefined}
+          isFirstInGroup={isFirstInGroup}
+          profile={isOwn ? undefined : itemProfile}
           onPress={() => router.push(`/logs/feeding/${item.data.id}`)}
         />
       );
@@ -304,23 +319,22 @@ export default function TimelineScreen() {
         <SleepSessionBubble
           session={item.data}
           isOwn={isOwn}
-          profileName={!isOwn ? (profile?.name ?? "Otro cuidador") : undefined}
+          isFirstInGroup={isFirstInGroup}
+          profile={isOwn ? undefined : itemProfile}
           onPress={() => router.push(`/logs/sleep/${item.data.id}`)}
         />
       );
     }
     const isOwn = item.data.profileId === profile?.id;
     const evType = eventTypes?.find((t) => t.id === item.data.eventTypeId);
-    const emoji = evType?.emoji ?? "📝";
-    const label = evType?.label ?? item.data.eventTypeId;
 
     return (
       <TimelineBubble
         event={item.data}
-        eventTypeEmoji={emoji}
-        eventTypeLabel={label}
+        eventType={evType}
         isOwn={isOwn}
-        profileName={!isOwn ? (profile?.name ?? "Otro cuidador") : undefined}
+        isFirstInGroup={isFirstInGroup}
+        profile={isOwn ? undefined : itemProfile}
         onPress={() => router.push(`/logs/event/${item.data.id}`)}
       />
     );

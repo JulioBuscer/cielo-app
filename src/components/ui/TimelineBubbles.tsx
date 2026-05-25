@@ -8,13 +8,60 @@ import type {
   TimelineEvent,
   FeedingSession,
   SleepSession,
+  Profile,
+  EventType,
 } from "@/src/db/schema";
 import type {
   FeedingType,
   BottleSubtype,
 } from "@/src/hooks/useFeedingSessions";
+import type { EventMetric } from "@/src/units/types";
+import { getUnit } from "@/src/units/registry";
+import { formatWithUnit, findBestUnit, normalizeToBase } from "@/src/units/helpers";
 import { useDiaperObservations } from "@/src/hooks/useTimeline";
 import { useTheme } from "@/src/theme/useTheme";
+import type { Role } from "@/src/constants/roles";
+
+const ROLE_EMOJI: Record<Role, string> = {
+  mama: "👩",
+  papa: "👨",
+  abue: "👴",
+  nanny: "🧑‍🍼",
+  bestie: "🦸",
+};
+
+const AVATAR_COLORS = ["#FF6B9D", "#845EC2", "#00C9A7", "#FF9671", "#FFC75F"];
+
+function AvatarCircle({ profile }: { profile: Profile }) {
+  const firstChar = profile.name.charAt(0).toUpperCase();
+  const colorIndex = profile.name.length % AVATAR_COLORS.length;
+
+  if (profile.avatarUri) {
+    return (
+      <Image
+        source={{ uri: profile.avatarUri }}
+        style={{ width: 36, height: 36, borderRadius: 18 }}
+      />
+    );
+  }
+
+  return (
+    <View
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: AVATAR_COLORS[colorIndex],
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Text style={{ fontSize: 14, fontWeight: "800", color: "#FFF" }}>
+        {firstChar}
+      </Text>
+    </View>
+  );
+}
 
 function formatTime(date: Date | string | number) {
   return new Date(date).toLocaleTimeString("es-MX", {
@@ -41,19 +88,81 @@ function MetaTag({
   );
 }
 
+function parseEventValues(values: string | null): Record<string, number> {
+  if (!values) return {};
+  try { return JSON.parse(values); } catch { return {}; }
+}
+
+function parseMetrics(json: string | null): EventMetric[] {
+  if (!json) return [];
+  try { const p = JSON.parse(json); return Array.isArray(p) ? p : []; } catch { return []; }
+}
+
+function BubbleFooter({
+  isOwn,
+  isFirstInGroup,
+  profile,
+  timestamp,
+  accentColor,
+}: {
+  isOwn: boolean;
+  isFirstInGroup: boolean;
+  profile?: Profile;
+  timestamp: Date | string | number;
+  accentColor?: string;
+}) {
+  const c = useTheme().theme.colors;
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 4, marginTop: 4 }}>
+      {!isOwn && isFirstInGroup && profile && (
+        <Text style={{ fontSize: 11, fontWeight: "800", color: accentColor ?? c.accentStrong, marginRight: 2 }}>
+          {profile.name}
+        </Text>
+      )}
+      <Text style={{ fontSize: 10, color: c.textMuted, fontWeight: "700" }}>
+        {formatTime(timestamp)}
+      </Text>
+      {isOwn && <Text style={{ fontSize: 10, color: "#34B7F1" }}>✓✓</Text>}
+    </View>
+  );
+}
+
+function ValueTags({ values, metrics }: { values: Record<string, number>; metrics: EventMetric[] }) {
+  const c = useTheme().theme.colors;
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+      {metrics.map((m) => {
+        const v = values[m.id];
+        if (v == null) return null;
+        const unit = getUnit(m.unitId);
+        let displayValue = v;
+        let displayUnit = unit;
+        if (unit && unit.dimension !== "dimensionless") {
+          const baseValue = normalizeToBase(v, m.unitId);
+          const best = findBestUnit(baseValue, unit.dimension);
+          displayUnit = best.unit;
+          displayValue = best.displayValue;
+        }
+        const label = displayUnit ? `${displayValue.toFixed(1)} ${displayUnit.symbol}` : `${displayValue.toFixed(1)}`;
+        return <MetaTag key={m.id} label={`${m.name}: ${label}`} color={c.accentStrong} bg={c.accent + "20"} />;
+      })}
+    </View>
+  );
+}
+
 export function TimelineBubble({
   event,
-  eventTypeEmoji,
-  eventTypeLabel,
+  eventType,
   isOwn,
-  profileName,
+  isFirstInGroup,
+  profile,
   onPress,
 }: {
   event: TimelineEvent;
-  eventTypeEmoji: string;
-  eventTypeLabel: string;
+  eventType?: EventType;
   isOwn: boolean;
-  profileName?: string;
+  isFirstInGroup: boolean;
+  profile?: Profile;
   onPress?: () => void;
 }) {
   const { theme } = useTheme();
@@ -61,126 +170,147 @@ export function TimelineBubble({
   const meta = event.metadata ? (() => { try { return JSON.parse(event.metadata); } catch { return null; } })() : null;
   const c = theme.colors;
 
-  return (
+  const eventValues = parseEventValues(event.values);
+  const evMetrics = parseMetrics(eventType?.metrics ?? null);
+  const hasValues = Object.keys(eventValues).length > 0 && evMetrics.length > 0;
+  const emoji = eventType?.emoji ?? "📝";
+  const label = eventType?.label ?? event.eventTypeId;
+
+  const bubble = (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={{ alignItems: isOwn ? "flex-end" : "flex-start", marginBottom: 6 }}
+      style={{
+        maxWidth: isOwn || !profile || !isFirstInGroup ? "82%" : "76%",
+        borderRadius: 18,
+        borderBottomRightRadius: isOwn ? (isFirstInGroup ? 4 : 18) : 18,
+        borderBottomLeftRadius: !isOwn ? (isFirstInGroup ? 4 : 18) : 18,
+        padding: 12,
+        paddingBottom: 8,
+        backgroundColor: isOwn ? c.bubbleOwn : c.card,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.07,
+        shadowRadius: 4,
+        elevation: 2,
+      }}
     >
-      <View
-        style={{
-          maxWidth: "82%",
-          borderRadius: 18,
-          borderBottomRightRadius: isOwn ? 4 : 18,
-          borderBottomLeftRadius: isOwn ? 18 : 4,
-          padding: 10,
-          paddingBottom: 6,
-          backgroundColor: isOwn ? c.bubbleOwn : c.card,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.07,
-          shadowRadius: 4,
-          elevation: 2,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-          <Text style={{ fontSize: 22 }}>{eventTypeEmoji}</Text>
-          <Text style={{ fontWeight: "900", fontSize: 14, color: c.textBody }}>{eventTypeLabel}</Text>
-        </View>
-
-        {event.eventTypeId === "diaper" && meta && (
-          <View>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 }}>
-              <View style={{ flexDirection: "row", gap: 3 }}>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <View
-                    key={n}
-                    style={{
-                      width: 16, height: 16, borderRadius: 99,
-                      backgroundColor: n <= (meta.peeIntensity ?? 0) ? c.biological.pee : c.elevated,
-                    }}
-                  />
-                ))}
-                <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "700", marginLeft: 4 }}>💧</Text>
-              </View>
-              <View style={{ flexDirection: "row", gap: 3 }}>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <View
-                    key={n}
-                    style={{
-                      width: 16, height: 16, borderRadius: 99,
-                      backgroundColor: n <= (meta.poopIntensity ?? 0) ? c.biological.poop : c.elevated,
-                    }}
-                  />
-                ))}
-                <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "700", marginLeft: 4 }}>💩</Text>
-              </View>
-            </View>
-
-            {meta.observationIds?.length > 0 ? (
-              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                {(meta.observationIds as string[]).map((id: string) => {
-                  const obs = observations?.find((o) => o.id === id);
-                  const isAlert = ["blood", "mucus", "diarrhea"].includes(id);
-                  const label = obs ? `${obs.emoji} ${obs.label}` : id;
-                  return (
-                    <MetaTag key={id} label={label} color={isAlert ? c.danger : c.textMuted} bg={isAlert ? c.danger + "20" : c.surface} />
-                  );
-                })}
-              </View>
-            ) : (
-              <MetaTag label="✅ Sin alertas" color={c.success} bg={c.success + "20"} />
-            )}
-          </View>
-        )}
-
-        {event.eventTypeId === "medication" && meta?.medicineName && (
-          <MetaTag label={`${meta.medicineName}${meta.dose ? ` · ${meta.dose}` : ""}`} color={c.feeding.bottle} bg={c.feeding.bottle + "20"} />
-        )}
-
-        {event.eventTypeId === "temperature" && meta?.celsius && (
-          <MetaTag label={`${meta.celsius} °C`} color={c.warning} bg={c.warning + "20"} />
-        )}
-
-        {(event.eventTypeId === "weight" || event.eventTypeId === "height") && meta && (
-          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-            {meta.weightGrams && <MetaTag label={`${(meta.weightGrams / 1000).toFixed(2)} kg`} color={c.growth} bg={c.growth + "20"} />}
-            {meta.heightMm && <MetaTag label={`${(meta.heightMm / 10).toFixed(1)} cm`} color={c.growth} bg={c.growth + "20"} />}
-          </View>
-        )}
-
-        {event.notes && (
-          <Text style={{ fontSize: 14, color: c.textBody, marginTop: 4, lineHeight: 20 }}>{event.notes}</Text>
-        )}
-
-        {meta?.imageUri && (
-          <Image
-            source={{ uri: meta.imageUri }}
-            style={{ alignSelf: "stretch", height: 150, borderRadius: 12, marginTop: 6, backgroundColor: c.surface }}
-            resizeMode="cover"
-          />
-        )}
-
-        <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 4, marginTop: 4 }}>
-          {profileName && (
-            <Text style={{ fontSize: 12, fontWeight: "900", color: c.accentStrong }}>{profileName}</Text>
-          )}
-          <Text style={{ fontSize: 10, color: c.textMuted, fontWeight: "600" }}>
-            {formatTime(event.timestamp)}
-          </Text>
-          {isOwn && <Text style={{ fontSize: 11, color: "#34B7F1" }}>✓✓</Text>}
-        </View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+        <Text style={{ fontSize: 22 }}>{emoji}</Text>
+        <Text style={{ fontWeight: "900", fontSize: 14, color: c.textBody }}>{label}</Text>
       </View>
+
+      {event.eventTypeId === "diaper" && meta && (
+        <View style={{ marginBottom: 2 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 }}>
+            <View style={{ flexDirection: "row", gap: 3 }}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <View
+                  key={n}
+                  style={{
+                    width: 16, height: 16, borderRadius: 99,
+                    backgroundColor: n <= (meta.peeIntensity ?? 0) ? c.biological.pee : c.elevated,
+                  }}
+                />
+              ))}
+              <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "700", marginLeft: 4 }}>💧</Text>
+            </View>
+            <View style={{ flexDirection: "row", gap: 3 }}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <View
+                  key={n}
+                  style={{
+                    width: 16, height: 16, borderRadius: 99,
+                    backgroundColor: n <= (meta.poopIntensity ?? 0) ? c.biological.poop : c.elevated,
+                  }}
+                />
+              ))}
+              <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "700", marginLeft: 4 }}>💩</Text>
+            </View>
+          </View>
+
+          {meta.observationIds?.length > 0 ? (
+            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+              {(meta.observationIds as string[]).map((id: string) => {
+                const obs = observations?.find((o) => o.id === id);
+                const isAlert = ["blood", "mucus", "diarrhea"].includes(id);
+                const lbl = obs ? `${obs.emoji} ${obs.label}` : id;
+                return (
+                  <MetaTag key={id} label={lbl} color={isAlert ? c.danger : c.textMuted} bg={isAlert ? c.danger + "20" : c.surface} />
+                );
+              })}
+            </View>
+          ) : (
+            <MetaTag label="✅ Sin alertas" color={c.success} bg={c.success + "20"} />
+          )}
+        </View>
+      )}
+
+      {event.eventTypeId === "medication" && meta?.medicineName && (
+        <MetaTag label={`${meta.medicineName}${meta.dose ? ` · ${meta.dose}` : ""}`} color={c.feeding.bottle} bg={c.feeding.bottle + "20"} />
+      )}
+
+      {event.eventTypeId === "temperature" && meta?.celsius && (
+        <MetaTag label={`${meta.celsius} °C`} color={c.warning} bg={c.warning + "20"} />
+      )}
+
+      {(event.eventTypeId === "weight" || event.eventTypeId === "height") && meta && (
+        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          {meta.weightGrams && <MetaTag label={`${(meta.weightGrams / 1000).toFixed(2)} kg`} color={c.growth} bg={c.growth + "20"} />}
+          {meta.heightMm && <MetaTag label={`${(meta.heightMm / 10).toFixed(1)} cm`} color={c.growth} bg={c.growth + "20"} />}
+        </View>
+      )}
+
+      {hasValues && (
+        <ValueTags values={eventValues} metrics={evMetrics} />
+      )}
+
+      {event.notes && (
+        <Text style={{ fontSize: 14, color: c.textBody, marginTop: 4, lineHeight: 20 }}>{event.notes}</Text>
+      )}
+
+      {meta?.imageUri && (
+        <Image
+          source={{ uri: meta.imageUri }}
+          style={{ alignSelf: "stretch", height: 150, borderRadius: 12, marginTop: 6, backgroundColor: c.surface }}
+          resizeMode="cover"
+        />
+      )}
+
+      <BubbleFooter
+        isOwn={isOwn}
+        isFirstInGroup={isFirstInGroup}
+        profile={profile}
+        timestamp={event.timestamp}
+      />
     </TouchableOpacity>
+  );
+
+  if (isOwn) {
+    return <View style={{ alignItems: "flex-end", marginBottom: isFirstInGroup ? 6 : 3 }}>{bubble}</View>;
+  }
+
+  return (
+    <View style={{ flexDirection: "row", marginBottom: isFirstInGroup ? 6 : 3 }}>
+      {isFirstInGroup && profile ? (
+        <View style={{ marginRight: 8, justifyContent: "flex-end", paddingBottom: 4 }}>
+          <AvatarCircle profile={profile} />
+        </View>
+      ) : (
+        <View style={{ width: 44 }} />
+      )}
+      <View style={{ flex: 1, alignItems: "flex-start" }}>{bubble}</View>
+    </View>
   );
 }
 
 export function FeedingSessionBubble({
-  session, isOwn, profileName, onPress,
+  session, isOwn, isFirstInGroup, profile, onPress,
 }: {
   session: FeedingSession;
   isOwn: boolean;
-  profileName?: string;
+  isFirstInGroup: boolean;
+  profile?: Profile;
   onPress?: () => void;
 }) {
   const { theme } = useTheme();
@@ -188,132 +318,155 @@ export function FeedingSessionBubble({
   const subLabel = session.bottleSubtype ? BOTTLE_SUBTYPE_LABELS[session.bottleSubtype as BottleSubtype]?.label : null;
   const c = theme.colors;
 
-  return (
+  const bubble = (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={{ alignItems: isOwn ? "flex-end" : "flex-start", marginBottom: 6 }}
+      style={{
+        maxWidth: isOwn || !profile || !isFirstInGroup ? "82%" : "76%",
+        borderRadius: 18,
+        borderBottomRightRadius: isOwn ? (isFirstInGroup ? 4 : 18) : 18,
+        borderBottomLeftRadius: !isOwn ? (isFirstInGroup ? 4 : 18) : 18,
+        borderLeftWidth: 3,
+        borderLeftColor: c.accentStrong,
+        padding: 12,
+        paddingLeft: 15,
+        paddingBottom: 8,
+        backgroundColor: isOwn ? c.bubbleOwn : c.card,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.07,
+        shadowRadius: 4,
+        elevation: 2,
+      }}
     >
-      <View
-        style={{
-          maxWidth: "82%",
-          borderRadius: 18,
-          borderBottomRightRadius: isOwn ? 4 : 18,
-          borderBottomLeftRadius: isOwn ? 18 : 4,
-          borderLeftWidth: 3,
-          borderLeftColor: c.accentStrong,
-          padding: 10,
-          paddingLeft: 13,
-          paddingBottom: 6,
-          backgroundColor: isOwn ? c.bubbleOwn : c.card,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.07,
-          shadowRadius: 4,
-          elevation: 2,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
-          <Text style={{ fontSize: 22 }}>{emoji}</Text>
-          <View>
-            <Text style={{ fontWeight: "900", fontSize: 14, color: c.textBody }}>
-              {label}{subLabel ? ` · ${subLabel}` : ""}
-            </Text>
-            <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "600" }}>Toma completada</Text>
-          </View>
-        </View>
-
-        {session.durationSec != null && (
-          <View style={{ backgroundColor: c.accentStrong, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 2, alignSelf: "flex-start", marginBottom: 4 }}>
-            <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 12 }}>
-              ⏱ {formatDuration(session.durationSec)}
-            </Text>
-          </View>
-        )}
-
-        {session.notes && (
-          <Text style={{ fontSize: 14, color: c.textBody, marginTop: 2 }}>{session.notes}</Text>
-        )}
-
-        <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 4, marginTop: 4 }}>
-          {profileName && (
-            <Text style={{ fontSize: 12, fontWeight: "900", color: c.accentStrong }}>{profileName}</Text>
-          )}
-          <Text style={{ fontSize: 10, color: c.textMuted, fontWeight: "600" }}>
-            {formatTime(session.startedAt)}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <Text style={{ fontSize: 22 }}>{emoji}</Text>
+        <View>
+          <Text style={{ fontWeight: "900", fontSize: 14, color: c.textBody }}>
+            {label}{subLabel ? ` · ${subLabel}` : ""}
           </Text>
-          {isOwn && <Text style={{ fontSize: 11, color: "#34B7F1" }}>✓✓</Text>}
+          <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "600" }}>Toma completada</Text>
         </View>
       </View>
+
+      {session.durationSec != null && (
+        <View style={{ backgroundColor: c.accentStrong, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 2, alignSelf: "flex-start", marginBottom: 4 }}>
+          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 12 }}>
+            ⏱ {formatDuration(session.durationSec)}
+          </Text>
+        </View>
+      )}
+
+      {session.notes && (
+        <Text style={{ fontSize: 14, color: c.textBody, marginTop: 2 }}>{session.notes}</Text>
+      )}
+
+      <BubbleFooter
+        isOwn={isOwn}
+        isFirstInGroup={isFirstInGroup}
+        profile={profile}
+        timestamp={session.startedAt}
+      />
     </TouchableOpacity>
+  );
+
+  if (isOwn) {
+    return <View style={{ alignItems: "flex-end", marginBottom: isFirstInGroup ? 6 : 3 }}>{bubble}</View>;
+  }
+
+  return (
+    <View style={{ flexDirection: "row", marginBottom: isFirstInGroup ? 6 : 3 }}>
+      {isFirstInGroup && profile ? (
+        <View style={{ marginRight: 8, justifyContent: "flex-end", paddingBottom: 4 }}>
+          <AvatarCircle profile={profile} />
+        </View>
+      ) : (
+        <View style={{ width: 44 }} />
+      )}
+      <View style={{ flex: 1, alignItems: "flex-start" }}>{bubble}</View>
+    </View>
   );
 }
 
 export function SleepSessionBubble({
-  session, isOwn, profileName, onPress,
+  session, isOwn, isFirstInGroup, profile, onPress,
 }: {
   session: SleepSession;
   isOwn: boolean;
-  profileName?: string;
+  isFirstInGroup: boolean;
+  profile?: Profile;
   onPress?: () => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const INDIGO = "#818CF8";
 
-  return (
+  const bubble = (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={{ alignItems: isOwn ? "flex-end" : "flex-start", marginBottom: 6 }}
+      style={{
+        maxWidth: isOwn || !profile || !isFirstInGroup ? "82%" : "76%",
+        borderRadius: 18,
+        borderBottomRightRadius: isOwn ? (isFirstInGroup ? 4 : 18) : 18,
+        borderBottomLeftRadius: !isOwn ? (isFirstInGroup ? 4 : 18) : 18,
+        borderLeftWidth: 3,
+        borderLeftColor: INDIGO,
+        padding: 12,
+        paddingLeft: 15,
+        paddingBottom: 8,
+        backgroundColor: isOwn ? c.bubbleOwn : c.card,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.07,
+        shadowRadius: 4,
+        elevation: 2,
+      }}
     >
-      <View
-        style={{
-          maxWidth: "82%",
-          borderRadius: 18,
-          borderBottomRightRadius: isOwn ? 4 : 18,
-          borderBottomLeftRadius: isOwn ? 18 : 4,
-          borderLeftWidth: 3,
-          borderLeftColor: "#818CF8",
-          padding: 10,
-          paddingLeft: 13,
-          paddingBottom: 6,
-          backgroundColor: isOwn ? c.bubbleOwn : c.card,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.07,
-          shadowRadius: 4,
-          elevation: 2,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
-          <Text style={{ fontSize: 22 }}>😴</Text>
-          <View>
-            <Text style={{ fontWeight: "900", fontSize: 14, color: c.textBody }}>Sesión de Sueño</Text>
-            <Text style={{ fontSize: 11, color: "#6366F1", fontWeight: "600" }}>Sueño completado</Text>
-          </View>
-        </View>
-
-        {session.durationSec != null && (
-          <View style={{ backgroundColor: "#818CF8", borderRadius: 99, paddingHorizontal: 10, paddingVertical: 3, alignSelf: "flex-start", marginBottom: 4 }}>
-            <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 12 }}>💤 {formatDuration(session.durationSec)}</Text>
-          </View>
-        )}
-
-        {session.notes && (
-          <Text style={{ fontSize: 14, color: c.textBody, marginTop: 2 }}>{session.notes}</Text>
-        )}
-
-        <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 4, marginTop: 4 }}>
-          {profileName && (
-            <Text style={{ fontSize: 10, fontWeight: "800", color: "#6366F1" }}>{profileName}</Text>
-          )}
-          <Text style={{ fontSize: 10, color: c.textMuted, fontWeight: "600" }}>
-            {formatTime(session.startedAt)}
-          </Text>
-          {isOwn && <Text style={{ fontSize: 11, color: "#34B7F1" }}>✓✓</Text>}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <Text style={{ fontSize: 22 }}>😴</Text>
+        <View>
+          <Text style={{ fontWeight: "900", fontSize: 14, color: c.textBody }}>Sesión de Sueño</Text>
+          <Text style={{ fontSize: 11, color: INDIGO, fontWeight: "600" }}>Sueño completado</Text>
         </View>
       </View>
+
+      {session.durationSec != null && (
+        <View style={{ backgroundColor: INDIGO, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 3, alignSelf: "flex-start", marginBottom: 4 }}>
+          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 12 }}>💤 {formatDuration(session.durationSec)}</Text>
+        </View>
+      )}
+
+      {session.notes && (
+        <Text style={{ fontSize: 14, color: c.textBody, marginTop: 2 }}>{session.notes}</Text>
+      )}
+
+      <BubbleFooter
+        isOwn={isOwn}
+        isFirstInGroup={isFirstInGroup}
+        profile={profile}
+        timestamp={session.startedAt}
+        accentColor={INDIGO}
+      />
     </TouchableOpacity>
+  );
+
+  if (isOwn) {
+    return <View style={{ alignItems: "flex-end", marginBottom: isFirstInGroup ? 6 : 3 }}>{bubble}</View>;
+  }
+
+  return (
+    <View style={{ flexDirection: "row", marginBottom: isFirstInGroup ? 6 : 3 }}>
+      {isFirstInGroup && profile ? (
+        <View style={{ marginRight: 8, justifyContent: "flex-end", paddingBottom: 4 }}>
+          <AvatarCircle profile={profile} />
+        </View>
+      ) : (
+        <View style={{ width: 44 }} />
+      )}
+      <View style={{ flex: 1, alignItems: "flex-start" }}>{bubble}</View>
+    </View>
   );
 }
 
