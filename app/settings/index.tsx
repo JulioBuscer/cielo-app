@@ -1,9 +1,17 @@
-import { View, Text, ScrollView, TouchableOpacity, StatusBar } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, Alert } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/src/theme/useTheme";
 import { useActiveBaby } from "@/src/hooks/useBaby";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import packageJson from "@/package.json";
+
+const CONFIG_KEYS = [
+  'pee_intensity_config',
+  'poop_intensity_config',
+  'pee_health_config',
+  'poop_health_config',
+];
 
 const SETTINGS_ITEMS: { emoji: string; label: string; desc: string; route: string }[] = [
   { emoji: "📝", label: "Catálogos", desc: "Eventos, pipí, popó, observaciones", route: "/settings/catalogs" },
@@ -248,6 +256,57 @@ export default function SettingsScreen() {
             </View>
           </View>
         </View>
+
+        {/* Restaurar config */}
+        <TouchableOpacity
+          onPress={() => {
+            Alert.alert(
+              "Restaurar escalas",
+              "Esto volverá las escalas de pipí y popó a sus valores de fábrica (cantidad 1-4, color Armstrong 8pts, etc.). Las observaciones en BD no se modifican.",
+              [
+                { text: "Cancelar", style: "cancel" },
+                {
+                  text: "Restaurar",
+                  style: "destructive",
+                  onPress: async () => {
+                    await Promise.all(CONFIG_KEYS.map((k) => AsyncStorage.removeItem(k)));
+                    Alert.alert("Listo", "Las escalas volverán a fábrica al abrir el formulario de pañal.");
+                  },
+                },
+              ]
+            );
+          }}
+          style={{
+            backgroundColor: c.card,
+            borderRadius: 20,
+            padding: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 14,
+            minHeight: 60,
+          }}
+        >
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              backgroundColor: c.danger + "20",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ fontSize: 20 }}>🔄</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: c.danger, fontWeight: "800", fontSize: 15 }}>
+              Restaurar escalas de fábrica
+            </Text>
+            <Text style={{ color: c.textMuted, fontSize: 12, fontWeight: "600", marginTop: 1 }}>
+              Pipí 1-4 · Color Armstrong · Popó 1-5 · Sangre/Moco escalas
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         {/* Version */}
         <Text
