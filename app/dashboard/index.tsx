@@ -335,7 +335,10 @@ export default function TimelineScreen() {
         isOwn={isOwn}
         isFirstInGroup={isFirstInGroup}
         profile={isOwn ? undefined : itemProfile}
-        onPress={() => router.push(`/logs/event/${item.data.id}`)}
+        onPress={() => item.data.eventTypeId === "diaper"
+          ? router.push(`/logs/diaper/${item.data.id}`)
+          : router.push(`/logs/event/${item.data.id}`)
+        }
       />
     );
   };
