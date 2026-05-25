@@ -162,3 +162,46 @@ Los colores de alerta (5) se complementan con los tags de observación `blood`
 - Estudio HELMi (2024): 47% de 1052 bebés sanos presentaron heces verdes al
   menos 1 semana. — [European Journal of Pediatrics](https://link.springer.com/article/10.1007/s00431-024-05625-0)
 - Mayo Clinic: guía de colores — solo alerta rojo, negro (posmeconio), blanco. — [Mayo Clinic](https://www.mayoclinic.org/healthy-lifestyle/infant-and-toddler-health/expert-answers/baby-poop/faq-20057971)
+
+## Escala de color de orina (pipímetro de Armstrong)
+
+Validado clínicamente para evaluar hidratación en niños. La escala de 8 puntos
+de Armstrong (Kavouras et al., 2016) demostró:
+
+- Correlación fuerte con osmolaridad urinaria (gold standard)
+- UC ≥ 3 (laboratorio) = hipohidratación, sensibilidad 92-98%
+- UC ≥ 4 (auto-evaluación) = hipohidratación
+- Usado por CHOC Children's Hospital,validado en niños de 8-14 años
+
+### Escala de 8 puntos
+
+| Valor | Color | Emoji | Interpretación |
+|-------|-------|-------|----------------|
+| 1 | Transparente | 💧 | ✅ Bien hidratado |
+| 2 | Amarillo claro | 💛 | ✅ Bien hidratado |
+| 3 | Amarillo | 💛 | ✅ Normal |
+| 4 | Amarillo oscuro | 🟡 | ⚠️ Concentrado |
+| 5 | Ámbar | 🟠 | 🔸 Deshidratación leve |
+| 6 | Naranja | 🟠 | 🔸 Deshidratación |
+| 7 | Anaranjado rojizo | 🔶 | 🔸 Deshidratación / cristales de urato |
+| 8 | Café / Rojizo | 🚨 | 🚨 Deshidratación severa / posible sangre |
+
+### Cristales de urato ("brick dust")
+
+- Mancha naranja/rosada/rojiza en el pañal de un recién nacido
+- **NO es sangre** — son cristales de ácido úrico por orina concentrada
+- Normal en primeros 3-5 días de vida (22% de neonatos sanos los presentan,
+  Küpeli et al., 2005)
+- Si persiste después del día 5, puede indicar deshidratación → consultar
+- El MSD Manual lo confirma como hallazgo normal en primeros 2 días
+
+### Referencias
+
+- Kavouras SA et al. "Validation of a urine color scale for assessment of urine
+  osmolality in healthy children." *Eur J Nutr.* 2016;55:907-915.
+  — [Springer](https://link.springer.com/article/10.1007/s00394-015-0905-2)
+- CHOC Children's "Pee Palette" — [CHOC Health](https://health.choc.org/handout/choc-pee-palette/)
+- Küpeli S et al. "Urinary uric acid levels and discoloration of diapers in
+  healthy neonates." *Pediatr Nephrol.* 2005;20:1361-1362.
+  — [PubMed](https://pubmed.ncbi.nlm.nih.gov/15942785/)
+- MSD Manual: urate crystals in first 2 days. — [MSD Manual](https://www.msdmanuals.com/professional/pediatrics/care-of-newborns-and-infants/care-of-the-normal-newborn)
