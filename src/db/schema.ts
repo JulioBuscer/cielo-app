@@ -213,6 +213,12 @@ export interface DiaperMetadata {
   poopIntensity:       number;
   peeHealth:           number | null;           // pipímetro
   poopHealth:          number | null;           // popómetro
+  poopConsistency:     number;
+  peeIntensityZone?:   { emoji: string; label: string } | null;
+  poopIntensityZone?:  { emoji: string; label: string } | null;
+  peeHealthZone?:      { emoji: string; label: string } | null;
+  poopHealthZone?:     { emoji: string; label: string } | null;
+  poopConsistencyZone?:{ emoji: string; label: string } | null;
   observationIds:      string[];                // tags simples sin métricas
   observationValues:   Record<string, Record<string, number>> | null;  // { obsId: { metricId: valor } }
   imageUri?:           string;

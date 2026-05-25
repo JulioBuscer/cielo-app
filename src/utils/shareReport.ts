@@ -98,6 +98,7 @@ export interface DiaperShareData {
   poopIntensity:      number;
   peeHealth:          number | null;
   poopHealth:         number | null;
+  poopConsistency:    number;
   observationIds:     string[];
   observationLabels:  { id: string; emoji: string; label: string; isAlert: boolean }[];
   observationValues:  Record<string, Record<string, number>> | null;  // { obsId: { metricId: value } }
@@ -194,6 +195,10 @@ export function buildRecordMessage(record: AnyShareData): string {
       L.push(`💩 Popó:   ${stars(poop, 5)}  ${poop}/5`);
       if (record.poopHealth != null && record.poopHealth > 0) {
         L.push(`🔬 Salud:  ${stars(record.poopHealth, 8)}  ${record.poopHealth}/8`);
+      }
+      if (record.poopConsistency > 0) {
+        const labels = ["", "Sólida", "Pastosa", "Líquida", "Acuosa"];
+        L.push(`💩 Consistencia: ${labels[record.poopConsistency] ?? record.poopConsistency}`);
       }
       L.push('');
 

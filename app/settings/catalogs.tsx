@@ -1108,11 +1108,15 @@ function PoopConfigSection({
   setIntensity,
   health,
   setHealth,
+  consistency,
+  setConsistency,
 }: {
   intensity: ConfigRange & { zones: Zone[] };
   setIntensity: (c: ConfigRange & { zones: Zone[] }) => void;
   health: HealthConfig;
   setHealth: (c: HealthConfig) => void;
+  consistency: ConfigRange & { zones: Zone[] };
+  setConsistency: (c: ConfigRange & { zones: Zone[] }) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -1133,6 +1137,13 @@ function PoopConfigSection({
         emoji="💩"
         config={intensity}
         onChange={setIntensity}
+      />
+      <View style={{ height: 1, backgroundColor: c.surface }} />
+      <IntensitySection
+        label="Consistencia"
+        emoji="💩"
+        config={consistency}
+        onChange={setConsistency}
       />
       <View style={{ height: 1, backgroundColor: c.surface }} />
       <HealthSection
@@ -1228,6 +1239,15 @@ export default function CatalogsScreen() {
       { min: 4, max: 4, color: "#5C4033", label: "Mucha",     emoji: "💩💩" },
     ],
   });
+  const [poopConsistency, setPoopConsistency] = useState<ConfigRange & { zones: Zone[] }>({
+    min: 1, max: 4,
+    zones: [
+      { min: 1, max: 1, color: "#8D6E63", label: "Sólida",  emoji: "🍫" },
+      { min: 2, max: 2, color: "#A1887F", label: "Pastosa",   emoji: "🥜" },
+      { min: 3, max: 3, color: "#BCAAA4", label: "Líquida",   emoji: "💧" },
+      { min: 4, max: 4, color: "#EF5350", label: "Acuosa",    emoji: "🌊" },
+    ],
+  });
   const [poopHealth, setPoopHealth] = useState<HealthConfig>({
     enabled: false,
     min: 1, max: 8,
@@ -1246,11 +1266,13 @@ export default function CatalogsScreen() {
       AsyncStorage.getItem('pee_health_config'),
       AsyncStorage.getItem('poop_intensity_config'),
       AsyncStorage.getItem('poop_health_config'),
-    ]).then(([pi, ph, poi, poh]) => {
+      AsyncStorage.getItem('poop_consistency_config'),
+    ]).then(([pi, ph, poi, poh, pc]) => {
       if (pi) try { setPeeIntensity(JSON.parse(pi)); } catch {}
       if (ph) try { setPeeHealth(JSON.parse(ph)); } catch {}
       if (poi) try { setPoopIntensity(JSON.parse(poi)); } catch {}
       if (poh) try { setPoopHealth(JSON.parse(poh)); } catch {}
+      if (pc) try { setPoopConsistency(JSON.parse(pc)); } catch {}
     });
   }, []);
 
@@ -1260,6 +1282,7 @@ export default function CatalogsScreen() {
       ['pee_health_config', JSON.stringify(peeHealth)],
       ['poop_intensity_config', JSON.stringify(poopIntensity)],
       ['poop_health_config', JSON.stringify(poopHealth)],
+      ['poop_consistency_config', JSON.stringify(poopConsistency)],
     ]);
     Alert.alert("✅ Listo", "Configuración guardada");
   };
@@ -1703,6 +1726,8 @@ export default function CatalogsScreen() {
                 setIntensity={setPoopIntensity}
                 health={poopHealth}
                 setHealth={setPoopHealth}
+                consistency={poopConsistency}
+                setConsistency={setPoopConsistency}
               />
             )}
 

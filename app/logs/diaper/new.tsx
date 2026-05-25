@@ -52,11 +52,17 @@ const DEFAULT_PEE_HEALTH = { enabled: true, min: 1, max: 8, zones: [
   { min: 8, max: 8, color: "#8D6E63", label: "Café/Rojizo",   emoji: "🚨" },
 ] };
 const DEFAULT_POOP_HEALTH = { enabled: true, min: 1, max: 5, zones: [
-  { min: 1, max: 1, color: "#D4A373", label: "Amarilla", emoji: "💛" },
-  { min: 2, max: 2, color: "#8B6914", label: "Café",     emoji: "🤎" },
-  { min: 3, max: 3, color: "#66BB6A", label: "Verde",    emoji: "💚" },
-  { min: 4, max: 4, color: "#FF9800", label: "Naranja",  emoji: "🟠" },
-  { min: 5, max: 5, color: "#B71C1C", label: "Alerta",   emoji: "🚨" },
+  { min: 1, max: 2, color: "#8BC34A", label: "Verde", emoji: "🟢" },
+  { min: 3, max: 4, color: "#FFC107", label: "Amarillo", emoji: "🟡" },
+  { min: 5, max: 5, color: "#8B4513", label: "Marrón", emoji: "🟤" },
+  { min: 6, max: 7, color: "#E65100", label: "Naranja", emoji: "🟠" },
+  { min: 8, max: 8, color: "#B71C1C", label: "Alerta", emoji: "🚨" },
+] };
+const DEFAULT_POOP_CONSISTENCY = { min: 1, max: 4, zones: [
+  { min: 1, max: 1, color: "#8D6E63", label: "Sólida",  emoji: "🍫" },
+  { min: 2, max: 2, color: "#A1887F", label: "Pastosa",   emoji: "🥜" },
+  { min: 3, max: 3, color: "#BCAAA4", label: "Líquida",   emoji: "💧" },
+  { min: 4, max: 4, color: "#EF5350", label: "Acuosa",    emoji: "🌊" },
 ] };
 
 function ScaleMeter({
@@ -200,12 +206,14 @@ export default function DiaperNewScreen() {
   const [poopIntensityCfg, setPoopIntensityCfg] = useState(DEFAULT_POOP_INTENSITY);
   const [peeHealthCfg, setPeeHealthCfg] = useState(DEFAULT_PEE_HEALTH);
   const [poopHealthCfg, setPoopHealthCfg] = useState(DEFAULT_POOP_HEALTH);
+  const [poopConsistencyCfg, setPoopConsistencyCfg] = useState(DEFAULT_POOP_CONSISTENCY);
 
   // Values
   const [peeIntensity, setPeeIntensity] = useState(0);
   const [poopIntensity, setPoopIntensity] = useState(0);
   const [peeHealth, setPeeHealth] = useState(0);
   const [poopHealth, setPoopHealth] = useState(0);
+  const [poopConsistency, setPoopConsistency] = useState(0);
   const [selectedObs, setSelectedObs] = useState<Record<string, Record<string, number>>>({});
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [weightGrams, setWeightGrams] = useState("");
@@ -217,11 +225,13 @@ export default function DiaperNewScreen() {
       AsyncStorage.getItem('poop_intensity_config'),
       AsyncStorage.getItem('pee_health_config'),
       AsyncStorage.getItem('poop_health_config'),
-    ]).then(([pi, poi, ph, poh]) => {
+      AsyncStorage.getItem('poop_consistency_config'),
+    ]).then(([pi, poi, ph, poh, pc]) => {
       if (pi) try { setPeeIntensityCfg(JSON.parse(pi)); } catch {}
       if (poi) try { setPoopIntensityCfg(JSON.parse(poi)); } catch {}
       if (ph) try { setPeeHealthCfg(JSON.parse(ph)); } catch {}
       if (poh) try { setPoopHealthCfg(JSON.parse(poh)); } catch {}
+      if (pc) try { setPoopConsistencyCfg(JSON.parse(pc)); } catch {}
     });
   }, []);
 
@@ -246,6 +256,9 @@ export default function DiaperNewScreen() {
 
   const isObsSelected = (id: string) => id in selectedObs;
 
+  const findZone = (cfg: { zones: { min: number; max: number; emoji?: string; label: string }[] }, value: number) =>
+    cfg.zones.find((z) => value >= z.min && value <= z.max);
+
   const handleSave = async () => {
     if (!baby || !profile) return;
     setSaving(true);
@@ -264,6 +277,12 @@ export default function DiaperNewScreen() {
         }
       }
 
+      const peeIntensityZone = findZone(peeIntensityCfg, peeIntensity);
+      const poopIntensityZone = findZone(poopIntensityCfg, poopIntensity);
+      const peeHealthZone = peeHealthCfg.enabled && peeHealth > 0 ? findZone(peeHealthCfg, peeHealth) : null;
+      const poopHealthZone = poopHealthCfg.enabled && poopHealth > 0 ? findZone(poopHealthCfg, poopHealth) : null;
+      const poopConsistencyZone = findZone(poopConsistencyCfg, poopConsistency);
+
       await saveEvent.mutateAsync({
         babyId: baby.id,
         eventTypeId: "diaper",
@@ -273,6 +292,12 @@ export default function DiaperNewScreen() {
           poopIntensity,
           peeHealth: peeHealthCfg.enabled ? peeHealth : null,
           poopHealth: poopHealthCfg.enabled ? poopHealth : null,
+          poopConsistency,
+          peeIntensityZone: peeIntensityZone ? { emoji: peeIntensityZone.emoji ?? "", label: peeIntensityZone.label } : null,
+          poopIntensityZone: poopIntensityZone ? { emoji: poopIntensityZone.emoji ?? "", label: poopIntensityZone.label } : null,
+          peeHealthZone,
+          poopHealthZone,
+          poopConsistencyZone: poopConsistencyZone ? { emoji: poopConsistencyZone.emoji ?? "", label: poopConsistencyZone.label } : null,
           observationIds: obsNoScale,
           observationValues: Object.keys(obsWithScale).length > 0 ? obsWithScale : null,
           imageUri: imageUri ?? undefined,
@@ -308,7 +333,7 @@ export default function DiaperNewScreen() {
     ]);
   };
 
-  const isMedical = (id: string) => ["blood", "mucus", "diarrhea"].includes(id);
+  const isMedical = (id: string) => ["blood", "mucus"].includes(id);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.surface }} edges={["top"]}>
@@ -399,6 +424,15 @@ export default function DiaperNewScreen() {
               zones={poopHealthCfg.zones}
             />
           )}
+          <ScaleMeter
+            label="Consistencia"
+            emoji="💩"
+            value={poopConsistency}
+            onChange={setPoopConsistency}
+            min={poopConsistencyCfg.min}
+            max={poopConsistencyCfg.max}
+            zones={poopConsistencyCfg.zones}
+          />
         </View>
 
         {/* ─── OBSERVACIONES ─── */}
@@ -410,7 +444,7 @@ export default function DiaperNewScreen() {
               🔬 Observaciones
             </Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {observations.map((obs) => {
+              {observations.filter((o) => o.id !== 'diarrhea').map((obs) => {
                 const selected = isObsSelected(obs.id);
                 const medical = isMedical(obs.id);
                 return (
@@ -496,11 +530,23 @@ export default function DiaperNewScreen() {
                 );
               })}
 
-            {/* Medical alert */}
-            {Object.keys(selectedObs).some((id) => isMedical(id)) && (
+            {/* Medical alert — severity-based */}
+            {(poopConsistency === 4 || Object.keys(selectedObs).some((id) => {
+              const obs = observations?.find((o) => o.id === id);
+              if (!obs?.isAlert) return false;
+              const metrics = parseMetrics(obs.metrics);
+              if (!metrics.length) return true;
+              if (id === 'blood') return true;
+              return metrics.some((m) => {
+                const v = selectedObs[id]?.[m.id];
+                if (v == null) return false;
+                const lastZone = m.zones?.[m.zones.length - 1];
+                return lastZone && v >= lastZone.min && v <= lastZone.max;
+              });
+            })) && (
               <View
                 style={{
-                  backgroundColor: c.danger,
+                  backgroundColor: c.danger + "20",
                   borderRadius: 12,
                   padding: 12,
                   borderLeftWidth: 4,

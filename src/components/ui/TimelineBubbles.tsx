@@ -202,31 +202,60 @@ export function TimelineBubble({
 
       {event.eventTypeId === "diaper" && meta && (
         <View style={{ marginBottom: 2 }}>
-          {meta.peeIntensity > 0 && (
+          {(meta.peeIntensity > 0 || (meta.peeHealth ?? 0) > 0) && (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-              <View style={{ flexDirection: "row", gap: 3 }}>
-                {Array.from({ length: meta.peeIntensity }, (_, i) => i + 1).map((n) => (
-                  <View key={n} style={{ width: 14, height: 14, borderRadius: 99, backgroundColor: c.biological.pee }} />
-                ))}
-              </View>
-              <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "700" }}>💧</Text>
-              {meta.peeHealth > 0 && (
-                <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "600" }}>· {meta.peeHealth}/8</Text>
-              )}
+              <Text style={{ fontSize: 12 }}>💧</Text>
+              {meta.peeIntensityZone?.label ? (
+                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "600" }}>
+                  {meta.peeIntensityZone.emoji} {meta.peeIntensityZone.label}
+                </Text>
+              ) : meta.peeIntensity > 0 ? (
+                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "600" }}>
+                  {Array.from({ length: meta.peeIntensity }, () => "💧").join("")}
+                </Text>
+              ) : null}
+              {meta.peeHealthZone?.label ? (
+                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "600" }}>
+                  · {meta.peeHealthZone.emoji} {meta.peeHealthZone.label}
+                </Text>
+              ) : (meta.peeHealth ?? 0) > 0 ? (
+                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "600" }}>
+                  · {meta.peeHealth}/8
+                </Text>
+              ) : null}
             </View>
           )}
 
-          {meta.poopIntensity > 0 && (
+          {(meta.poopIntensity > 0 || (meta.poopHealth ?? 0) > 0 || meta.poopConsistency > 0) && (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-              <View style={{ flexDirection: "row", gap: 3 }}>
-                {Array.from({ length: meta.poopIntensity }, (_, i) => i + 1).map((n) => (
-                  <View key={n} style={{ width: 14, height: 14, borderRadius: 99, backgroundColor: c.biological.poop }} />
-                ))}
-              </View>
-              <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "700" }}>💩</Text>
-              {meta.poopHealth > 0 && (
-                <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "600" }}>· {meta.poopHealth}/5</Text>
-              )}
+              <Text style={{ fontSize: 12 }}>💩</Text>
+              {meta.poopIntensityZone?.label ? (
+                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "600" }}>
+                  {meta.poopIntensityZone.emoji} {meta.poopIntensityZone.label}
+                </Text>
+              ) : meta.poopIntensity > 0 ? (
+                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "600" }}>
+                  {Array.from({ length: meta.poopIntensity }, () => "💩").join("")}
+                </Text>
+              ) : null}
+              {meta.poopConsistencyZone?.label ? (
+                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "600" }}>
+                  · {meta.poopConsistencyZone.emoji} {meta.poopConsistencyZone.label}
+                </Text>
+              ) : meta.poopConsistency > 0 ? (
+                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "600" }}>
+                  · {["", "Sólida", "Pastosa", "Líquida", "Acuosa"][meta.poopConsistency]}
+                </Text>
+              ) : null}
+              {meta.poopHealthZone?.label ? (
+                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "600" }}>
+                  · {meta.poopHealthZone.emoji} {meta.poopHealthZone.label}
+                </Text>
+              ) : (meta.poopHealth ?? 0) > 0 ? (
+                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "600" }}>
+                  · {meta.poopHealth}/5
+                </Text>
+              ) : null}
             </View>
           )}
 

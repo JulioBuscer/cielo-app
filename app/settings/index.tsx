@@ -11,6 +11,7 @@ const CONFIG_KEYS = [
   'poop_intensity_config',
   'pee_health_config',
   'poop_health_config',
+  'poop_consistency_config',
 ];
 
 const SETTINGS_ITEMS: { emoji: string; label: string; desc: string; route: string }[] = [
