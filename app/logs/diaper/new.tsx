@@ -29,7 +29,12 @@ import {
 } from "@/src/db/schema";
 import type { DiaperObservation, ObservationMetric } from "@/src/db/schema";
 
-const DEFAULT_PEE_INTENSITY = { min: 1, max: 8, zones: [{ min: 1, max: 3, color: "#4CAF50", label: "Saludable" }, { min: 4, max: 6, color: "#FFC107", label: "Precaución" }, { min: 7, max: 8, color: "#F44336", label: "Alerta" }] };
+const DEFAULT_PEE_INTENSITY = { min: 1, max: 4, zones: [
+  { min: 1, max: 1, color: "#BBDEFB", label: "Poquitita", emoji: "💧" },
+  { min: 2, max: 2, color: "#64B5F6", label: "Poquita",   emoji: "💧" },
+  { min: 3, max: 3, color: "#1E88E5", label: "Normal",    emoji: "💦" },
+  { min: 4, max: 4, color: "#0D47A1", label: "Mucha",     emoji: "🌊" },
+] };
 const DEFAULT_POOP_INTENSITY = { min: 0, max: 5, zones: [{ min: 1, max: 2, color: "#8B4513", label: "Poco" }, { min: 3, max: 4, color: "#654321", label: "Normal" }, { min: 5, max: 5, color: "#3E2723", label: "Mucho" }] };
 const DEFAULT_PEE_HEALTH = { enabled: true, min: 1, max: 8, zones: [
   { min: 1, max: 1, color: "#E8F5E9", label: "Transparente",  emoji: "💧" },
