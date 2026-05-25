@@ -31,6 +31,7 @@ const DEFAULT_EVENT_TYPES = [
   { id: 'weight',        emoji: '⚖️', label: 'Peso',           category: 'growth'  as const },
   { id: 'height',        emoji: '📏', label: 'Estatura',       category: 'growth'  as const },
   { id: 'temperature',   emoji: '🌡️', label: 'Temperatura',   category: 'health'  as const },
+  { id: 'measurement',   emoji: '📏', label: 'Medición',       category: 'growth'  as const },
   { id: 'note',          emoji: '📝', label: 'Nota',           category: 'other'   as const },
 ];
 
@@ -246,6 +247,11 @@ export async function runMigrations() {
 
   // Seed metrics for system event types
   const METRICS_MAP: Record<string, string> = {
+    measurement: JSON.stringify([
+      { id: 'weightKg', name: 'Peso', unitId: 'kilogram', scaleMin: 0, scaleMax: 30 },
+      { id: 'heightCm', name: 'Estatura', unitId: 'centimeter', scaleMin: 0, scaleMax: 120 },
+      { id: 'headCircCm', name: 'C. Cefálico', unitId: 'centimeter', scaleMin: 0, scaleMax: 60 },
+    ]),
     weight: JSON.stringify([
       { id: 'weight', name: 'Peso', unitId: 'kilogram', scaleMin: 0, scaleMax: 30 },
     ]),
@@ -300,6 +306,13 @@ export async function runMigrations() {
     `);
   }
 
+  // Migrate legacy weight/height events → unified measurement
+  try {
+    await migrateToMeasurement(_raw);
+  } catch (e) {
+    console.error('[Cielo] Measurement migration error:', e);
+  }
+
   // Seed/update diaper_observations (no-destructivo: actualiza system, ignora custom)
   for (const obs of DEFAULT_DIAPER_OBSERVATIONS) {
     const isAlert = obs.isAlert ? 1 : 0;
@@ -314,6 +327,119 @@ export async function runMigrations() {
        VALUES ('${obs.id}', '${obs.emoji}', '${obs.label}', 1, ${isAlert}, '${obs.metrics}', 0, 1, ${now});`
     );
   }
+}
+
+// ─── MIGRACIÓN: weight/height → measurement ─────────────────────────────────────
+
+async function migrateToMeasurement(_raw: SQLite.SQLiteDatabase) {
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+  const done = await AsyncStorage.getItem('migration_measurement_done');
+  if (done === 'true') return;
+
+  // 1. Birth weight from baby profile → measurement event
+  const babies: any[] = _raw.getAllSync(`SELECT id, weight_birth_grams, birth_date FROM babies WHERE weight_birth_grams IS NOT NULL;`);
+  for (const baby of babies) {
+    const birthDate = new Date(baby.birth_date);
+    const birthWeightGrams = baby.weight_birth_grams;
+    const existing: any[] = _raw.getAllSync(
+      `SELECT id FROM timeline_events WHERE baby_id = ? AND event_type_id = 'measurement' AND timestamp = ? LIMIT 1;`,
+      [baby.id, birthDate.getTime()]
+    );
+    if (existing.length === 0) {
+      _raw.execSync(
+        `INSERT INTO timeline_events (id, baby_id, profile_id, event_type_id, timestamp, "values", created_at)
+         VALUES ('${generateId()}', '${baby.id}', '', 'measurement', ${birthDate.getTime()},
+         '${JSON.stringify({ weightKg: birthWeightGrams / 1000 })}', ${Date.now()});`
+      );
+    }
+  }
+
+  // 2. Read all weight/height events, ordered by timestamp
+  const events: any[] = _raw.getAllSync(
+    `SELECT id, baby_id, profile_id, event_type_id, timestamp, notes, "values", metadata
+     FROM timeline_events
+     WHERE event_type_id IN ('weight', 'height')
+     ORDER BY baby_id, timestamp;`
+  );
+
+  if (events.length === 0) {
+    await AsyncStorage.setItem('migration_measurement_done', 'true');
+    return;
+  }
+
+  // Group by baby + 5-minute window
+  const groups: Array<{
+    babyId: string;
+    profileId: string;
+    ts: number;
+    notes: string[];
+    ids: string[];
+    values: Record<string, number>;
+  }> = [];
+
+  for (const ev of events) {
+    const ts = ev.timestamp;
+    let group = groups[groups.length - 1];
+    if (!group || group.babyId !== ev.baby_id || Math.abs(group.ts - ts) > 5 * 60 * 1000) {
+      group = {
+        babyId: ev.baby_id,
+        profileId: ev.profile_id ?? '',
+        ts,
+        notes: [],
+        ids: [],
+        values: {},
+      };
+      groups.push(group);
+    }
+    group.ids.push(ev.id);
+    if (ev.notes) group.notes.push(ev.notes);
+
+    if (ev.values && ev.values !== '{}') {
+      try {
+        const vals = JSON.parse(ev.values);
+        if (ev.event_type_id === 'weight' && vals.weight != null) {
+          group.values.weightKg = vals.weight;
+        }
+        if (ev.event_type_id === 'height' && vals.height != null) {
+          group.values.heightCm = vals.height;
+        }
+      } catch {}
+    }
+    if (ev.metadata && ev.metadata !== '{}') {
+      try {
+        const meta = JSON.parse(ev.metadata);
+        if (ev.event_type_id === 'weight' && meta.weightGrams != null && group.values.weightKg == null) {
+          group.values.weightKg = meta.weightGrams / 1000;
+        }
+        if (ev.event_type_id === 'height' && meta.heightMm != null && group.values.heightCm == null) {
+          group.values.heightCm = meta.heightMm / 10;
+        }
+      } catch {}
+    }
+  }
+
+  const deleteIds: string[] = [];
+
+  for (const group of groups) {
+    const combinedNotes = group.notes.filter(Boolean).join('; ') || null;
+    const valuesJson = JSON.stringify(group.values);
+
+    _raw.execSync(
+      `INSERT INTO timeline_events (id, baby_id, profile_id, event_type_id, timestamp, notes, "values", created_at)
+       VALUES ('${generateId()}', '${group.babyId}', '${group.profileId}', 'measurement', ${group.ts},
+       ${combinedNotes ? `'${combinedNotes.replace(/'/g, "''")}'` : 'NULL'},
+       '${valuesJson.replace(/'/g, "''")}', ${Date.now()});`
+    );
+
+    deleteIds.push(...group.ids);
+  }
+
+  for (const id of deleteIds) {
+    _raw.execSync(`DELETE FROM timeline_events WHERE id = '${id}';`);
+  }
+
+  await AsyncStorage.setItem('migration_measurement_done', 'true');
+  console.log(`[Cielo] Migrated ${deleteIds.length} weight/height events to measurement`);
 }
 
 // ─── RESET TOTAL (solo para desarrollo) ─────────────────────────────────────

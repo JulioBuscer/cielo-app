@@ -78,13 +78,13 @@ export function useGrowthHistory(babyId?: string) {
         .where(eq(growthLogs.babyId, babyId))
         .orderBy(desc(growthLogs.timestamp));
 
-      // Fuente 2: timeline_events tipo 'weight' o 'height'
+      // Fuente 2: timeline_events tipo 'weight', 'height', o 'measurement'
       const evRows = await db
         .select()
         .from(timelineEvents)
         .where(and(
           eq(timelineEvents.babyId, babyId),
-          inArray(timelineEvents.eventTypeId, ['weight', 'height']),
+          inArray(timelineEvents.eventTypeId, ['weight', 'height', 'measurement']),
         ))
         .orderBy(desc(timelineEvents.timestamp));
 
@@ -93,7 +93,7 @@ export function useGrowthHistory(babyId?: string) {
         catch { return {}; }
       };
 
-      const parseValues = (row: typeof evRows[0]): Record<string, number> => {
+      const parseValues = (row: typeof evRows[0]): Record<string, any> => {
         try { return row.values ? JSON.parse(row.values) : {}; }
         catch { return {}; }
       };
@@ -103,18 +103,29 @@ export function useGrowthHistory(babyId?: string) {
         const meta = parseMeta(e);
         const vals = parseValues(e);
         const ts = e.timestamp instanceof Date ? e.timestamp : new Date(Number(e.timestamp));
+
+        if (e.eventTypeId === 'measurement') {
+          return {
+            id: e.id,
+            babyId: e.babyId,
+            profileId: e.profileId,
+            timestamp: ts,
+            weightGrams: vals.weightKg != null ? vals.weightKg * 1000 : null,
+            heightMm: vals.heightCm != null ? vals.heightCm * 10 : null,
+            headCircMm: vals.headCircCm != null ? vals.headCircCm * 10 : null,
+            notes: e.notes,
+            createdAt: e.createdAt instanceof Date ? e.createdAt : new Date(Number(e.createdAt)),
+          };
+        }
+
         let weightGrams: number | null = null;
         let heightMm: number | null = null;
 
         if (e.eventTypeId === 'weight') {
-          // Nuevo sistema: values.weight está en kg → convertir a gramos
           if (vals.weight != null) weightGrams = vals.weight * 1000;
-          // Legacy: metadata.weightGrams ya está en gramos
           else if (meta.weightGrams != null) weightGrams = meta.weightGrams;
         } else if (e.eventTypeId === 'height') {
-          // Nuevo sistema: values.height está en cm → convertir a mm
           if (vals.height != null) heightMm = vals.height * 10;
-          // Legacy: metadata.heightMm ya está en mm
           else if (meta.heightMm != null) heightMm = meta.heightMm;
         }
 
@@ -166,7 +177,7 @@ export function useLastGrowthLog(babyId?: string) {
         .where(eq(growthLogs.babyId, babyId))
         .orderBy(desc(growthLogs.timestamp));
 
-      // ── Fuente 2: timeline_events de tipo 'weight' o 'height' ────────────
+      // ── Fuente 2: timeline_events de tipo 'weight', 'height', o 'measurement' ─
       const evRows = await db
         .select()
         .from(timelineEvents)
@@ -175,35 +186,32 @@ export function useLastGrowthLog(babyId?: string) {
 
       const weightEvents = evRows.filter(e => e.eventTypeId === 'weight');
       const heightEvents = evRows.filter(e => e.eventTypeId === 'height');
+      const measurementEvents = evRows.filter(e => e.eventTypeId === 'measurement');
 
-      // Helper: parsear metadata de timeline_event
       const parseMeta = (row: typeof evRows[0]): Record<string, any> => {
         try { return row.metadata ? JSON.parse(row.metadata) : {}; }
         catch { return {}; }
       };
 
-      // Helper: extraer valor desde la nueva columna "values" (JSON)
-      const parseValues = (row: typeof evRows[0]): Record<string, number> => {
+      const parseValues = (row: typeof evRows[0]): Record<string, any> => {
         try { return row.values ? JSON.parse(row.values) : {}; }
         catch { return {}; }
       };
 
       // ── Mejor fuente para weightGrams ────────────────────────────────────
-      // Candidatos de growth_logs
       const glWeight = glRows.find(g => g.weightGrams != null);
-      // Candidatos de timeline_events: metadata.weightGrams (legacy, en gramos)
       const evWeightMeta = weightEvents.find(e => parseMeta(e).weightGrams != null);
-      // Candidatos de timeline_events: "values" (nuevo sistema, en kg → convertir a gramos)
       const evWeightVal = weightEvents.find(e => parseValues(e).weight != null);
+      const evMeasurementW = measurementEvents.find(e => parseValues(e).weightKg != null);
 
       let weightGrams: number | null = null;
       let weightTs:    number | null = null;
 
-      // Tomar el más reciente entre las tres fuentes
       const weightCandidates: { value: number; ts: number }[] = [];
       if (glWeight) weightCandidates.push({ value: glWeight.weightGrams!, ts: new Date(glWeight.timestamp).getTime() });
       if (evWeightMeta) weightCandidates.push({ value: parseMeta(evWeightMeta).weightGrams, ts: new Date(evWeightMeta.timestamp).getTime() });
       if (evWeightVal) weightCandidates.push({ value: parseValues(evWeightVal).weight * 1000, ts: new Date(evWeightVal.timestamp).getTime() });
+      if (evMeasurementW) weightCandidates.push({ value: parseValues(evMeasurementW).weightKg * 1000, ts: new Date(evMeasurementW.timestamp).getTime() });
       const bestWeight = weightCandidates.sort((a, b) => b.ts - a.ts)[0];
       if (bestWeight) { weightGrams = bestWeight.value; weightTs = bestWeight.ts; }
 
@@ -211,6 +219,7 @@ export function useLastGrowthLog(babyId?: string) {
       const glHeight = glRows.find(g => g.heightMm != null);
       const evHeightMeta = heightEvents.find(e => parseMeta(e).heightMm != null);
       const evHeightVal = heightEvents.find(e => parseValues(e).height != null);
+      const evMeasurementH = measurementEvents.find(e => parseValues(e).heightCm != null);
 
       let heightMm: number | null = null;
       let heightTs: number | null = null;
@@ -219,15 +228,23 @@ export function useLastGrowthLog(babyId?: string) {
       if (glHeight) heightCandidates.push({ value: glHeight.heightMm!, ts: new Date(glHeight.timestamp).getTime() });
       if (evHeightMeta) heightCandidates.push({ value: parseMeta(evHeightMeta).heightMm, ts: new Date(evHeightMeta.timestamp).getTime() });
       if (evHeightVal) heightCandidates.push({ value: parseValues(evHeightVal).height * 10, ts: new Date(evHeightVal.timestamp).getTime() });
+      if (evMeasurementH) heightCandidates.push({ value: parseValues(evMeasurementH).heightCm * 10, ts: new Date(evMeasurementH.timestamp).getTime() });
       const bestHeight = heightCandidates.sort((a, b) => b.ts - a.ts)[0];
       if (bestHeight) { heightMm = bestHeight.value; heightTs = bestHeight.ts; }
 
-      // ── headCircMm — solo viene de growth_logs (no hay evento de tipo head) ─
+      // ── headCircMm — growth_logs + measurement events ────────────────────
       const glHead = glRows.find(g => g.headCircMm != null);
-      const headCircMm = glHead?.headCircMm ?? null;
-      const headTs     = glHead ? new Date(glHead.timestamp).getTime() : null;
+      const evHead = measurementEvents.find(e => parseValues(e).headCircCm != null);
 
-      // Si no hay nada en ninguna fuente, retornar null
+      let headCircMm: number | null = null;
+      let headTs: number | null = null;
+
+      const headCandidates: { value: number; ts: number }[] = [];
+      if (glHead) headCandidates.push({ value: glHead.headCircMm!, ts: new Date(glHead.timestamp).getTime() });
+      if (evHead) headCandidates.push({ value: parseValues(evHead).headCircCm * 10, ts: new Date(evHead.timestamp).getTime() });
+      const bestHead = headCandidates.sort((a, b) => b.ts - a.ts)[0];
+      if (bestHead) { headCircMm = bestHead.value; headTs = bestHead.ts; }
+
       if (weightGrams == null && heightMm == null && headCircMm == null) {
         return null;
       }

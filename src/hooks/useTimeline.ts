@@ -108,7 +108,7 @@ export function useSaveTimelineEvent() {
       qc.invalidateQueries({ queryKey: ['timeline', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['timeline', 'last', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['calendar', vars.babyId], refetchType: 'all' });
-      if (vars.eventTypeId === 'weight' || vars.eventTypeId === 'height') {
+      if (vars.eventTypeId === 'weight' || vars.eventTypeId === 'height' || vars.eventTypeId === 'measurement') {
         qc.invalidateQueries({ queryKey: ['growth_last', vars.babyId] });
         qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
       }
