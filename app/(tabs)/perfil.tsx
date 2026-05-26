@@ -155,7 +155,7 @@ export default function PerfilScreen() {
                 emoji="📈"
                 label="Curvas OMS"
                 subtitle="Peso, talla y CC con percentiles"
-                onPress={() => router.push("/logs/growth/charts")}
+                onPress={() => router.push("/logs/growth/history")}
               />
               <MenuLink
                 emoji="📋"
