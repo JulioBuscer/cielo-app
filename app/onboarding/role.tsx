@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Text, View, TouchableOpacity, TextInput, ScrollView, StatusBar } from 'react-native';
+import { Text, View, TouchableOpacity, TextInput, ScrollView, StatusBar, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BigButton } from '@/src/components/ui/BigButton';
@@ -33,10 +33,16 @@ export default function RoleSelection() {
         <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 22 }}>Tu Perfil</Text>
       </View>
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        style={{ flex: 1 }}
+      >
       <ScrollView
         style={{ flex: 1, backgroundColor: '#FFF0F5', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <Text style={{ fontSize: 13, color: '#9B7A88', fontWeight: '600', marginBottom: 20, lineHeight: 20 }}>
           Cielo App es 100% offline. Estos datos se quedan en tu dispositivo.
@@ -109,6 +115,7 @@ export default function RoleSelection() {
           onPress={handleNext}
         />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

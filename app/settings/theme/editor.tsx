@@ -7,6 +7,8 @@ import {
   TextInput,
   StatusBar,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -153,9 +155,15 @@ export default function ThemeEditorScreen() {
         </Text>
       </View>
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        style={{ flex: 1 }}
+      >
       <ScrollView
         style={{ backgroundColor: colors.surface ?? c.surface, flex: 1 }}
         contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Theme name */}
         <View
@@ -457,6 +465,7 @@ export default function ThemeEditorScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

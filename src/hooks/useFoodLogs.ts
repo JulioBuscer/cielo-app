@@ -60,7 +60,7 @@ export function useSaveFoodLog() {
   });
 }
 
-const FOOD_GROUPS: Record<string, string> = {
+export const FOOD_GROUPS: Record<string, string> = {
   fruit: "🍎 Frutas",
   vegetable: "🥕 Verduras",
   protein: "🥩 Proteínas",

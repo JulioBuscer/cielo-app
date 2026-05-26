@@ -7,6 +7,8 @@ import {
   TextInput,
   StatusBar,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -130,7 +132,12 @@ export default function FeedingDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 16 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        style={{ flex: 1 }}
+      >
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
         {/* Session info card */}
         <View className="rounded-2xl p-5 gap-3" style={{ backgroundColor: c.card }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -254,6 +261,7 @@ export default function FeedingDetailScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

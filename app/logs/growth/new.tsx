@@ -9,6 +9,8 @@ import {
   StatusBar,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -170,7 +172,16 @@ export default function MeasurementNewScreen() {
         <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 20 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        style={{ flex: 1 }}
+      >
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 20, gap: 20 }}
+        keyboardShouldPersistTaps="handled"
+      >
         {last && (
           <View className="rounded-xl p-3.5 flex-row justify-around" style={{ backgroundColor: c.card }}>
             {last.weightGrams != null && (
@@ -331,6 +342,7 @@ export default function MeasurementNewScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

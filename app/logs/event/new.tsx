@@ -7,6 +7,8 @@ import {
   TextInput,
   StatusBar,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -184,9 +186,15 @@ export default function EventNewScreen() {
         <View style={{ width: 32 }} />
       </View>
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        style={{ flex: 1 }}
+      >
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 20, gap: 20 }}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Step 1: Select type */}
         {!selectedType ? (
@@ -442,6 +450,7 @@ export default function EventNewScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

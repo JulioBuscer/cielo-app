@@ -8,6 +8,8 @@ import {
   Alert,
   Image,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -669,7 +671,12 @@ export default function DiaperDetailScreen() {
         <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 20 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        style={{ flex: 1 }}
+      >
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 20 }} keyboardShouldPersistTaps="handled">
         {/* Date/time editor */}
         <View style={{ gap: 6 }}>
           <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
@@ -881,6 +888,7 @@ export default function DiaperDetailScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

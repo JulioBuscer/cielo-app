@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import {
-  View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, ViewStyle, TextInput, Platform,
+  View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, ViewStyle, TextInput, Platform, KeyboardAvoidingView,
 } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
@@ -447,9 +447,15 @@ export default function HistoryScreen() {
           </Text>
         </View>
       ) : (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+          style={{ flex: 1 }}
+        >
         <FlatList
           data={grouped}
           keyExtractor={(item) => item.dateKey}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
               <Text style={{ fontSize: 14, fontWeight: "800", color: c.textBody, marginBottom: 8, textTransform: "capitalize" }}>
@@ -464,6 +470,7 @@ export default function HistoryScreen() {
           )}
           contentContainerStyle={{ paddingBottom: 40 }}
         />
+        </KeyboardAvoidingView>
       )}
     </SafeAreaView>
   );
