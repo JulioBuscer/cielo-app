@@ -34,18 +34,22 @@ export const REF_PERCENTILES = [
   { z: Z_P97, label: "P97" },
 ] as const;
 
+// Hastings approximation for the standard normal CDF (error ≤ 7.5e-8)
+function cdfNormal(z: number): number {
+  const b1 = 0.319381530;
+  const b2 = -0.356563782;
+  const b3 = 1.781477937;
+  const b4 = -1.821255978;
+  const b5 = 1.330274429;
+  const p = 0.2316419;
+  const t = 1 / (1 + p * Math.abs(z));
+  const phi = Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI);
+  const c = phi * (b1 * t + b2 * t * t + b3 * t * t * t + b4 * t * t * t * t + b5 * t * t * t * t * t);
+  return z >= 0 ? 1 - c : c;
+}
+
 export function zToPercentile(z: number): number {
-  const c0 = 2.515517;
-  const c1 = 0.802853;
-  const c2 = 0.010328;
-  const d1 = 1.432788;
-  const d2 = 0.189269;
-  const d3 = 0.001308;
-  const sign = z < 0 ? -1 : 1;
-  const w = Math.sqrt(Math.log(1 + (sign * z) ** 2));
-  return Math.min(100, Math.max(0, 100 - 100 * Math.exp(
-    -((c0 + c1 * w + c2 * w * w) / (1 + d1 * w + d2 * w * w + d3 * w * w * w))
-  )));
+  return Math.min(100, Math.max(0, Math.round(cdfNormal(z) * 1000) / 10));
 }
 
 export function valueForZ(L: number, M: number, S: number, z: number): number {
