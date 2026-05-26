@@ -183,7 +183,7 @@ Registro de introducción: fecha, primera vez, reacción, foto
 | 🛁 Actividades (tummy time, baño, juego, hitos) | Pendiente | F5 |
 | 🤮 Salud (temperatura, medicamentos, síntomas) | Pendiente | F5 |
 | 📤 Exportar PDF | Pendiente | F3 |
-| 📈 Curvas OMS interactivas | Pendiente | F3 |
+| 📈 Curvas OMS interactivas | ✅ Peso/talla/CC con percentiles y detalle matemático | F3 |
 
 ---
 
@@ -237,9 +237,14 @@ Se guarda como evento tipo `measurement`. En el timeline: `📏 3.2 kg · 54 cm 
 - [x] Mini gráfica semanal en Análisis con días tappables
 - [x] Detección automática 12h/24h según dispositivo
 
-### Fase 3 — Curvas OMS + Exportar
-- [ ] Curvas interactivas peso/talla/CC/IMC
-- [ ] Galería de fotos de crecimiento
+### Fase 3 — Curvas OMS + Exportar ✅
+- [x] Curvas interactivas peso/talla/CC (P3/P15/P50/P85/P97)
+- [x] Tarjeta de percentil + histograma de percentiles en historial
+- [x] PercentileDetailModal con desglose matemático (LMS, z-score, fórmula)
+- [x] Edad en meses y semanas (formatAgeMonths)
+- [x] Botón ✏️ editar medición (precarga valores + fotos)
+- [x] Columna photo_uris en growth_logs para persistencia de fotos
+- [x] Corrección del cálculo percentil OMS (Hastings CDF)
 - [ ] Exportar PDF
 
 ### Fase 4 — Complementaria ✅
@@ -251,6 +256,20 @@ Se guarda como evento tipo `measurement`. En el timeline: `📏 3.2 kg · 54 cm 
 - [ ] Tummy Time, Baño, Juego, Hitos
 - [ ] Temperatura, Medicamentos, Síntomas
 - [ ] Exportar PDF completo para pediatra
+
+---
+
+## 12. Correcciones técnicas
+
+### Cálculo de percentiles (abril 2026)
+- `zToPercentile()` usaba una fórmula incorrecta (Strecok mal implementada) → daba P66 para z=2.49 cuando debía ser P99+
+- Reemplazada con aproximación de Hastings para la CDF normal estándar (error ≤ 7.5×10⁻⁸)
+- Verificado contra valores OMS publicados: P50 al nacer = 3.2322 kg ✅
+
+### Migración multi-statement (mayo 2026)
+- `execAsync` con 12 CREATE TABLE en una sola llamada causaba NullPointerException en Android
+- Dividido en `execAsync` individuales
+- Agregada columna `photo_uris TEXT` a `growth_logs` vía ALTER TABLE
 
 ---
 
