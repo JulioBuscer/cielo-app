@@ -152,6 +152,12 @@ export default function PerfilScreen() {
             </Text>
             <View style={{ gap: 8 }}>
               <MenuLink
+                emoji="📋"
+                label="Historial"
+                subtitle="Todos los registros con filtros"
+                onPress={() => router.push("/history")}
+              />
+              <MenuLink
                 emoji="🍽️"
                 label="Comidas"
                 subtitle="Historial de alimentación complementaria"

@@ -13,7 +13,7 @@ import {
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lte, desc } from "drizzle-orm";
 import { getDb } from "@/src/db/client";
 import { timelineEvents, feedingSessions, sleepSessions, growthLogs, foodLogs } from "@/src/db/schema";
 import { useActiveBaby, calcAge } from "@/src/hooks/useBaby";
@@ -444,6 +444,63 @@ const itemBody: ViewStyle = {
   padding: 10, borderWidth: 1, borderColor: "#F0F0F0",
 };
 
+function MiniWeekChart({
+  data,
+  colors,
+}: {
+  data: { dateKey: string; diapers: number; feeds: number; sleepMs: number; foods: number }[];
+  colors: { diapers: string; feeds: string; sleep: string; foods: string };
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const maxSleep = Math.max(1, ...data.map((d) => d.sleepMs));
+  const barH = 60;
+
+  return (
+    <View style={{ gap: 6 }}>
+      <View style={{ flexDirection: "row", gap: 12 }}>
+        <LegendDot color={colors.diapers} label="Pañal" />
+        <LegendDot color={colors.feeds} label="Toma" />
+        <LegendDot color={colors.sleep} label="Sueño" />
+        <LegendDot color={colors.foods} label="Comida" />
+      </View>
+      <View style={{ flexDirection: "row", height: barH + 20 }}>
+        {data.map((day) => {
+          const barW = Math.max(4, Math.min(12, 60 / data.length));
+          const sh = barH * (day.sleepMs / maxSleep);
+          const dh = Math.min(barH * 0.45, Math.max(4, day.diapers * 8));
+          const fh = Math.min(barH * 0.45, Math.max(4, day.feeds * 8));
+          const label = day.dateKey.split("-")[2];
+          const isToday = new Date().toISOString().slice(0, 10) === day.dateKey;
+          return (
+            <View key={day.dateKey} style={{ flex: 1, alignItems: "center", gap: 1 }}>
+              <View style={{ height: barH, justifyContent: "flex-end", alignItems: "center", gap: 1 }}>
+                <View style={{ width: barW * 0.7, height: fh, backgroundColor: colors.feeds, borderRadius: 2, minHeight: 2 }} />
+                <View style={{ width: barW * 0.7, height: dh, backgroundColor: colors.diapers, borderRadius: 2, minHeight: 2 }} />
+                <View style={{ width: barW, height: sh, backgroundColor: colors.sleep, borderRadius: 2, minHeight: 2 }} />
+              </View>
+              <Text style={{ fontSize: 9, fontWeight: isToday ? "800" : "600", color: isToday ? c.accent : c.textMuted }}>
+                {label}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />
+      <Text style={{ fontSize: 11, fontWeight: "600", color: c.textMuted }}>{label}</Text>
+    </View>
+  );
+}
+
 function MetaTag({ label, color = "#FF5C9A", bg = "#FFF0F5" }: { label: string; color?: string; bg?: string }) {
   return (
     <View style={{ backgroundColor: bg, borderRadius: 99, paddingHorizontal: 8, paddingVertical: 3 }}>
@@ -502,6 +559,46 @@ export default function AnalisisScreen() {
     return calData.days.get(selectedDay);
   }, [selectedDay, calData]);
 
+  const { data: weekData } = useQuery({
+    queryKey: ["weekSummary", baby?.id],
+    enabled: !!baby?.id,
+    queryFn: async () => {
+      if (!baby?.id) return [];
+      const db = getDb();
+      const days: { dateKey: string; diapers: number; feeds: number; sleepMs: number; foods: number }[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+        const [events, feedings, sleeps, foods] = await Promise.all([
+          db.select().from(timelineEvents)
+            .where(and(eq(timelineEvents.babyId, baby.id), gte(timelineEvents.timestamp, start), lte(timelineEvents.timestamp, end)))
+            .orderBy(timelineEvents.timestamp),
+          db.select().from(feedingSessions)
+            .where(and(eq(feedingSessions.babyId, baby.id), gte(feedingSessions.startedAt, start), lte(feedingSessions.startedAt, end))),
+          db.select().from(sleepSessions)
+            .where(and(eq(sleepSessions.babyId, baby.id), gte(sleepSessions.startedAt, start), lte(sleepSessions.startedAt, end))),
+          db.select().from(foodLogs)
+            .where(and(eq(foodLogs.babyId, baby.id), gte(foodLogs.timestamp, start), lte(foodLogs.timestamp, end))),
+        ]);
+        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const sleepMs = sleeps.reduce((acc, s) => {
+          if (s.status !== "finished" || !s.endedAt) return acc;
+          return acc + (new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime());
+        }, 0);
+        days.push({
+          dateKey,
+          diapers: events.filter((e) => e.eventTypeId === "diaper").length,
+          feeds: feedings.length,
+          sleepMs,
+          foods: foods.length,
+        });
+      }
+      return days;
+    },
+  });
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.surface }} edges={["top"]}>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 40 }}>
@@ -544,9 +641,24 @@ export default function AnalisisScreen() {
             </View>
 
             <View style={{ gap: 8 }}>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: c.textBody }}>Esta semana</Text>
+              {weekData ? (
+                <View style={{ backgroundColor: c.card, borderRadius: 16, padding: 14, gap: 12, borderWidth: 1, borderColor: c.elevated }}>
+                  <MiniWeekChart
+                    data={weekData}
+                    colors={{ diapers: "#AB47BC", feeds: "#E07B9C", sleep: "#4CAF50", foods: "#7CB342" }}
+                  />
+                </View>
+              ) : (
+                <ActivityIndicator color={c.accent} />
+              )}
+            </View>
+
+            <View style={{ gap: 8 }}>
               <Text style={{ fontSize: 15, fontWeight: "800", color: c.textBody }}>Explorar</Text>
               <View style={{ gap: 8 }}>
                 <QuickLink emoji="📊" label="Estadísticas completas" onPress={() => router.push("/stats")} />
+                <QuickLink emoji="📋" label="Historial completo" onPress={() => router.push("/history")} />
                 <QuickLink emoji="📏" label="Crecimiento" onPress={() => router.push("/logs/growth/history")} />
                 <QuickLink emoji="⏳" label="Ventanas de sueño" onPress={() => router.push("/wake-windows")} />
               </View>

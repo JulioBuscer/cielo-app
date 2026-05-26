@@ -238,6 +238,17 @@ export default function HomeScreen() {
   const { data: sessions } = useFeedingHistory(baby?.id, 30);
   const { data: sleepHistory } = useSleepHistory(baby?.id, 20);
   const { data: eventTypes } = useEventTypes();
+  const HOME_FILTERS = [
+    { key: "all", emoji: "📋" },
+    { key: "feeding", emoji: "🤱" },
+    { key: "sleep", emoji: "😴" },
+    { key: "diaper", emoji: "🍑" },
+    { key: "measurement", emoji: "📏" },
+    { key: "food", emoji: "🍎" },
+    { key: "other", emoji: "📝" },
+  ];
+  const [showFilters, setShowFilters] = useState(false);
+  const [homeFilter, setHomeFilter] = useState("all");
   const startFeeding = useStartFeeding();
   const startSleep = useStartSleep();
   const finishSleep = useFinishSleep();
@@ -286,30 +297,39 @@ export default function HomeScreen() {
     | { kind: "date"; date: Date; ts: number };
 
   const buildItems = (): TLItem[] => {
+    const filteredEvents = (tlEvents ?? []).filter((e) => {
+      if (homeFilter === "all") return true;
+      if (homeFilter === "diaper") return e.eventTypeId === "diaper";
+      if (homeFilter === "other") {
+        const cat = eventTypes?.find((t) => t.id === e.eventTypeId)?.category;
+        return cat === "other" || cat === "health";
+      }
+      return false;
+    });
+    const filteredSessions = homeFilter === "all" || homeFilter === "feeding"
+      ? (sessions ?? []).filter((s) => s.status === "finished") : [];
+    const filteredSleep = homeFilter === "all" || homeFilter === "sleep"
+      ? (sleepHistory ?? []).filter((s) => s.status === "finished") : [];
     const all: TLItem[] = [
-      ...(tlEvents ?? []).map((e) => ({
+      ...filteredEvents.map((e) => ({
         kind: "event" as const,
         data: e,
         ts: new Date(e.timestamp).getTime(),
       })),
-      ...(sessions ?? [])
-        .filter((s) => s.status === "finished")
-        .map((s) => ({
-          kind: "session" as const,
-          data: s,
-          ts: s.endedAt
-            ? new Date(s.endedAt).getTime()
-            : new Date(s.startedAt).getTime(),
-        })),
-      ...(sleepHistory ?? [])
-        .filter((s) => s.status === "finished")
-        .map((s) => ({
-          kind: "sleep" as const,
-          data: s,
-          ts: s.endedAt
-            ? new Date(s.endedAt).getTime()
-            : new Date(s.startedAt).getTime(),
-        })),
+      ...filteredSessions.map((s) => ({
+        kind: "session" as const,
+        data: s,
+        ts: s.endedAt
+          ? new Date(s.endedAt).getTime()
+          : new Date(s.startedAt).getTime(),
+      })),
+      ...filteredSleep.map((s) => ({
+        kind: "sleep" as const,
+        data: s,
+        ts: s.endedAt
+          ? new Date(s.endedAt).getTime()
+          : new Date(s.startedAt).getTime(),
+      })),
     ].sort((a, b) => a.ts - b.ts);
 
     const result: TLItem[] = [];
@@ -483,8 +503,36 @@ export default function HomeScreen() {
                 : "Cielo App"}
             </Text>
           </View>
+          <TouchableOpacity
+            onPress={() => setShowFilters((s) => !s)}
+            style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+          >
+            <Text style={{ fontSize: 20, color: "rgba(255,255,255,0.8)" }}>
+              {showFilters ? "✕" : "🔍"}
+            </Text>
+          </TouchableOpacity>
         </TouchableOpacity>
       </View>
+
+      {showFilters && (
+        <View style={{ backgroundColor: c.headerBg, paddingHorizontal: 16, paddingBottom: 8, flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+          {HOME_FILTERS.map((f) => (
+            <TouchableOpacity
+              key={f.key}
+              onPress={() => setHomeFilter(f.key)}
+              style={{
+                paddingHorizontal: 12, paddingVertical: 5, borderRadius: 99,
+                backgroundColor: homeFilter === f.key ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.2)",
+                minHeight: 32,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "700", color: homeFilter === f.key ? c.headerBg : "#fff" }}>
+                {f.emoji}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
       {currentWake && !activeSleep && !activeSession && (
         <WakeWindowBar
