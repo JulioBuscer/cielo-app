@@ -8,6 +8,8 @@ import { useGrowthHistory, gramsToKg, mmToCm } from "@/src/hooks/useGrowthLogs";
 import { GrowthPercentileChart } from "@/src/growth/GrowthPercentileChart";
 import { calcPercentile } from "@/src/growth/percentiles";
 import type { GrowthMetric } from "@/src/growth/whoData";
+import { formatAgeMonths } from "@/src/utils/formatAgeMonths";
+import { PercentileDetailModal } from "@/src/components/ui/PercentileDetailModal";
 
 function monthsBetween(birth: Date, ts: Date): number {
   const m = (ts.getFullYear() - birth.getFullYear()) * 12
@@ -45,6 +47,7 @@ export default function GrowthHistoryScreen() {
   const c = theme.colors;
   const [tab, setTab] = useState<"records" | "chart">("records");
   const [metric, setMetric] = useState<GrowthMetric>("weight");
+  const [detail, setDetail] = useState<{ ageMonths: number; value: number } | null>(null);
 
   const rows = useMemo(() => {
     if (!history) return [];
@@ -173,11 +176,15 @@ export default function GrowthHistoryScreen() {
               </View>
 
               {percentileInfo && (
-                <View style={{
-                  backgroundColor: c.card, borderRadius: 16, padding: 16,
-                  flexDirection: "row", justifyContent: "space-around",
-                  borderWidth: 1, borderColor: c.elevated,
-                }}>
+                <TouchableOpacity
+                  onPress={() => setDetail({ ageMonths: lastPoint.ageMonths, value: lastPoint.value })}
+                  style={{
+                    backgroundColor: c.card, borderRadius: 16, padding: 16,
+                    flexDirection: "row", justifyContent: "space-around",
+                    borderWidth: 1, borderColor: c.elevated,
+                  }}
+                  activeOpacity={0.7}
+                >
                   <View style={{ alignItems: "center" }}>
                     <Text style={{ fontSize: 24, fontWeight: "900", color: currentMetric.color }}>
                       P{Math.round(percentileInfo.percentile)}
@@ -194,11 +201,11 @@ export default function GrowthHistoryScreen() {
                   </View>
                   <View style={{ alignItems: "center" }}>
                     <Text style={{ fontSize: 24, fontWeight: "900", color: c.textBody }}>
-                      {lastPoint.ageMonths.toFixed(1)}
+                      {formatAgeMonths(lastPoint.ageMonths)}
                     </Text>
-                    <Text style={{ fontSize: 11, fontWeight: "600", color: c.textMuted }}>meses</Text>
+                    <Text style={{ fontSize: 11, fontWeight: "600", color: c.textMuted }}>edad</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               )}
 
               <View style={{ backgroundColor: c.card, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: c.elevated }}>
@@ -224,14 +231,19 @@ export default function GrowthHistoryScreen() {
                       ? calcPercentile(baby.sex as "male" | "female", metric, pt.ageMonths, pt.value)
                       : null;
                     return (
-                      <View key={i} style={{
-                        flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-                        backgroundColor: c.card, borderRadius: 12, padding: 12,
-                        borderWidth: 1, borderColor: c.elevated,
-                      }}>
+                      <TouchableOpacity
+                        key={i}
+                        onPress={() => setDetail({ ageMonths: pt.ageMonths, value: pt.value })}
+                        style={{
+                          flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+                          backgroundColor: c.card, borderRadius: 12, padding: 12,
+                          borderWidth: 1, borderColor: c.elevated,
+                        }}
+                        activeOpacity={0.7}
+                      >
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontSize: 13, fontWeight: "700", color: c.textBody }}>{pt.label}</Text>
-                          <Text style={{ fontSize: 11, color: c.textMuted }}>{pt.ageMonths.toFixed(1)} meses</Text>
+                          <Text style={{ fontSize: 11, color: c.textMuted }}>{formatAgeMonths(pt.ageMonths)}</Text>
                         </View>
                         <Text style={{ fontSize: 15, fontWeight: "700", color: c.textBody }}>
                           {pt.value.toFixed(metric === "weight" ? 2 : 1)} {metric === "weight" ? "kg" : "cm"}
@@ -241,7 +253,7 @@ export default function GrowthHistoryScreen() {
                             P{Math.round(p.percentile)}
                           </Text>
                         )}
-                      </View>
+                      </TouchableOpacity>
                     );
                   })}
                 </View>
@@ -315,6 +327,17 @@ export default function GrowthHistoryScreen() {
           )}
           <View style={{ height: 24 }} />
         </ScrollView>
+      )}
+
+      {detail && baby?.sex && baby.sex !== "unknown" && (
+        <PercentileDetailModal
+          visible
+          onClose={() => setDetail(null)}
+          sex={baby.sex as "male" | "female"}
+          metric={metric}
+          ageMonths={detail.ageMonths}
+          value={detail.value}
+        />
       )}
     </SafeAreaView>
   );
