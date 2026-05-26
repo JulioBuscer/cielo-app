@@ -82,8 +82,10 @@ Selector: [Hoy] [7 días] [30 días]
 - Fotos de crecimiento (múltiples por medición) en timeline visual
 
 ### 📋 Historial completo
-- Todos los eventos, filtrable por tipo, fecha, texto
-- Búsqueda
+- Todos los eventos, filtrable por tipo (pañal/toma/sueño/medición/comida/otros), rango de fecha (Hoy/7d/30d/Rango/Todo) y búsqueda por texto
+- Agrupado por día, cada ítem linkea a su detalle
+- Fecha rango custom con date picker nativo (estilo WhatsApp, Desde/Hasta)
+- Accesible desde Perfil y Análisis
 
 ### 📤 Exportar
 - Reporte PDF para pediatra
@@ -119,16 +121,15 @@ Se calcula automáticamente entre sesiones de sueño registradas. Si solo hay un
 | 14-24 meses | 4-6h | 1 | 12-14h |
 | 2+ años | 5-7h si siesta | 0-1 | 11-13h |
 
-### Display
+### Display (compacto, sin barra de progreso)
 ```
-😴 Ventana de sueño
-   · 2h 15m · Esperado: 2h - 3h ✅
-   · Antes de siesta #2
-   
-😴 Ventana de sueño  
-   · 4h 30m · Esperado: 2.5h - 3.5h ⚠️
-   · Posible sobrecansancio
+⏳ 1h 15m despierto · siesta ≈ 10:30 — 11:30 AM
+🫶 2h 45m despierto · ya quiere dormir
 ```
+
+- Sin barra de progreso (evita ansiedad de "llenado")
+- Muestra la **hora exacta** esperada de siesta, no el rango abstracto
+- Formato 12h/24h según dispositivo
 
 ### Notas importantes
 - La primera ventana del día suele ser la más corta
@@ -170,17 +171,19 @@ Registro de introducción: fecha, primera vez, reacción, foto
 |---------|--------|-----------|
 | 💧 Pañal | ✅ Completo | — |
 | 🤱🍼 Alimentación (leche) | ✅ Base | F1 |
-| 😴 Sueño | ✅ Base + wake windows 🆕 | F2 |
-| 📏 Crecimiento (unificado + curvas + fotos) | 🆕 | F1 |
-| 📅 Calendario mensual | 🆕 | F1 |
-| 📊 Resúmenes diarios/semanales | 🆕 | F1 |
-| 📋 Historial con filtros | 🆕 | F2 |
-| 🥣 Alimentación complementaria | 🆕 | F4 |
-| 🥜 Seguimiento alérgenos | 🆕 | F4 |
-| 🛁 Actividades (tummy time, baño, juego, hitos) | 🆕 | F5 |
-| 🤮 Salud (temperatura, medicamentos, síntomas) | 🆕 | F5 |
-| 📤 Exportar PDF | 🆕 | F3 |
-| 📈 Curvas OMS interactivas | 🆕 | F3 |
+| 😴 Sueño | ✅ Base + wake windows | F2 |
+| 📏 Crecimiento (unificado + fotos) | ✅ | F1 |
+| 📅 Calendario mensual | ✅ | F1 |
+| 📊 Resúmenes diarios/semanales | ✅ Mini semanal interactivo | F1 |
+| 📋 Historial con filtros | ✅ | F2 |
+| 🔍 Filtros en timeline (Inicio) | ✅ Tipo + fecha + texto + rango | F2 |
+| 🕐 Formato hora 12h/24h auto | ✅ Detección automática | F2 |
+| 🥣 Alimentación complementaria | ✅ | F4 |
+| 🥜 Seguimiento alérgenos | Pendiente | F4 |
+| 🛁 Actividades (tummy time, baño, juego, hitos) | Pendiente | F5 |
+| 🤮 Salud (temperatura, medicamentos, síntomas) | Pendiente | F5 |
+| 📤 Exportar PDF | Pendiente | F3 |
+| 📈 Curvas OMS interactivas | Pendiente | F3 |
 
 ---
 
@@ -217,27 +220,31 @@ Se guarda como evento tipo `measurement`. En el timeline: `📏 3.2 kg · 54 cm 
 
 ## 10. Fases de implementación
 
-### Fase 1 — Base (siguiente)
-- [ ] Bottom navigation (3 tabs)
-- [ ] Quick action 📏 Medir (unificado peso+talla+CC+fotos)
-- [ ] Migración de eventos viejos weight/height/CC a measurement
-- [ ] Análisis con subtabs: [📅 Calendario] [📊 Resumen] [📈 Curvas]
-- [ ] Resumen del día con contadores
-- [ ] Calendario mensual con dots + sheet diario
+### Fase 1 — Base ✅
+- [x] Bottom navigation (3 tabs)
+- [x] Quick action 📏 Medir (unificado peso+talla+CC+fotos)
+- [x] Migración de eventos viejos weight/height/CC a measurement
+- [x] Análisis con subtabs: [📅 Calendario] [📊 Resumen] [📈 Curvas]
+- [x] Resumen del día con contadores
+- [x] Calendario mensual con dots + sheet diario
 
-### Fase 2 — Sueño + Historial
-- [ ] Wake windows automáticos con tabla referencias
-- [ ] Historial completo con filtros y búsqueda
-- [ ] Vista semanal en resumen
+### Fase 2 — Sueño + Historial + Filtros ✅
+- [x] Wake windows automáticos con tabla referencias
+- [x] WakeWindowBar compacto sin barra de progreso, muestra hora de siesta
+- [x] Historial completo con filtros (tipo, fecha, texto)
+- [x] Filtro de fecha con rango custom (date picker nativo)
+- [x] Filtros en Inicio (tipo, fecha, texto, rango) — colapsables
+- [x] Mini gráfica semanal en Análisis con días tappables
+- [x] Detección automática 12h/24h según dispositivo
 
 ### Fase 3 — Curvas OMS + Exportar
 - [ ] Curvas interactivas peso/talla/CC/IMC
 - [ ] Galería de fotos de crecimiento
 - [ ] Exportar PDF
 
-### Fase 4 — Complementaria
-- [ ] Catálogo de alimentos OMS
-- [ ] Registro de alimentación complementaria
+### Fase 4 — Complementaria ✅
+- [x] Catálogo de alimentos OMS
+- [x] Registro de alimentación complementaria
 - [ ] Seguimiento de alérgenos
 
 ### Fase 5 — Actividades + Salud
