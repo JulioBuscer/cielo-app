@@ -233,6 +233,8 @@ export async function runMigrations() {
     `ALTER TABLE growth_logs ADD COLUMN photo_uris TEXT`,
     // timeline_events
     `ALTER TABLE timeline_events ADD COLUMN "values" TEXT DEFAULT '{}'`,
+    // food_catalog
+    `ALTER TABLE food_catalog ADD COLUMN hidden INTEGER DEFAULT 0`,
   ]) {
     try { await _raw.execAsync(sql); } catch { /* columna ya existe, ok */ }
   }

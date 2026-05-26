@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte } from "drizzle-orm";
 import { getDb } from "@/src/db/client";
 import { foodCatalog, foodLogs } from "@/src/db/schema";
 import { generateId } from "@/src/utils/id";
@@ -8,7 +8,21 @@ import { generateId } from "@/src/utils/id";
 export function useFoodCatalog() {
   return useQuery({
     queryKey: ["food_catalog"],
-    queryFn: () => getDb().select().from(foodCatalog).orderBy(foodCatalog.name),
+    queryFn: () => getDb()
+      .select()
+      .from(foodCatalog)
+      .where(eq(foodCatalog.hidden, false as any))
+      .orderBy(foodCatalog.name),
+  });
+}
+
+export function useFoodCatalogAll() {
+  return useQuery({
+    queryKey: ["food_catalog_all"],
+    queryFn: () => getDb()
+      .select()
+      .from(foodCatalog)
+      .orderBy(foodCatalog.name),
   });
 }
 

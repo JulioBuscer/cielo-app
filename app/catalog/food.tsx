@@ -8,9 +8,12 @@ import { Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getDb } from "@/src/db/client";
 import { foodCatalog } from "@/src/db/schema";
-import { eq, asc } from "drizzle-orm";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { eq, count as drizzleCount } from "drizzle-orm";
+import { useQueryClient } from "@tanstack/react-query";
 import { useFocusEffect } from "expo-router";
+import { useFoodCatalogAll } from "@/src/hooks/useFoodLogs";
+import { foodLogs } from "@/src/db/schema";
+import { count } from "drizzle-orm";
 
 const GROUP_EMOJIS: Record<string, string> = {
   fruit: "🍎", vegetable: "🥕", protein: "🥩",
@@ -47,13 +50,10 @@ export default function FoodCatalogScreen() {
   const c = theme.colors;
   const qc = useQueryClient();
 
-  const { data: foods } = useQuery({
-    queryKey: ["food_catalog_editor"],
-    queryFn: () => getDb().select().from(foodCatalog).orderBy(asc(foodCatalog.group), asc(foodCatalog.name)),
-  });
+  const { data: foods } = useFoodCatalogAll();
 
   useFocusEffect(() => {
-    qc.invalidateQueries({ queryKey: ["food_catalog_editor"] });
+    qc.invalidateQueries({ queryKey: ["food_catalog_all"] });
   });
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -87,10 +87,54 @@ export default function FoodCatalogScreen() {
       .where(eq(foodCatalog.id, editingId))
       .run();
     setEditingId(null);
-    qc.invalidateQueries({ queryKey: ["food_catalog_editor"] });
+    qc.invalidateQueries({ queryKey: ["food_catalog"] });
+    qc.invalidateQueries({ queryKey: ["food_catalog_all"] });
   }
 
-  const groups = [...new Set(foods?.map((f) => f.group) ?? [])].sort();
+  async function handleDeleteOrHide() {
+    if (!editingId) return;
+    const food = foods?.find((f: any) => f.id === editingId);
+    if (!food) return;
+    const name = food.name ?? editingId;
+    const db = getDb();
+    try {
+      const [{ c }] = await db.select({ c: drizzleCount() }).from(foodLogs).where(eq(foodLogs.foodId, editingId));
+      const hasLogs = Number(c) > 0;
+      if (hasLogs) {
+        Alert.alert(
+          `Ocultar "${name}"`,
+          `Este alimento tiene ${c} registro(s). Se ocultará del selector, pero el historial lo seguirá mostrando.`,
+          [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Ocultar", style: "destructive", onPress: () => {
+              db.update(foodCatalog).set({ hidden: true as any }).where(eq(foodCatalog.id, editingId)).run();
+              setEditingId(null);
+              qc.invalidateQueries({ queryKey: ["food_catalog_editor"] });
+            }},
+          ]
+        );
+      } else {
+        Alert.alert(
+          `Eliminar "${name}"`,
+          "Este alimento no tiene registros asociados. Se eliminará permanentemente.",
+          [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Eliminar", style: "destructive", onPress: () => {
+              db.delete(foodCatalog).where(eq(foodCatalog.id, editingId)).run();
+              setEditingId(null);
+              qc.invalidateQueries({ queryKey: ["food_catalog_editor"] });
+            }},
+          ]
+        );
+      }
+    } catch {
+      Alert.alert("Error", "No se pudo verificar el alimento");
+    }
+  }
+
+  const hiddenCount = foods?.filter((f: any) => f.hidden).length ?? 0;
+  const visible = foods?.filter((f: any) => !f.hidden) ?? [];
+  const groups = [...new Set(visible.map((f: any) => f.group))].sort();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.surface }}>
@@ -102,8 +146,13 @@ export default function FoodCatalogScreen() {
           borderLeftWidth: 3, borderLeftColor: c.accent,
         }}>
           <Text style={{ fontSize: 12, color: c.textMuted, lineHeight: 18 }}>
-            Toca un alimento para editarlo. Los cambios se reflejan en todo el historial (pasado y futuro). No se puede eliminar un alimento que ya tiene registros.
+            Toca un alimento para editarlo. Los cambios se reflejan en todo el historial. Si el alimento no tiene registros se elimina físicamente; si ya tiene, se oculta del selector.
           </Text>
+          {hiddenCount > 0 && (
+            <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 6 }}>
+              🙈 {hiddenCount} alimento(s) oculto(s) — se muestran abajo pero no aparecen en el selector de comidas.
+            </Text>
+          )}
         </View>
 
         {groups.map((group) => (
@@ -227,13 +276,29 @@ export default function FoodCatalogScreen() {
                           }}>
                           <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 13 }}>Cancelar</Text>
                         </TouchableOpacity>
+                        <TouchableOpacity onPress={handleDeleteOrHide}
+                          style={{
+                            paddingHorizontal: 12, borderRadius: 8,
+                            backgroundColor: "#FFEBEE", justifyContent: "center",
+                          }}>
+                          <Text style={{ color: "#E53935", fontWeight: "900", fontSize: 13 }}>🗑️</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
                   ) : (
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Text style={{ fontSize: 16, flex: 1, color: c.textBody }}>
+                      <Text style={{ fontSize: 16, flex: 1, color: c.textBody, opacity: f.hidden ? 0.4 : 1 }}>
                         {f.emoji ?? ""} {f.name}
                       </Text>
+                      {f.hidden ? (
+                        <Text style={{
+                          fontSize: 10, fontWeight: "700", color: c.textMuted,
+                          backgroundColor: c.card, paddingHorizontal: 6,
+                          paddingVertical: 2, borderRadius: 4, marginRight: 8,
+                        }}>
+                          🙈 Oculto
+                        </Text>
+                      ) : null}
                       {f.allergens ? (
                         <Text style={{
                           fontSize: 10, fontWeight: "700", color: "#E53935",

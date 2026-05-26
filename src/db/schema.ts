@@ -277,6 +277,7 @@ export const foodCatalog = sqliteTable('food_catalog', {
   property:  text('property', { enum: ['laxative', 'astringent', 'both', 'neutral'] }).default('neutral'),
   allergens: text('allergens'), // comma-separated
   isSystem:  integer('is_system', { mode: 'boolean' }).default(true),
+  hidden:    integer('hidden', { mode: 'boolean' }).default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
