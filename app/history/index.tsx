@@ -13,6 +13,7 @@ import { useActiveBaby } from "@/src/hooks/useBaby";
 import { useTheme } from "@/src/theme/useTheme";
 import { useEventTypes } from "@/src/hooks/useTimeline";
 import { useFoodCatalog } from "@/src/hooks/useFoodLogs";
+import { timeOptions } from "@/src/utils/timeFormat";
 
 type FilterType = "all" | "diaper" | "feeding" | "sleep" | "growth" | "food" | "other";
 type FilterDate = "today" | "week" | "month" | "all" | "range";
@@ -505,7 +506,7 @@ function formatDuration(sec: number): string {
 }
 
 function formatTime(ts: Date | number): string {
-  return new Date(ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+  return new Date(ts).toLocaleTimeString("es-MX", timeOptions());
 }
 
 const itemRow: ViewStyle = {

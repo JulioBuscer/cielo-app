@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useTheme } from "@/src/theme/useTheme";
+import { timeOptions } from "@/src/utils/timeFormat";
 import {
   View,
   Text,
@@ -87,7 +88,7 @@ export default function WakeWindowsScreen() {
                       Ventana {i + 1}: {formatWakeWindow(ww.durationMs)}
                     </Text>
                     <Text style={{ fontSize: 11, color: c.textMuted }}>
-                      {new Date(ww.startMs).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })} — {new Date(ww.endMs).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}
+                      {new Date(ww.startMs).toLocaleTimeString("es-MX", timeOptions())} — {new Date(ww.endMs).toLocaleTimeString("es-MX", timeOptions())}
                     </Text>
                     <Text style={{ fontSize: 11, fontWeight: "700", color: inRange ? "#4CAF50" : tooLong ? "#AB47BC" : "#6366F1", marginTop: 2 }}>
                       {inRange ? "✅ Buen ritmo" : tooLong ? "🫶 Quizá ya tenía sueño" : "💤 Se durmió temprano"}
@@ -116,7 +117,7 @@ export default function WakeWindowsScreen() {
                       {formatWakeWindow(ww.durationMs)} {inRange ? "✅" : "🫶"}
                     </Text>
                     <Text style={{ fontSize: 11, color: c.textMuted }}>
-                      {new Date(ww.startMs).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })} — {new Date(ww.endMs).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}
+                      {new Date(ww.startMs).toLocaleTimeString("es-MX", timeOptions())} — {new Date(ww.endMs).toLocaleTimeString("es-MX", timeOptions())}
                     </Text>
                   </View>
                 </View>

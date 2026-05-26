@@ -13,6 +13,7 @@ import {
   ScrollView,
 } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import { timeOptions } from "@/src/utils/timeFormat";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useActiveBaby, calcAge, STATUS_LABELS } from "@/src/hooks/useBaby";
@@ -183,7 +184,7 @@ function WakeWindowBar({
   const wokeUpAt = Date.now() - awakeMs;
   const earliestNap = new Date(wokeUpAt + wakeRef.minMin * 60000);
   const latestNap = new Date(wokeUpAt + wakeRef.maxMin * 60000);
-  const napTimeStr = `${earliestNap.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })} — ${latestNap.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`;
+  const napTimeStr = `${earliestNap.toLocaleTimeString("es-MX", timeOptions())} — ${latestNap.toLocaleTimeString("es-MX", timeOptions())}`;
 
   return (
     <TouchableOpacity

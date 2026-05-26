@@ -23,6 +23,7 @@ import { CalendarGrid } from "@/src/components/ui/CalendarGrid";
 import { useCalendarData, type DayEvents } from "@/src/hooks/useCalendarData";
 import { useEventTypes } from "@/src/hooks/useTimeline";
 import { useFoodCatalog } from "@/src/hooks/useFoodLogs";
+import { timeOptions } from "@/src/utils/timeFormat";
 
 function StatCard({
   emoji,
@@ -429,7 +430,7 @@ function DaySheet({
 }
 
 const formatTime = (ts: Date | number) =>
-  new Date(ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+  new Date(ts).toLocaleTimeString("es-MX", timeOptions());
 
 const itemRow: ViewStyle = {
   flexDirection: "row", alignItems: "flex-start", gap: 12,

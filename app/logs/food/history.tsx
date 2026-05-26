@@ -1,4 +1,5 @@
 import { useTheme } from "@/src/theme/useTheme";
+import { timeOptions } from "@/src/utils/timeFormat";
 import {
   View,
   Text,
@@ -66,7 +67,7 @@ export default function FoodLogHistoryScreen() {
                         {entry.isFirst ? " 🥇" : ""}
                       </Text>
                       <Text style={{ fontSize: 11, color: c.textMuted }}>
-                        {new Date(entry.timestamp).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}
+                        {new Date(entry.timestamp).toLocaleTimeString("es-MX", timeOptions())}
                         {entry.reaction ? ` · ${entry.reaction}` : ""}
                       </Text>
                     </View>

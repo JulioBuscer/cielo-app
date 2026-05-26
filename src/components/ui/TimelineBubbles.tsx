@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, Image } from "react-native";
+import { timeOptions } from "@/src/utils/timeFormat";
 import { formatDuration } from "@/src/db/client";
 import {
   FEEDING_LABELS,
@@ -66,10 +67,7 @@ function AvatarCircle({ profile }: { profile: Profile }) {
 }
 
 function formatTime(date: Date | string | number) {
-  return new Date(date).toLocaleTimeString("es-MX", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return new Date(date).toLocaleTimeString("es-MX", timeOptions());
 }
 
 function MetaTag({

@@ -11,6 +11,7 @@ import {
 } from '@/src/hooks/useFeedingSessions';
 import type { FeedingSession } from '@/src/db/schema';
 import { useTheme } from '@/src/theme/useTheme';
+import { timeOptions } from '@/src/utils/timeFormat';
 
 /**
  * Hook de timer preciso.
@@ -80,9 +81,7 @@ export function ActiveFeedingCard({ session }: { session: FeedingSession }) {
     ? BOTTLE_SUBTYPE_LABELS[session.bottleSubtype as keyof typeof BOTTLE_SUBTYPE_LABELS]?.label
     : null;
 
-  const startTime = new Date(session.startedAt).toLocaleTimeString('es-MX', {
-    hour: '2-digit', minute: '2-digit',
-  });
+  const startTime = new Date(session.startedAt).toLocaleTimeString('es-MX', timeOptions());
 
   return (
     <View style={{

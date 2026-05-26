@@ -6,6 +6,7 @@ import {
 } from '@/src/hooks/useSleepSessions';
 import type { SleepSession } from '@/src/db/schema';
 import { useTheme } from '@/src/theme/useTheme';
+import { timeOptions } from '@/src/utils/timeFormat';
 
 export function ActiveSleepCard({ session }: { session: SleepSession }) {
   const pause   = usePauseSleep();
@@ -14,9 +15,7 @@ export function ActiveSleepCard({ session }: { session: SleepSession }) {
   const elapsed = useSleepPreciseElapsed(session);
 
   const isActive = session.status === 'active';
-  const startTime = new Date(session.startedAt).toLocaleTimeString('es-MX', {
-    hour: '2-digit', minute: '2-digit',
-  });
+  const startTime = new Date(session.startedAt).toLocaleTimeString('es-MX', timeOptions());
 
   const busy = pause.isPending || resume.isPending || finish.isPending;
   const { theme } = useTheme(); const c = theme.colors;
