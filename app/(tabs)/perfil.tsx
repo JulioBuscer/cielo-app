@@ -176,6 +176,12 @@ export default function PerfilScreen() {
                 onPress={() => router.push("/catalog/food")}
               />
               <MenuLink
+                emoji="🥜"
+                label="Alérgenos"
+                subtitle="Seguimiento de introducción de alérgenos"
+                onPress={() => router.push("/food/allergens")}
+              />
+              <MenuLink
                 emoji="⏳"
                 label="Ventanas de sueño"
                 subtitle="Tiempo despierto entre siestas"
