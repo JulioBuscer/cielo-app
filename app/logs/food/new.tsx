@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useTheme } from "@/src/theme/useTheme";
 import {
   View, Text, ScrollView, TouchableOpacity,
@@ -11,13 +11,14 @@ import * as ImagePicker from "expo-image-picker";
 import { captureAndStore, deletePhoto } from "@/src/services/imageStorage";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import {
-  useFoodCatalog, useSaveFoodLog, FOOD_GROUPS,
+  useFoodCatalog, FOOD_GROUPS,
 } from "@/src/hooks/useFoodLogs";
 import { useSaveTimelineEvent } from "@/src/hooks/useTimeline";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { getDb } from "@/src/db/client";
-import { foodCatalog } from "@/src/db/schema";
+import { foodCatalog, foodLogs } from "@/src/db/schema";
+import { generateId } from "@/src/utils/id";
 
 const GROUP_KEYS = Object.keys(FOOD_GROUPS).sort();
 
@@ -197,13 +198,12 @@ function QuickAddModal({
 export default function FoodLogNewScreen() {
   const { data: baby } = useActiveBaby();
   const { data: catalog } = useFoodCatalog();
-  const saveFood = useSaveFoodLog();
   const saveEvent = useSaveTimelineEvent();
   const { theme } = useTheme();
   const c = theme.colors;
 
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-  const [selectedFoodId, setSelectedFoodId] = useState<string | null>(null);
+  const [selectedFoodIds, setSelectedFoodIds] = useState<string[]>([]);
   const [timestamp, setTimestamp] = useState(new Date());
   const [isFirst, setIsFirst] = useState(false);
   const [reaction, setReaction] = useState("");
@@ -216,28 +216,42 @@ export default function FoodLogNewScreen() {
     (f) => !selectedGroup || f.group === selectedGroup
   ) ?? [];
 
+  const toggleFood = (id: string) => {
+    setSelectedFoodIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
   async function handleSave() {
-    if (!baby || !selectedFoodId) {
-      Alert.alert("Selecciona un alimento");
+    if (!baby || selectedFoodIds.length === 0) {
+      Alert.alert("Selecciona al menos un alimento");
       return;
     }
     setSaving(true);
     try {
-      const food = catalog?.find((f) => f.id === selectedFoodId);
-      await saveFood.mutateAsync({
-        babyId: baby.id,
-        foodId: selectedFoodId,
-        timestamp,
-        isFirst,
-        reaction: reaction || undefined,
-        notes: notes || undefined,
-        photoUri: photoUris.length > 0 ? photoUris[0] : undefined,
-      });
+      const profileId = (await import("@react-native-async-storage/async-storage").then(m => m.default.getItem('active_profile_id'))) ?? '';
+      const db = getDb();
+      for (const foodId of selectedFoodIds) {
+        db.insert(foodLogs).values({
+          id: generateId(),
+          babyId: baby.id,
+          profileId,
+          foodId,
+          timestamp,
+          isFirst,
+          reaction: reaction || null,
+          photoUri: photoUris.length > 0 ? photoUris[0] : null,
+          notes: notes || null,
+          createdAt: new Date(),
+        }).run();
+      }
+      const foods = catalog?.filter((f) => selectedFoodIds.includes(f.id)) ?? [];
+      const foodList = foods.map((f) => `${f.emoji ?? ""} ${f.name}`).join(", ");
       await saveEvent.mutateAsync({
         babyId: baby.id,
         eventTypeId: "note",
         timestamp,
-        notes: `🍽️ ${food?.emoji ?? ""} ${food?.name ?? ""}${isFirst ? " (primera vez)" : ""}${reaction ? ` — ${reaction}` : ""}`,
+        notes: `🍽️ ${foodList}${isFirst ? " (primera vez)" : ""}${reaction ? ` — ${reaction}` : ""}`,
       });
       router.back();
     } catch {
@@ -342,25 +356,37 @@ export default function FoodLogNewScreen() {
             </TouchableOpacity>
           </View>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {filtered.map((f) => (
+            {filtered.map((f) => {
+              const selected = selectedFoodIds.includes(f.id);
+              return (
               <TouchableOpacity
                 key={f.id}
-                onPress={() => setSelectedFoodId(f.id)}
+                onPress={() => toggleFood(f.id)}
                 style={{
+                  flexDirection: "row", alignItems: "center", gap: 6,
                   paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
-                  backgroundColor: selectedFoodId === f.id ? c.accent : c.elevated,
+                  backgroundColor: selected ? c.accent : c.elevated,
                   borderWidth: 1,
-                  borderColor: selectedFoodId === f.id ? c.accent : c.border,
+                  borderColor: selected ? c.accent : c.border,
                 }}
               >
+                <View style={{
+                  width: 20, height: 20, borderRadius: 4, borderWidth: 2,
+                  borderColor: selected ? c.textOnAccent : c.textMuted,
+                  alignItems: "center", justifyContent: "center",
+                  backgroundColor: selected ? c.textOnAccent : "transparent",
+                }}>
+                  {selected && <Text style={{ color: c.accent, fontSize: 12, fontWeight: "900" }}>✓</Text>}
+                </View>
                 <Text style={{
                   fontSize: 15,
-                  color: selectedFoodId === f.id ? c.textOnAccent : c.textBody,
+                  color: selected ? c.textOnAccent : c.textBody,
                 }}>
                   {f.emoji ?? ""} {f.name}
                 </Text>
               </TouchableOpacity>
-            ))}
+            );
+            })}
           </View>
         </View>
 
@@ -455,7 +481,7 @@ export default function FoodLogNewScreen() {
         <BigButton
           title={saving ? "Guardando…" : "💾 Guardar"}
           onPress={handleSave}
-          disabled={saving || !selectedFoodId}
+          disabled={saving || selectedFoodIds.length === 0}
         />
       </ScrollView>
       </KeyboardAvoidingView>
@@ -464,7 +490,7 @@ export default function FoodLogNewScreen() {
         visible={showQuickAdd}
         onClose={() => setShowQuickAdd(false)}
         onAdded={(id) => {
-          setSelectedFoodId(id);
+          setSelectedFoodIds((prev) => prev.includes(id) ? prev : [...prev, id]);
           setShowQuickAdd(false);
         }}
       />

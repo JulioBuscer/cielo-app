@@ -278,3 +278,6 @@ Se guarda como evento tipo `measurement`. En el timeline: `📏 3.2 kg · 54 cm 
 - Personalización de quick actions (orden, cuáles mostrar)
 - Notificaciones de ventanas de sueño
 - Vista año (heatmap tipo GitHub contributions)
+- **Recetario / comidas preparadas**: agrupar múltiples alimentos ya probados en "platillos" prefabricados (ej: "calabacitas con pollo y arroz"). Multi‑select ya implementado; a futuro se puede guardar la combinación como receta reusable.
+- **Editor recetas**: nombre, emoji, lista de ingredientes (del catálogo), instrucciones, foto del plato. Asociar a un log de comida con un solo tap.
+- **Batch logging de recetas**: al seleccionar una receta, se registran automáticamente todos sus ingredientes como food_logs individuales (para tracking de alérgenos) y se agrupan visualmente en el timeline.
