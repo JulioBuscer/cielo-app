@@ -152,6 +152,12 @@ export default function PerfilScreen() {
             </Text>
             <View style={{ gap: 8 }}>
               <MenuLink
+                emoji="📈"
+                label="Curvas OMS"
+                subtitle="Peso, talla y CC con percentiles"
+                onPress={() => router.push("/logs/growth/charts")}
+              />
+              <MenuLink
                 emoji="📋"
                 label="Historial"
                 subtitle="Todos los registros con filtros"
