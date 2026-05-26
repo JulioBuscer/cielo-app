@@ -167,52 +167,42 @@ function EventPickerModal({
 function WakeWindowBar({
   awakeMs,
   ref: wakeRef,
-  pct,
   onPress,
 }: {
   awakeMs: number;
   ref: { minMin: number; maxMin: number };
-  pct: number;
   onPress: () => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const totalMin = Math.round(awakeMs / 60000);
   const label = totalMin < 60 ? `${totalMin}m` : `${Math.floor(totalMin / 60)}h ${totalMin % 60}m`;
-  const expectedLabel = `${Math.floor(wakeRef.minMin / 60)}h ${wakeRef.minMin % 60}m — ${Math.floor(wakeRef.maxMin / 60)}h ${wakeRef.maxMin % 60}m`;
+  const pct = Math.min((awakeMs / 60000) / wakeRef.maxMin * 100, 200);
   const isOvertired = pct > 100;
-  const barColor = pct < 60 ? "#4CAF50" : pct < 100 ? "#FF9800" : "#AB47BC";
-  const statusText = isOvertired
-    ? "🫶 Tal vez ya tenga sueño"
-    : pct > 80
-      ? "💤 Ventana próxima a cerrar"
-      : `Esperado: ${expectedLabel}`;
+
+  const wokeUpAt = Date.now() - awakeMs;
+  const earliestNap = new Date(wokeUpAt + wakeRef.minMin * 60000);
+  const latestNap = new Date(wokeUpAt + wakeRef.maxMin * 60000);
+  const napTimeStr = `${earliestNap.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })} — ${latestNap.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`;
 
   return (
     <TouchableOpacity
       onPress={onPress}
       style={{
-        backgroundColor: "rgba(255,255,255,0.12)", marginHorizontal: 12,
-        borderRadius: 14, padding: 10, marginTop: 4, marginBottom: 2,
-        minHeight: 44,
+        flexDirection: "row", alignItems: "center",
+        backgroundColor: isOvertired ? "rgba(171,71,188,0.2)" : "rgba(255,255,255,0.1)",
+        marginHorizontal: 12, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12,
+        marginTop: 4, marginBottom: 2, minHeight: 40, gap: 8,
       }}
     >
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-        <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "700" }}>
-          ⏳ Despierto: {label}
-        </Text>
-        <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontWeight: "600" }}>
-          {statusText}
-        </Text>
-      </View>
-      <View style={{ height: 6, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 3, overflow: "hidden" }}>
-        <View style={{ width: `${Math.min(pct, 100)}%`, height: "100%", backgroundColor: barColor, borderRadius: 3 }} />
-      </View>
-      {isOvertired && (
-        <Text style={{ color: "#E1BEE7", fontSize: 10, fontWeight: "600", marginTop: 3 }}>
-          Lleva {label} despierto — puede que ya quiera dormir
-        </Text>
-      )}
+      <Text style={{ fontSize: 16 }}>{isOvertired ? "🫶" : "⏳"}</Text>
+      <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "700", flex: 1 }}>
+        {label} despierto
+      </Text>
+      <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: "600" }}>
+        {isOvertired ? "ya quiere dormir" : `siesta ≈ ${napTimeStr}`}
+      </Text>
+      <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 14 }}>›</Text>
     </TouchableOpacity>
   );
 }
@@ -680,7 +670,6 @@ export default function HomeScreen() {
         <WakeWindowBar
           awakeMs={currentWake.awakeMs}
           ref={currentWake.ref}
-          pct={currentWake.pct}
           onPress={() => router.push("/wake-windows")}
         />
       )}
