@@ -1,7 +1,8 @@
 import { useState, useMemo, useCallback } from "react";
 import {
-  View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, ViewStyle, TextInput,
+  View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, ViewStyle, TextInput, Platform,
 } from "react-native";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
@@ -14,12 +15,13 @@ import { useEventTypes } from "@/src/hooks/useTimeline";
 import { useFoodCatalog } from "@/src/hooks/useFoodLogs";
 
 type FilterType = "all" | "diaper" | "feeding" | "sleep" | "growth" | "food" | "other";
-type FilterDate = "today" | "week" | "month" | "all";
+type FilterDate = "today" | "week" | "month" | "all" | "range";
 
 const DATE_FILTERS: { key: FilterDate; label: string }[] = [
   { key: "today", label: "Hoy" },
   { key: "week", label: "7d" },
   { key: "month", label: "30d" },
+  { key: "range", label: "📅 Rango" },
   { key: "all", label: "Todo" },
 ];
 
@@ -44,6 +46,13 @@ export default function HistoryScreen() {
   const [dateFilter, setDateFilter] = useState<FilterDate>("week");
   const [searchText, setSearchText] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [rangeStart, setRangeStart] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 6); d.setHours(0, 0, 0, 0); return d;
+  });
+  const [rangeEnd, setRangeEnd] = useState(() => {
+    const d = new Date(); d.setHours(23, 59, 59, 999); return d;
+  });
+  const [showDatePicker, setShowDatePicker] = useState<"start" | "end" | null>(null);
 
   const dateBounds = useMemo(() => {
     const now = new Date();
@@ -64,11 +73,14 @@ export default function HistoryScreen() {
       start.setHours(0, 0, 0, 0);
       return { start, end };
     }
+    if (dateFilter === "range") {
+      return { start: rangeStart, end: rangeEnd };
+    }
     return { start: new Date(0), end };
-  }, [dateFilter]);
+  }, [dateFilter, rangeStart, rangeEnd]);
 
   const { data: raw, isLoading } = useQuery({
-    queryKey: ["history", baby?.id, dateFilter, typeFilter],
+    queryKey: ["history", baby?.id, dateFilter, typeFilter, rangeStart.getTime(), rangeEnd.getTime()],
     enabled: !!baby?.id,
     queryFn: async () => {
       if (!baby?.id) return null;
@@ -365,7 +377,64 @@ export default function HistoryScreen() {
             {count} registros
           </Text>
         </ScrollView>
+
+        {dateFilter === "range" && (
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => setShowDatePicker("start")}
+              style={{
+                flex: 1, flexDirection: "row", alignItems: "center", gap: 6,
+                backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+                minHeight: 44, borderWidth: 1, borderColor: c.elevated,
+              }}
+            >
+              <Text style={{ fontSize: 13, color: c.textMuted }}>Desde</Text>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: c.textBody, flex: 1 }}>
+                {rangeStart.toLocaleDateString("es-MX")}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowDatePicker("end")}
+              style={{
+                flex: 1, flexDirection: "row", alignItems: "center", gap: 6,
+                backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+                minHeight: 44, borderWidth: 1, borderColor: c.elevated,
+              }}
+            >
+              <Text style={{ fontSize: 13, color: c.textMuted }}>Hasta</Text>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: c.textBody, flex: 1 }}>
+                {rangeEnd.toLocaleDateString("es-MX")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={showDatePicker === "start" ? rangeStart : rangeEnd}
+          mode="date"
+          display={Platform.OS === "ios" ? "inline" : "default"}
+          onChange={(_event: DateTimePickerEvent, date?: Date) => {
+            if (date) {
+              if (showDatePicker === "start") {
+                const d = new Date(date); d.setHours(0, 0, 0, 0); setRangeStart(d);
+              } else {
+                const d = new Date(date); d.setHours(23, 59, 59, 999); setRangeEnd(d);
+              }
+            }
+            if (Platform.OS === "android") setShowDatePicker(null);
+          }}
+        />
+      )}
+      {Platform.OS === "ios" && showDatePicker && (
+        <TouchableOpacity
+          onPress={() => setShowDatePicker(null)}
+          style={{ alignItems: "center", paddingVertical: 8, minHeight: 44 }}
+        >
+          <Text style={{ color: c.accent, fontWeight: "700", fontSize: 14 }}>Listo</Text>
+        </TouchableOpacity>
+      )}
 
       {isLoading ? (
         <ActivityIndicator color={c.accent} style={{ padding: 40 }} />

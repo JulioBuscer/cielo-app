@@ -12,6 +12,7 @@ import {
   Image,
   ScrollView,
 } from "react-native";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useActiveBaby, calcAge, STATUS_LABELS } from "@/src/hooks/useBaby";
@@ -253,11 +254,19 @@ export default function HomeScreen() {
     { key: "today", label: "Hoy" },
     { key: "7d", label: "7d" },
     { key: "10d", label: "10d" },
+    { key: "range", label: "📅 Rango" },
   ];
   const [showFilters, setShowFilters] = useState(false);
   const [homeFilter, setHomeFilter] = useState("all");
   const [homeDateFilter, setHomeDateFilter] = useState("all");
   const [homeSearchText, setHomeSearchText] = useState("");
+  const [homeRangeStart, setHomeRangeStart] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 6); d.setHours(0, 0, 0, 0); return d;
+  });
+  const [homeRangeEnd, setHomeRangeEnd] = useState(() => {
+    const d = new Date(); d.setHours(23, 59, 59, 999); return d;
+  });
+  const [showHomeDatePicker, setShowHomeDatePicker] = useState<"start" | "end" | null>(null);
   const startFeeding = useStartFeeding();
   const startSleep = useStartSleep();
   const finishSleep = useFinishSleep();
@@ -307,13 +316,14 @@ export default function HomeScreen() {
 
   const dateCutoff = useMemo(() => {
     if (homeDateFilter === "all") return null;
+    if (homeDateFilter === "range") return homeRangeStart;
     const n = new Date();
     if (homeDateFilter === "today") { n.setHours(0, 0, 0, 0); return n; }
     const days = homeDateFilter === "7d" ? 7 : 10;
     n.setDate(n.getDate() - days + 1);
     n.setHours(0, 0, 0, 0);
     return n;
-  }, [homeDateFilter]);
+  }, [homeDateFilter, homeRangeStart]);
 
   const matchesText = (text: string | null | undefined) => {
     if (!homeSearchText.trim()) return true;
@@ -321,7 +331,13 @@ export default function HomeScreen() {
   };
 
   const buildItems = (): TLItem[] => {
-    const inRange = (ts: Date | number) => !dateCutoff || new Date(ts) >= dateCutoff;
+    const inRange = (ts: Date | number) => {
+    const d = new Date(ts);
+    if (homeDateFilter === "range") {
+      return d >= homeRangeStart && d <= homeRangeEnd;
+    }
+    return !dateCutoff || d >= dateCutoff;
+  };
 
     const filteredEvents = (tlEvents ?? []).filter((e) => {
       if (!inRange(e.timestamp)) return false;
@@ -583,6 +599,37 @@ export default function HomeScreen() {
             ))}
           </ScrollView>
 
+          {homeDateFilter === "range" && (
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity
+                onPress={() => setShowHomeDatePicker("start")}
+                style={{
+                  flex: 1, flexDirection: "row", alignItems: "center", gap: 6,
+                  backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+                  minHeight: 38,
+                }}
+              >
+                <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Desde</Text>
+                <Text style={{ fontSize: 12, fontWeight: "700", color: "#fff", flex: 1 }}>
+                  {homeRangeStart.toLocaleDateString("es-MX")}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowHomeDatePicker("end")}
+                style={{
+                  flex: 1, flexDirection: "row", alignItems: "center", gap: 6,
+                  backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+                  minHeight: 38,
+                }}
+              >
+                <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Hasta</Text>
+                <Text style={{ fontSize: 12, fontWeight: "700", color: "#fff", flex: 1 }}>
+                  {homeRangeEnd.toLocaleDateString("es-MX")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={{
             flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.2)",
             borderRadius: 99, paddingHorizontal: 14, minHeight: 36,
@@ -601,6 +648,32 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
+      )}
+
+      {showHomeDatePicker && (
+        <DateTimePicker
+          value={showHomeDatePicker === "start" ? homeRangeStart : homeRangeEnd}
+          mode="date"
+          display={Platform.OS === "ios" ? "inline" : "default"}
+          onChange={(_event: DateTimePickerEvent, date?: Date) => {
+            if (date) {
+              if (showHomeDatePicker === "start") {
+                const d = new Date(date); d.setHours(0, 0, 0, 0); setHomeRangeStart(d);
+              } else {
+                const d = new Date(date); d.setHours(23, 59, 59, 999); setHomeRangeEnd(d);
+              }
+            }
+            if (Platform.OS === "android") setShowHomeDatePicker(null);
+          }}
+        />
+      )}
+      {Platform.OS === "ios" && showHomeDatePicker && (
+        <TouchableOpacity
+          onPress={() => setShowHomeDatePicker(null)}
+          style={{ backgroundColor: c.headerBg, alignItems: "center", paddingVertical: 8, minHeight: 44 }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>Listo</Text>
+        </TouchableOpacity>
       )}
 
       {currentWake && !activeSleep && !activeSession && (
