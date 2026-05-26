@@ -250,7 +250,14 @@ Se guarda como evento tipo `measurement`. En el timeline: `📏 3.2 kg · 54 cm 
 ### Fase 4 — Complementaria ✅
 - [x] Catálogo de alimentos OMS
 - [x] Registro de alimentación complementaria
-- [ ] Seguimiento de alérgenos
+- [x] Seguimiento de alérgenos (automático desde food_logs × food_catalog.allergens)
+- [x] Grupos de alimentos en español con emojis
+- [x] Multi‑select de alimentos (combinar varios en un registro)
+- [x] Foto en registro de comida
+- [x] Registro rápido de nuevo alimento + alérgenos
+- [x] Editor completo de catálogo (nombre, emoji, grupo, propiedad, alérgenos)
+- [x] Eliminación física (sin registros) / soft‑delete (con registros, hidden=true)
+- [x] Teclado responsivo en todos los formularios (KeyboardAvoidingView)
 
 ### Fase 5 — Actividades + Salud
 - [ ] Tummy Time, Baño, Juego, Hitos
@@ -270,6 +277,12 @@ Se guarda como evento tipo `measurement`. En el timeline: `📏 3.2 kg · 54 cm 
 - `execAsync` con 12 CREATE TABLE en una sola llamada causaba NullPointerException en Android
 - Dividido en `execAsync` individuales
 - Agregada columna `photo_uris TEXT` a `growth_logs` vía ALTER TABLE
+
+### Columna hidden en food_catalog (mayo 2026)
+- `ALTER TABLE food_catalog ADD COLUMN hidden INTEGER DEFAULT 0`
+- Para soft‑delete: alimentos con registros se ocultan (hidden=true) pero el historial los sigue mostrando
+- Sin registros → DELETE físico
+- `useFoodCatalog()` filtra `hidden = false`; `useFoodCatalogAll()` incluye todo (para el editor)
 
 ---
 
