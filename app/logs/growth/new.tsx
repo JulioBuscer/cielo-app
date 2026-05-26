@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTheme } from "@/src/theme/useTheme";
 import {
   View,
@@ -10,34 +10,49 @@ import {
   Alert,
   Image,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { captureAndStore, deletePhoto } from "@/src/services/imageStorage";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import {
   useSaveGrowthLog,
+  useUpdateGrowthLog,
   useLastGrowthLog,
   gramsToKg,
   mmToCm,
 } from "@/src/hooks/useGrowthLogs";
-import { useSaveTimelineEvent } from "@/src/hooks/useTimeline";
+import { useSaveTimelineEvent, useUpdateTimelineEvent } from "@/src/hooks/useTimeline";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 
 export default function MeasurementNewScreen() {
+  const params = useLocalSearchParams<{
+    editId?: string;
+    editWeightKg?: string;
+    editHeightCm?: string;
+    editHeadCircCm?: string;
+    editTimestampMs?: string;
+    editNotes?: string;
+    editSource?: string;
+  }>();
+  const isEdit = !!params.editId;
   const { data: baby } = useActiveBaby();
   const { data: last } = useLastGrowthLog(baby?.id);
   const { theme } = useTheme();
   const c = theme.colors;
   const saveGrowth = useSaveGrowthLog();
+  const updateGrowth = useUpdateGrowthLog();
   const saveEvent = useSaveTimelineEvent();
+  const updateEvent = useUpdateTimelineEvent();
 
-  const [weightKg, setWeightKg] = useState("");
-  const [heightCm, setHeightCm] = useState("");
-  const [headCircCm, setHeadCircCm] = useState("");
-  const [notes, setNotes] = useState("");
-  const [timestamp, setTimestamp] = useState(new Date());
+  const [weightKg, setWeightKg] = useState(isEdit ? params.editWeightKg ?? "" : "");
+  const [heightCm, setHeightCm] = useState(isEdit ? params.editHeightCm ?? "" : "");
+  const [headCircCm, setHeadCircCm] = useState(isEdit ? params.editHeadCircCm ?? "" : "");
+  const [notes, setNotes] = useState(isEdit ? params.editNotes ?? "" : "");
+  const [timestamp, setTimestamp] = useState(
+    isEdit && params.editTimestampMs ? new Date(Number(params.editTimestampMs)) : new Date()
+  );
   const [saving, setSaving] = useState(false);
   const [photoUris, setPhotoUris] = useState<string[]>([]);
 
@@ -77,27 +92,47 @@ export default function MeasurementNewScreen() {
       const heightVal = heightCm.trim() ? parseFloat(heightCm) : undefined;
       const headVal = headCircCm.trim() ? parseFloat(headCircCm) : undefined;
 
-      await saveGrowth.mutateAsync({
-        babyId: baby.id,
-        weightKg: weightVal,
-        heightCm: heightVal,
-        headCircCm: headVal,
-        notes: notes.trim() || undefined,
-        timestamp,
-      });
-
-      await saveEvent.mutateAsync({
-        babyId: baby.id,
-        eventTypeId: "measurement",
-        timestamp,
-        notes: notes.trim() || undefined,
-        values: {
+      if (isEdit) {
+        await updateGrowth.mutateAsync({
+          id: params.editId!,
+          babyId: baby.id,
           weightKg: weightVal,
           heightCm: heightVal,
           headCircCm: headVal,
-          photoUris: photoUris.length > 0 ? photoUris : undefined,
-        },
-      });
+          notes: notes.trim() || undefined,
+          timestamp,
+        });
+        if (params.editSource === "timeline" || !params.editSource) {
+          await updateEvent.mutateAsync({
+            id: params.editId!,
+            babyId: baby.id,
+            timestamp,
+            notes: notes.trim() || undefined,
+          });
+        }
+      } else {
+        await saveGrowth.mutateAsync({
+          babyId: baby.id,
+          weightKg: weightVal,
+          heightCm: heightVal,
+          headCircCm: headVal,
+          notes: notes.trim() || undefined,
+          timestamp,
+        });
+
+        await saveEvent.mutateAsync({
+          babyId: baby.id,
+          eventTypeId: "measurement",
+          timestamp,
+          notes: notes.trim() || undefined,
+          values: {
+            weightKg: weightVal,
+            heightCm: heightVal,
+            headCircCm: headVal,
+            photoUris: photoUris.length > 0 ? photoUris : undefined,
+          },
+        });
+      }
 
       router.back();
     } catch (e) {
@@ -116,7 +151,7 @@ export default function MeasurementNewScreen() {
           <Text style={{ fontSize: 24 }}>✕</Text>
         </TouchableOpacity>
         <Text className="flex-1 text-center text-lg font-black" style={{ color: c.textBody }}>
-          📏 Nueva Medición
+          {isEdit ? "✏️ Editar Medición" : "📏 Nueva Medición"}
         </Text>
         <View style={{ width: 32 }} />
       </View>

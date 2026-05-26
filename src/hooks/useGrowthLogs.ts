@@ -54,6 +54,37 @@ export function useSaveGrowthLog() {
   });
 }
 
+// ─── MUTATION: actualizar registro de crecimiento ────────────────────────────
+export function useUpdateGrowthLog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id:          string;
+      babyId:      string;
+      weightKg?:   number;
+      heightCm?:   number;
+      headCircCm?: number;
+      notes?:      string;
+      timestamp?:  Date;
+    }) => {
+      await getDb().update(growthLogs)
+        .set({
+          timestamp:   input.timestamp,
+          weightGrams: input.weightKg   != null ? kgToGrams(input.weightKg)  : null,
+          heightMm:    input.heightCm   != null ? cmToMm(input.heightCm)     : null,
+          headCircMm:  input.headCircCm != null ? cmToMm(input.headCircCm)   : null,
+          notes:       input.notes ?? null,
+        })
+        .where(eq(growthLogs.id, input.id));
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['growth_last', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId, 'history'] });
+    },
+  });
+}
+
 // ─── QUERY: historial completo (growth_logs + timeline_events) ─────────────────
 //
 // El usuario puede registrar peso/talla de dos formas:
@@ -72,11 +103,11 @@ export function useGrowthHistory(babyId?: string) {
       const db = getDb();
 
       // Fuente 1: growth_logs
-      const glRows = await db
+      const glRows: any[] = (await db
         .select()
         .from(growthLogs)
         .where(eq(growthLogs.babyId, babyId))
-        .orderBy(desc(growthLogs.timestamp));
+        .orderBy(desc(growthLogs.timestamp))).map((r: any) => ({ ...r, source: "growth_logs" }));
 
       // Fuente 2: timeline_events tipo 'weight', 'height', o 'measurement'
       const evRows = await db
@@ -115,6 +146,7 @@ export function useGrowthHistory(babyId?: string) {
             headCircMm: vals.headCircCm != null ? vals.headCircCm * 10 : null,
             notes: e.notes,
             createdAt: e.createdAt instanceof Date ? e.createdAt : new Date(Number(e.createdAt)),
+            source: "timeline",
           };
         }
 
@@ -139,6 +171,7 @@ export function useGrowthHistory(babyId?: string) {
           headCircMm: null as number | null,
           notes: e.notes,
           createdAt: e.createdAt instanceof Date ? e.createdAt : new Date(Number(e.createdAt)),
+          source: "timeline",
         };
       });
 

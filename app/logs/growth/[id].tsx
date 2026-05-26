@@ -82,9 +82,27 @@ export default function GrowthDetailScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.surface }} edges={["top"]}>
-      <View style={{ paddingHorizontal: 16, paddingTop: 16, gap: 16, paddingBottom: 8 }}>
+      <View style={{ flexDirection: "row", paddingHorizontal: 16, paddingTop: 16, gap: 16, paddingBottom: 8, alignItems: "center" }}>
         <TouchableOpacity onPress={() => router.back()} style={{ minHeight: 44, justifyContent: "center" }}>
           <Text style={{ fontSize: 24, color: c.textBody }}>‹ Volver</Text>
+        </TouchableOpacity>
+        <View style={{ flex: 1 }} />
+        <TouchableOpacity
+          onPress={() => router.push({
+            pathname: "/logs/growth/new",
+            params: {
+              editId: record.id,
+              editWeightKg: record.weightGrams ? gramsToKg(record.weightGrams) : "",
+              editHeightCm: record.heightMm ? mmToCm(record.heightMm) : "",
+              editHeadCircCm: record.headCircMm ? mmToCm(record.headCircMm) : "",
+              editTimestampMs: String(new Date(record.timestamp).getTime()),
+              editNotes: record.notes ?? "",
+              editSource: record.source ?? "timeline",
+            },
+          })}
+          style={{ minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "center" }}
+        >
+          <Text style={{ fontSize: 22 }}>✏️</Text>
         </TouchableOpacity>
       </View>
 
