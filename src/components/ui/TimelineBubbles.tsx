@@ -21,6 +21,7 @@ import { getUnit } from "@/src/units/registry";
 import { formatWithUnit, findBestUnit, normalizeToBase } from "@/src/units/helpers";
 import { useDiaperObservations } from "@/src/hooks/useTimeline";
 import { useTheme } from "@/src/theme/useTheme";
+import { formatWakeWindow } from "@/src/hooks/useWakeWindows";
 import type { Role } from "@/src/constants/roles";
 
 const ROLE_EMOJI: Record<Role, string> = {
@@ -545,17 +546,24 @@ export function SleepSessionBubble({
         const expectedMax = prevWakeWindow.expectedMax;
         const inRange = totalMin >= expectedMin && totalMin <= expectedMax;
         const tooLong = totalMin > expectedMax;
-        const label = `${totalMin}m`.replace(/(\d+)m/, (_, m) => { const h = Math.floor(+m/60); const r = +m%60; return h>0 ? `${h}h ${r}m` : `${r}m`; });
+        const label = formatWakeWindow(prevWakeWindow.durationMs);
+        const expectedLabel = `${Math.floor(expectedMin/60)}h ${expectedMin%60}m — ${Math.floor(expectedMax/60)}h ${expectedMax%60}m`;
         const statusEmoji = inRange ? "✅" : tooLong ? "⚠️" : "⚡";
         const statusText = tooLong
-          ? "Posible sobrecansancio"
+          ? "Lleva mucho tiempo despierto"
           : totalMin < expectedMin
-            ? "Ventana muy corta"
-            : "En rango";
+            ? "Se durmió muy pronto"
+            : "En ritmo";
         return (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4, marginBottom: 4 }}>
-            <Text style={{ fontSize: 11, color: inRange ? "#10B981" : tooLong ? "#F59E0B" : "#6366F1", fontWeight: "700" }}>
-              ⏱ Ventana {label} · Esperado: {Math.floor(expectedMin/60)}h-{Math.floor(expectedMax/60)}h {statusEmoji}
+          <View style={{ marginTop: 6, backgroundColor: inRange ? "#ECFDF5" : tooLong ? "#FEF3C7" : "#EEF2FF", borderRadius: 10, padding: 8 }}>
+            <Text style={{ fontSize: 10, fontWeight: "700", color: c.textMuted, marginBottom: 2 }}>⏳ Tiempo despierto entre siestas</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Text style={{ fontSize: 13, fontWeight: "800", color: inRange ? "#10B981" : tooLong ? "#F59E0B" : "#6366F1" }}>
+                {label} {statusEmoji}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 10, color: c.textMuted, marginTop: 1 }}>
+              Para su edad: {expectedLabel} · {statusText}
             </Text>
           </View>
         );

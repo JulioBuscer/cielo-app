@@ -548,6 +548,7 @@ export default function AnalisisScreen() {
               <View style={{ gap: 8 }}>
                 <QuickLink emoji="📊" label="Estadísticas completas" onPress={() => router.push("/stats")} />
                 <QuickLink emoji="📏" label="Crecimiento" onPress={() => router.push("/logs/growth/history")} />
+                <QuickLink emoji="⏳" label="Ventanas de sueño" onPress={() => router.push("/wake-windows")} />
               </View>
             </View>
           </>

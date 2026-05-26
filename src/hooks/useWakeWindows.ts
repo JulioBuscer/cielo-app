@@ -61,17 +61,21 @@ export function useWakeWindows(
         id: s.id,
         start: new Date(s.startedAt).getTime(),
         end: new Date(s.endedAt!).getTime(),
+        durationMs: new Date(s.endedAt!).getTime() - new Date(s.startedAt).getTime(),
       }))
       .filter((s) => s.end > s.start)
       .sort((a, b) => a.start - b.start);
+
+    // Filtrar siestas muy cortas (<15 min) que no son sueño real
+    const meaningful = finished.filter((s) => s.durationMs >= 15 * 60 * 1000);
 
     const windows: WakeWindow[] = [];
     let windowCount = 0;
     let prevDayStr = "";
 
-    for (let i = 0; i < finished.length - 1; i++) {
-      const prev = finished[i];
-      const next = finished[i + 1];
+    for (let i = 0; i < meaningful.length - 1; i++) {
+      const prev = meaningful[i];
+      const next = meaningful[i + 1];
       const curDay = new Date(prev.start).toDateString();
 
       if (curDay !== prevDayStr) {

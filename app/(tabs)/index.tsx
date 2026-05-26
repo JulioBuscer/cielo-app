@@ -162,6 +162,59 @@ function EventPickerModal({
   );
 }
 
+function WakeWindowBar({
+  awakeMs,
+  ref: wakeRef,
+  pct,
+  onPress,
+}: {
+  awakeMs: number;
+  ref: { minMin: number; maxMin: number };
+  pct: number;
+  onPress: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const totalMin = Math.round(awakeMs / 60000);
+  const label = totalMin < 60 ? `${totalMin}m` : `${Math.floor(totalMin / 60)}h ${totalMin % 60}m`;
+  const expectedLabel = `${Math.floor(wakeRef.minMin / 60)}h ${wakeRef.minMin % 60}m — ${Math.floor(wakeRef.maxMin / 60)}h ${wakeRef.maxMin % 60}m`;
+  const isOvertired = pct > 100;
+  const barColor = pct < 60 ? "#4CAF50" : pct < 100 ? "#FF9800" : "#AB47BC";
+  const statusText = isOvertired
+    ? "🫶 Tal vez ya tenga sueño"
+    : pct > 80
+      ? "💤 Ventana próxima a cerrar"
+      : `Esperado: ${expectedLabel}`;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{
+        backgroundColor: "rgba(255,255,255,0.12)", marginHorizontal: 12,
+        borderRadius: 14, padding: 10, marginTop: 4, marginBottom: 2,
+        minHeight: 44,
+      }}
+    >
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "700" }}>
+          ⏳ Despierto: {label}
+        </Text>
+        <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontWeight: "600" }}>
+          {statusText}
+        </Text>
+      </View>
+      <View style={{ height: 6, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 3, overflow: "hidden" }}>
+        <View style={{ width: `${Math.min(pct, 100)}%`, height: "100%", backgroundColor: barColor, borderRadius: 3 }} />
+      </View>
+      {isOvertired && (
+        <Text style={{ color: "#E1BEE7", fontSize: 10, fontWeight: "600", marginTop: 3 }}>
+          Lleva {label} despierto — puede que ya quiera dormir
+        </Text>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 export default function HomeScreen() {
   const { theme } = useTheme();
   const [showBottleModal, setShowBottleModal] = useState(false);
@@ -211,6 +264,20 @@ export default function HomeScreen() {
     }
     return m;
   }, [wakeWindows, baby]);
+
+  const currentWake = useMemo(() => {
+    if (!sleepHistory || activeSleep) return null;
+    const finished = sleepHistory
+      .filter((s) => s.status === "finished" && s.endedAt)
+      .sort((a, b) => new Date(b.endedAt!).getTime() - new Date(a.endedAt!).getTime());
+    const last = finished[0];
+    if (!last) return null;
+    const awakeMs = Date.now() - new Date(last.endedAt!).getTime();
+    const ageDays = baby ? Math.floor((Date.now() - new Date(baby.birthDate).getTime()) / 86400000) : 0;
+    const ref = getWakeReference(ageDays);
+    const pct = Math.min((awakeMs / 60000) / ref.maxMin * 100, 200);
+    return { awakeMs, ref, pct, lastSleepEnd: last.endedAt };
+  }, [sleepHistory, activeSleep, baby]);
 
   type TLItem =
     | { kind: "event"; data: NonNullable<typeof tlEvents>[0]; ts: number }
@@ -418,6 +485,15 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
       </View>
+
+      {currentWake && !activeSleep && !activeSession && (
+        <WakeWindowBar
+          awakeMs={currentWake.awakeMs}
+          ref={currentWake.ref}
+          pct={currentWake.pct}
+          onPress={() => router.push("/wake-windows")}
+        />
+      )}
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}

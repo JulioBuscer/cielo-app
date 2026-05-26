@@ -164,6 +164,12 @@ export default function PerfilScreen() {
                 onPress={() => router.push("/catalog/food")}
               />
               <MenuLink
+                emoji="⏳"
+                label="Ventanas de sueño"
+                subtitle="Tiempo despierto entre siestas"
+                onPress={() => router.push("/wake-windows")}
+              />
+              <MenuLink
                 emoji="📖"
                 label="Recursos"
                 subtitle="Guía de colores, consistencias y sueño"
