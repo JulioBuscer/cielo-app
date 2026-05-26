@@ -508,6 +508,13 @@ export default function HomeScreen() {
                 disabled={!!loadingType}
               />
               <QuickBtn
+                emoji="🍎"
+                label="Comida"
+                bgColor="#7CB342"
+                onPress={() => router.push("/logs/food/new")}
+                disabled={!!loadingType}
+              />
+              <QuickBtn
                 emoji="🍑"
                 label="Pañal"
                 bgColor={c.warning}

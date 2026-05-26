@@ -146,19 +146,31 @@ export default function PerfilScreen() {
           </View>
         </View>
 
-        <View style={{ gap: 8 }}>
-          <Text style={{ fontSize: 13, fontWeight: "800", color: c.textMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Referencia
-          </Text>
           <View style={{ gap: 8 }}>
-            <MenuLink
-              emoji="📖"
-              label="Recursos"
-              subtitle="Guía de colores, consistencias y sueño"
-              onPress={() => router.push("/resources")}
-            />
+            <Text style={{ fontSize: 13, fontWeight: "800", color: c.textMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Referencia
+            </Text>
+            <View style={{ gap: 8 }}>
+              <MenuLink
+                emoji="🍽️"
+                label="Comidas"
+                subtitle="Historial de alimentación complementaria"
+                onPress={() => router.push("/logs/food/history")}
+              />
+              <MenuLink
+                emoji="🥗"
+                label="Alimentos OMS"
+                subtitle="Catálogo de alimentación complementaria"
+                onPress={() => router.push("/catalog/food")}
+              />
+              <MenuLink
+                emoji="📖"
+                label="Recursos"
+                subtitle="Guía de colores, consistencias y sueño"
+                onPress={() => router.push("/resources")}
+              />
+            </View>
           </View>
-        </View>
 
         <View
           style={{

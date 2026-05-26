@@ -7,6 +7,7 @@ import {
   feedingSessions,
   sleepSessions,
   growthLogs,
+  foodLogs,
 } from "@/src/db/schema";
 
 export interface DayEvents {
@@ -17,6 +18,7 @@ export interface DayEvents {
   hasFeeding: boolean;
   hasSleep: boolean;
   hasMeasurement: boolean;
+  hasFood: boolean;
   hasHealth: boolean;
   hasOther: boolean;
   total: number;
@@ -42,7 +44,7 @@ export function useCalendarData(babyId?: string, ref?: Date) {
       if (!babyId) return { days: new Map<string, DayEvents>(), bounds };
       const db = getDb();
 
-      const [events, feedings, sleeps, growths] = await Promise.all([
+      const [events, feedings, sleeps, growths, foods] = await Promise.all([
         db
           .select()
           .from(timelineEvents)
@@ -83,6 +85,16 @@ export function useCalendarData(babyId?: string, ref?: Date) {
               lte(growthLogs.timestamp, bounds.end)
             )
           ),
+        db
+          .select()
+          .from(foodLogs)
+          .where(
+            and(
+              eq(foodLogs.babyId, babyId),
+              gte(foodLogs.timestamp, bounds.start),
+              lte(foodLogs.timestamp, bounds.end)
+            )
+          ),
       ]);
 
       const days = new Map<string, DayEvents>();
@@ -99,6 +111,7 @@ export function useCalendarData(babyId?: string, ref?: Date) {
             hasFeeding: false,
             hasSleep: false,
             hasMeasurement: false,
+            hasFood: false,
             hasHealth: false,
             hasOther: false,
             total: 0,
@@ -106,6 +119,7 @@ export function useCalendarData(babyId?: string, ref?: Date) {
           days.set(key, d);
         }
         d.types.add(type);
+        if (type === "food") d.hasFood = true;
         d.total++;
       };
 
@@ -139,6 +153,9 @@ export function useCalendarData(babyId?: string, ref?: Date) {
       }
       for (const g of growths) {
         addDay(new Date(g.timestamp), "measurement");
+      }
+      for (const f of foods) {
+        addDay(new Date(f.timestamp), "food");
       }
 
       return { days, bounds };

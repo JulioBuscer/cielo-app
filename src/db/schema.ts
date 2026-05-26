@@ -266,3 +266,51 @@ export interface GrowthMetadata {
 export interface TemperatureMetadata {
   celsius: number;
 }
+
+// ─── CATÁLOGO DE ALIMENTOS ─────────────────────────────────────────────────────
+export const foodCatalog = sqliteTable('food_catalog', {
+  id:        text('id').primaryKey(),
+  name:      text('name').notNull(),
+  emoji:     text('emoji'),
+  group:     text('group', { enum: ['fruit', 'vegetable', 'protein', 'grain', 'dairy', 'legume'] }).notNull(),
+  property:  text('property', { enum: ['laxative', 'astringent', 'both', 'neutral'] }).default('neutral'),
+  allergens: text('allergens'), // comma-separated
+  isSystem:  integer('is_system', { mode: 'boolean' }).default(true),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+// ─── REGISTRO DE ALIMENTACIÓN COMPLEMENTARIA ────────────────────────────────────
+export const foodLogs = sqliteTable('food_logs', {
+  id:        text('id').primaryKey(),
+  babyId:    text('baby_id').notNull(),
+  profileId: text('profile_id').notNull(),
+  foodId:    text('food_id').notNull(),
+  timestamp: integer('timestamp', { mode: 'timestamp' }).notNull(),
+  isFirst:   integer('is_first', { mode: 'boolean' }).default(false),
+  reaction:  text('reaction'),
+  photoUri:  text('photo_uri'),
+  notes:     text('notes'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+export interface FoodItem {
+  id: string;
+  name: string;
+  emoji: string | null;
+  group: 'fruit' | 'vegetable' | 'protein' | 'grain' | 'dairy' | 'legume';
+  property: 'laxative' | 'astringent' | 'both' | 'neutral' | null;
+  allergens: string | null;
+  isSystem: boolean | null;
+}
+
+export interface FoodLog {
+  id: string;
+  babyId: string;
+  profileId: string;
+  foodId: string;
+  timestamp: Date;
+  isFirst: boolean | null;
+  reaction: string | null;
+  photoUri: string | null;
+  notes: string | null;
+}

@@ -11,13 +11,14 @@ const DOT_MAP: [keyof DayEvents, string][] = [
   ["hasFeeding", "🤱"],
   ["hasSleep", "😴"],
   ["hasMeasurement", "📏"],
+  ["hasFood", "🍎"],
   ["hasHealth", "💊"],
   ["hasOther", "📝"],
 ];
 
 function DayDots({ day }: { day: DayEvents }) {
   const dots = DOT_MAP.filter(([key]) => day[key as keyof DayEvents]);
-  const visible = dots.slice(0, 4);
+  const visible = dots.slice(0, 5);
   const extra = dots.length - 4;
   return (
     <View style={{ flexDirection: "row", gap: 1, flexWrap: "wrap", justifyContent: "center" }}>

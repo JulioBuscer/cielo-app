@@ -189,6 +189,30 @@ export async function runMigrations() {
       "values" TEXT DEFAULT '{}',
       created_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS food_catalog (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      emoji TEXT,
+      "group" TEXT NOT NULL,
+      property TEXT DEFAULT 'neutral',
+      allergens TEXT,
+      is_system INTEGER DEFAULT 1,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS food_logs (
+      id TEXT PRIMARY KEY NOT NULL,
+      baby_id TEXT NOT NULL REFERENCES babies(id),
+      profile_id TEXT NOT NULL REFERENCES profiles(id),
+      food_id TEXT NOT NULL REFERENCES food_catalog(id),
+      timestamp INTEGER NOT NULL,
+      is_first INTEGER DEFAULT 0,
+      reaction TEXT,
+      photo_uri TEXT,
+      notes TEXT,
+      created_at INTEGER NOT NULL
+    );
   `);
 
   // Migraciones de columnas
@@ -327,6 +351,10 @@ export async function runMigrations() {
        VALUES ('${obs.id}', '${obs.emoji}', '${obs.label}', 1, ${isAlert}, '${obs.metrics}', 0, 1, ${now});`
     );
   }
+
+  // Seed food catalog
+  const { seedFoodCatalog } = await import('@/src/hooks/useFoodLogs');
+  try { seedFoodCatalog(); } catch (e) { console.error('[Cielo] Food seed error:', e); }
 }
 
 // ─── MIGRACIÓN: weight/height → measurement ─────────────────────────────────────
@@ -346,9 +374,12 @@ async function migrateToMeasurement(_raw: SQLite.SQLiteDatabase) {
       [baby.id, birthDate.getTime()]
     );
     if (existing.length === 0) {
+      // Use first available profile to satisfy FK
+      const profiles: any[] = _raw.getAllSync(`SELECT id FROM profiles LIMIT 1;`);
+      const profileId = profiles.length > 0 ? profiles[0].id : 'system';
       _raw.execSync(
         `INSERT INTO timeline_events (id, baby_id, profile_id, event_type_id, timestamp, "values", created_at)
-         VALUES ('${generateId()}', '${baby.id}', '', 'measurement', ${birthDate.getTime()},
+         VALUES ('${generateId()}', '${baby.id}', '${profileId}', 'measurement', ${birthDate.getTime()},
          '${JSON.stringify({ weightKg: birthWeightGrams / 1000 })}', ${Date.now()});`
       );
     }
@@ -449,6 +480,7 @@ export async function resetAllData() {
 
   // 1. Borrar todos los datos (orden inverso por foreign keys)
   await _raw.execAsync(`
+    DELETE FROM food_logs;
     DELETE FROM timeline_events;
     DELETE FROM feeding_status_events;
     DELETE FROM feeding_sessions;
