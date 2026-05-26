@@ -125,12 +125,14 @@ export function useUpdateTimelineEvent() {
       timestamp?: Date;
       notes?: string | null;
       metadata?: Record<string, unknown> | null;
+      values?: Record<string, unknown> | null;
     }) => {
       await getDb().update(timelineEvents)
         .set({
           timestamp: input.timestamp,
           notes:     input.notes,
           metadata:  input.metadata ? JSON.stringify(input.metadata) : null,
+          values:    input.values  ? JSON.stringify(input.values) : undefined,
         })
         .where(eq(timelineEvents.id, input.id));
     },

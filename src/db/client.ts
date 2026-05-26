@@ -229,6 +229,8 @@ export async function runMigrations() {
     `ALTER TABLE diaper_observations ADD COLUMN active INTEGER DEFAULT 1`,
     // event_types
     `ALTER TABLE event_types ADD COLUMN metrics TEXT DEFAULT '[]'`,
+    // growth_logs
+    `ALTER TABLE growth_logs ADD COLUMN photo_uris TEXT`,
     // timeline_events
     `ALTER TABLE timeline_events ADD COLUMN "values" TEXT DEFAULT '{}'`,
   ]) {

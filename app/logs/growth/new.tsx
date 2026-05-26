@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useTheme } from "@/src/theme/useTheme";
 import {
   View,
@@ -35,6 +35,7 @@ export default function MeasurementNewScreen() {
     editTimestampMs?: string;
     editNotes?: string;
     editSource?: string;
+    editPhotoUris?: string;
   }>();
   const isEdit = !!params.editId;
   const { data: baby } = useActiveBaby();
@@ -54,7 +55,11 @@ export default function MeasurementNewScreen() {
     isEdit && params.editTimestampMs ? new Date(Number(params.editTimestampMs)) : new Date()
   );
   const [saving, setSaving] = useState(false);
-  const [photoUris, setPhotoUris] = useState<string[]>([]);
+  const [photoUris, setPhotoUris] = useState<string[]>(
+    isEdit && params.editPhotoUris
+      ? (() => { try { return JSON.parse(params.editPhotoUris); } catch { return []; } })()
+      : []
+  );
 
   const isValid =
     weightKg.trim() !== "" ||
@@ -91,6 +96,7 @@ export default function MeasurementNewScreen() {
       const weightVal = weightKg.trim() ? parseFloat(weightKg) : undefined;
       const heightVal = heightCm.trim() ? parseFloat(heightCm) : undefined;
       const headVal = headCircCm.trim() ? parseFloat(headCircCm) : undefined;
+      const hasPhotos = photoUris.length > 0;
 
       if (isEdit) {
         await updateGrowth.mutateAsync({
@@ -101,13 +107,20 @@ export default function MeasurementNewScreen() {
           headCircCm: headVal,
           notes: notes.trim() || undefined,
           timestamp,
+          photoUris: hasPhotos ? photoUris : [],
         });
-        if (params.editSource === "timeline" || !params.editSource) {
+        if (params.editSource === "timeline") {
           await updateEvent.mutateAsync({
             id: params.editId!,
             babyId: baby.id,
             timestamp,
             notes: notes.trim() || undefined,
+            values: {
+              weightKg: weightVal,
+              heightCm: heightVal,
+              headCircCm: headVal,
+              photoUris: hasPhotos ? photoUris : undefined,
+            },
           });
         }
       } else {
@@ -118,6 +131,7 @@ export default function MeasurementNewScreen() {
           headCircCm: headVal,
           notes: notes.trim() || undefined,
           timestamp,
+          photoUris: hasPhotos ? photoUris : [],
         });
 
         await saveEvent.mutateAsync({
@@ -129,7 +143,7 @@ export default function MeasurementNewScreen() {
             weightKg: weightVal,
             heightCm: heightVal,
             headCircCm: headVal,
-            photoUris: photoUris.length > 0 ? photoUris : undefined,
+            photoUris: hasPhotos ? photoUris : undefined,
           },
         });
       }

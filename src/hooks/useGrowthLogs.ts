@@ -33,6 +33,7 @@ export function useSaveGrowthLog() {
       headCircCm?: number;
       notes?:      string;
       timestamp?:  Date;
+      photoUris?:  string[];
     }) => {
       const profileId = (await AsyncStorage.getItem('active_profile_id')) ?? '';
       await getDb().insert(growthLogs).values({
@@ -44,6 +45,7 @@ export function useSaveGrowthLog() {
         heightMm:    input.heightCm   != null ? cmToMm(input.heightCm)     : null,
         headCircMm:  input.headCircCm != null ? cmToMm(input.headCircCm)   : null,
         notes:       input.notes ?? null,
+        photoUris:   input.photoUris  ? JSON.stringify(input.photoUris) : null,
         createdAt:   new Date(),
       });
     },
@@ -66,6 +68,7 @@ export function useUpdateGrowthLog() {
       headCircCm?: number;
       notes?:      string;
       timestamp?:  Date;
+      photoUris?:  string[];
     }) => {
       await getDb().update(growthLogs)
         .set({
@@ -74,6 +77,7 @@ export function useUpdateGrowthLog() {
           heightMm:    input.heightCm   != null ? cmToMm(input.heightCm)     : null,
           headCircMm:  input.headCircCm != null ? cmToMm(input.headCircCm)   : null,
           notes:       input.notes ?? null,
+          photoUris:   input.photoUris  ? JSON.stringify(input.photoUris) : null,
         })
         .where(eq(growthLogs.id, input.id));
     },
@@ -107,7 +111,11 @@ export function useGrowthHistory(babyId?: string) {
         .select()
         .from(growthLogs)
         .where(eq(growthLogs.babyId, babyId))
-        .orderBy(desc(growthLogs.timestamp))).map((r: any) => ({ ...r, source: "growth_logs" }));
+        .orderBy(desc(growthLogs.timestamp))).map((r: any) => ({
+          ...r,
+          photoUris: r.photoUris ? (() => { try { return JSON.parse(r.photoUris); } catch { return null; } })() : null,
+          source: "growth_logs",
+        }));
 
       // Fuente 2: timeline_events tipo 'weight', 'height', o 'measurement'
       const evRows = await db
@@ -145,6 +153,7 @@ export function useGrowthHistory(babyId?: string) {
             heightMm: vals.heightCm != null ? vals.heightCm * 10 : null,
             headCircMm: vals.headCircCm != null ? vals.headCircCm * 10 : null,
             notes: e.notes,
+            photoUris: vals.photoUris ?? null,
             createdAt: e.createdAt instanceof Date ? e.createdAt : new Date(Number(e.createdAt)),
             source: "timeline",
           };

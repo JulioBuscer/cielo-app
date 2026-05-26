@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/src/theme/useTheme";
@@ -98,6 +98,7 @@ export default function GrowthDetailScreen() {
               editTimestampMs: String(new Date(record.timestamp).getTime()),
               editNotes: record.notes ?? "",
               editSource: record.source ?? "timeline",
+              editPhotoUris: record.photoUris ? JSON.stringify(record.photoUris) : "",
             },
           })}
           style={{ minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "center" }}
@@ -166,6 +167,22 @@ export default function GrowthDetailScreen() {
           <View style={{ backgroundColor: c.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.elevated }}>
             <Text style={{ fontSize: 12, fontWeight: "700", color: c.textMuted, textTransform: "uppercase" }}>Notas</Text>
             <Text style={{ fontSize: 14, color: c.textBody, marginTop: 4 }}>{record.notes}</Text>
+          </View>
+        )}
+
+        {record.photoUris && Array.isArray(record.photoUris) && record.photoUris.length > 0 && (
+          <View style={{ backgroundColor: c.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.elevated, gap: 8 }}>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: c.textMuted, textTransform: "uppercase" }}>📸 Fotos</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              {record.photoUris.map((uri: string, i: number) => (
+                <Image
+                  key={i}
+                  source={{ uri }}
+                  style={{ width: 200, height: 200, borderRadius: 12 }}
+                  resizeMode="cover"
+                />
+              ))}
+            </ScrollView>
           </View>
         )}
 

@@ -99,6 +99,7 @@ export const growthLogs = sqliteTable('growth_logs', {
   heightMm:    integer('height_mm'),
   headCircMm:  integer('head_circ_mm'),
   notes:       text('notes'),
+  photoUris:   text('photo_uris'),
   createdAt:   integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
