@@ -83,35 +83,32 @@ export async function runMigrations() {
   await _raw.execAsync(`PRAGMA journal_mode = WAL;`);
   await _raw.execAsync(`PRAGMA foreign_keys = ON;`);
 
-  // Crear tablas si no existen (no-destructivo, preserva datos existentes)
-  await _raw.execAsync(`
-    CREATE TABLE IF NOT EXISTS profiles (
+  // Crear tablas una por una (evita NullPointerException en Android con execAsync multi-statement)
+  const CREATE_TABLES = [
+    `CREATE TABLE IF NOT EXISTS profiles (
       id TEXT PRIMARY KEY NOT NULL,
       name TEXT NOT NULL,
       role TEXT NOT NULL,
       avatar_uri TEXT,
       is_default INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS babies (
+    )`,
+    `CREATE TABLE IF NOT EXISTS babies (
       id TEXT PRIMARY KEY NOT NULL,
       name TEXT NOT NULL,
       birth_date INTEGER NOT NULL,
       photo_uri TEXT,
       created_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS event_types (
+    )`,
+    `CREATE TABLE IF NOT EXISTS event_types (
       id TEXT PRIMARY KEY NOT NULL,
       emoji TEXT NOT NULL,
       label TEXT NOT NULL,
       category TEXT NOT NULL,
       is_system INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS diaper_observations (
+    )`,
+    `CREATE TABLE IF NOT EXISTS diaper_observations (
       id TEXT PRIMARY KEY NOT NULL,
       emoji TEXT NOT NULL,
       label TEXT NOT NULL,
@@ -120,9 +117,8 @@ export async function runMigrations() {
       scale_max INTEGER,
       zones TEXT,
       created_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS feeding_sessions (
+    )`,
+    `CREATE TABLE IF NOT EXISTS feeding_sessions (
       id TEXT PRIMARY KEY NOT NULL,
       baby_id TEXT NOT NULL REFERENCES babies(id),
       profile_id TEXT NOT NULL REFERENCES profiles(id),
@@ -134,17 +130,15 @@ export async function runMigrations() {
       duration_sec INTEGER,
       notes TEXT,
       created_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS feeding_status_events (
+    )`,
+    `CREATE TABLE IF NOT EXISTS feeding_status_events (
       id TEXT PRIMARY KEY NOT NULL,
       session_id TEXT NOT NULL REFERENCES feeding_sessions(id),
       profile_id TEXT NOT NULL REFERENCES profiles(id),
       type TEXT NOT NULL,
       timestamp INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS sleep_sessions (
+    )`,
+    `CREATE TABLE IF NOT EXISTS sleep_sessions (
       id TEXT PRIMARY KEY NOT NULL,
       baby_id TEXT NOT NULL REFERENCES babies(id),
       profile_id TEXT NOT NULL REFERENCES profiles(id),
@@ -154,17 +148,15 @@ export async function runMigrations() {
       duration_sec INTEGER,
       notes TEXT,
       created_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS sleep_status_events (
+    )`,
+    `CREATE TABLE IF NOT EXISTS sleep_status_events (
       id TEXT PRIMARY KEY NOT NULL,
       session_id TEXT NOT NULL REFERENCES sleep_sessions(id),
       profile_id TEXT NOT NULL REFERENCES profiles(id),
       type TEXT NOT NULL,
       timestamp INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS growth_logs (
+    )`,
+    `CREATE TABLE IF NOT EXISTS growth_logs (
       id TEXT PRIMARY KEY NOT NULL,
       baby_id TEXT NOT NULL REFERENCES babies(id),
       profile_id TEXT NOT NULL REFERENCES profiles(id),
@@ -174,9 +166,8 @@ export async function runMigrations() {
       head_circ_mm INTEGER,
       notes TEXT,
       created_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS timeline_events (
+    )`,
+    `CREATE TABLE IF NOT EXISTS timeline_events (
       id TEXT PRIMARY KEY NOT NULL,
       baby_id TEXT NOT NULL REFERENCES babies(id),
       profile_id TEXT NOT NULL REFERENCES profiles(id),
@@ -188,9 +179,8 @@ export async function runMigrations() {
       metadata TEXT,
       "values" TEXT DEFAULT '{}',
       created_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS food_catalog (
+    )`,
+    `CREATE TABLE IF NOT EXISTS food_catalog (
       id TEXT PRIMARY KEY NOT NULL,
       name TEXT NOT NULL,
       emoji TEXT,
@@ -199,9 +189,8 @@ export async function runMigrations() {
       allergens TEXT,
       is_system INTEGER DEFAULT 1,
       created_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS food_logs (
+    )`,
+    `CREATE TABLE IF NOT EXISTS food_logs (
       id TEXT PRIMARY KEY NOT NULL,
       baby_id TEXT NOT NULL REFERENCES babies(id),
       profile_id TEXT NOT NULL REFERENCES profiles(id),
@@ -212,8 +201,11 @@ export async function runMigrations() {
       photo_uri TEXT,
       notes TEXT,
       created_at INTEGER NOT NULL
-    );
-  `);
+    )`,
+  ];
+  for (const sql of CREATE_TABLES) {
+    await _raw.execAsync(sql);
+  }
 
   // Migraciones de columnas
   for (const sql of [
