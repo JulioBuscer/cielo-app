@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  ScrollView,
 } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -247,8 +248,16 @@ export default function HomeScreen() {
     { key: "food", emoji: "🍎" },
     { key: "other", emoji: "📝" },
   ];
+  const DATE_FILTERS = [
+    { key: "all", label: "Todo" },
+    { key: "today", label: "Hoy" },
+    { key: "7d", label: "7d" },
+    { key: "10d", label: "10d" },
+  ];
   const [showFilters, setShowFilters] = useState(false);
   const [homeFilter, setHomeFilter] = useState("all");
+  const [homeDateFilter, setHomeDateFilter] = useState("all");
+  const [homeSearchText, setHomeSearchText] = useState("");
   const startFeeding = useStartFeeding();
   const startSleep = useStartSleep();
   const finishSleep = useFinishSleep();
@@ -296,8 +305,27 @@ export default function HomeScreen() {
     | { kind: "sleep"; data: NonNullable<typeof sleepHistory>[0]; ts: number }
     | { kind: "date"; date: Date; ts: number };
 
+  const dateCutoff = useMemo(() => {
+    if (homeDateFilter === "all") return null;
+    const n = new Date();
+    if (homeDateFilter === "today") { n.setHours(0, 0, 0, 0); return n; }
+    const days = homeDateFilter === "7d" ? 7 : 10;
+    n.setDate(n.getDate() - days + 1);
+    n.setHours(0, 0, 0, 0);
+    return n;
+  }, [homeDateFilter]);
+
+  const matchesText = (text: string | null | undefined) => {
+    if (!homeSearchText.trim()) return true;
+    return (text ?? "").toLowerCase().includes(homeSearchText.trim().toLowerCase());
+  };
+
   const buildItems = (): TLItem[] => {
+    const inRange = (ts: Date | number) => !dateCutoff || new Date(ts) >= dateCutoff;
+
     const filteredEvents = (tlEvents ?? []).filter((e) => {
+      if (!inRange(e.timestamp)) return false;
+      if (!matchesText(e.notes)) return false;
       if (homeFilter === "all") return true;
       if (homeFilter === "diaper") return e.eventTypeId === "diaper";
       if (homeFilter === "other") {
@@ -306,10 +334,10 @@ export default function HomeScreen() {
       }
       return false;
     });
-    const filteredSessions = homeFilter === "all" || homeFilter === "feeding"
-      ? (sessions ?? []).filter((s) => s.status === "finished") : [];
-    const filteredSleep = homeFilter === "all" || homeFilter === "sleep"
-      ? (sleepHistory ?? []).filter((s) => s.status === "finished") : [];
+    const filteredSessions = (homeFilter === "all" || homeFilter === "feeding")
+      ? (sessions ?? []).filter((s) => s.status === "finished" && inRange(s.startedAt) && matchesText(s.notes)) : [];
+    const filteredSleep = (homeFilter === "all" || homeFilter === "sleep")
+      ? (sleepHistory ?? []).filter((s) => s.status === "finished" && inRange(s.startedAt) && matchesText(s.notes)) : [];
     const all: TLItem[] = [
       ...filteredEvents.map((e) => ({
         kind: "event" as const,
@@ -515,22 +543,63 @@ export default function HomeScreen() {
       </View>
 
       {showFilters && (
-        <View style={{ backgroundColor: c.headerBg, paddingHorizontal: 16, paddingBottom: 8, flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
-          {HOME_FILTERS.map((f) => (
-            <TouchableOpacity
-              key={f.key}
-              onPress={() => setHomeFilter(f.key)}
-              style={{
-                paddingHorizontal: 12, paddingVertical: 5, borderRadius: 99,
-                backgroundColor: homeFilter === f.key ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.2)",
-                minHeight: 32,
-              }}
-            >
-              <Text style={{ fontSize: 13, fontWeight: "700", color: homeFilter === f.key ? c.headerBg : "#fff" }}>
-                {f.emoji}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={{ backgroundColor: c.headerBg, paddingHorizontal: 16, paddingBottom: 8, gap: 8 }}>
+          <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+            {HOME_FILTERS.map((f) => (
+              <TouchableOpacity
+                key={f.key}
+                onPress={() => setHomeFilter(f.key)}
+                style={{
+                  paddingHorizontal: 12, paddingVertical: 5, borderRadius: 99,
+                  backgroundColor: homeFilter === f.key ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.2)",
+                  minHeight: 32,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "700", color: homeFilter === f.key ? c.headerBg : "#fff" }}>
+                  {f.emoji}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+            {DATE_FILTERS.map((f) => (
+              <TouchableOpacity
+                key={f.key}
+                onPress={() => setHomeDateFilter(f.key)}
+                style={{
+                  paddingHorizontal: 14, paddingVertical: 5, borderRadius: 99,
+                  backgroundColor: homeDateFilter === f.key ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.15)",
+                  minHeight: 30,
+                }}
+              >
+                <Text style={{
+                  fontSize: 13, fontWeight: "700",
+                  color: homeDateFilter === f.key ? c.headerBg : "rgba(255,255,255,0.9)",
+                }}>
+                  {f.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <View style={{
+            flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.2)",
+            borderRadius: 99, paddingHorizontal: 14, minHeight: 36,
+          }}>
+            <TextInput
+              value={homeSearchText}
+              onChangeText={setHomeSearchText}
+              placeholder="Buscar…"
+              placeholderTextColor="rgba(255,255,255,0.5)"
+              style={{ flex: 1, fontSize: 14, color: "#fff", paddingVertical: 6 }}
+            />
+            {homeSearchText.length > 0 && (
+              <TouchableOpacity onPress={() => setHomeSearchText("")} style={{ minHeight: 36, justifyContent: "center", paddingLeft: 8 }}>
+                <Text style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
 

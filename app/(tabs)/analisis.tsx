@@ -447,9 +447,11 @@ const itemBody: ViewStyle = {
 function MiniWeekChart({
   data,
   colors,
+  onDayPress,
 }: {
   data: { dateKey: string; diapers: number; feeds: number; sleepMs: number; foods: number }[];
   colors: { diapers: string; feeds: string; sleep: string; foods: string };
+  onDayPress?: (dateKey: string) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -473,7 +475,12 @@ function MiniWeekChart({
           const label = day.dateKey.split("-")[2];
           const isToday = new Date().toISOString().slice(0, 10) === day.dateKey;
           return (
-            <View key={day.dateKey} style={{ flex: 1, alignItems: "center", gap: 1 }}>
+            <TouchableOpacity
+              key={day.dateKey}
+              onPress={() => onDayPress?.(day.dateKey)}
+              disabled={!onDayPress}
+              style={{ flex: 1, alignItems: "center", gap: 1 }}
+            >
               <View style={{ height: barH, justifyContent: "flex-end", alignItems: "center", gap: 1 }}>
                 <View style={{ width: barW * 0.7, height: fh, backgroundColor: colors.feeds, borderRadius: 2, minHeight: 2 }} />
                 <View style={{ width: barW * 0.7, height: dh, backgroundColor: colors.diapers, borderRadius: 2, minHeight: 2 }} />
@@ -482,7 +489,7 @@ function MiniWeekChart({
               <Text style={{ fontSize: 9, fontWeight: isToday ? "800" : "600", color: isToday ? c.accent : c.textMuted }}>
                 {label}
               </Text>
-            </View>
+            </TouchableOpacity>
           );
         })}
       </View>
@@ -647,6 +654,10 @@ export default function AnalisisScreen() {
                   <MiniWeekChart
                     data={weekData}
                     colors={{ diapers: "#AB47BC", feeds: "#E07B9C", sleep: "#4CAF50", foods: "#7CB342" }}
+                    onDayPress={(dateKey) => {
+                      setSelectedDay(dateKey);
+                      setShowSheet(true);
+                    }}
                   />
                 </View>
               ) : (
