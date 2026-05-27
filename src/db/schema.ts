@@ -268,7 +268,21 @@ export interface TemperatureMetadata {
   celsius: number;
 }
 
-// ─── CATÁLOGO DE ALIMENTOS ─────────────────────────────────────────────────────
+// ─── PLANTILLAS DE EVENTOS (presets reusables) ──────────────────────────────
+export const eventPresets = sqliteTable('event_presets', {
+  id:                  text('id').primaryKey(),
+  eventTypeId:         text('event_type_id').notNull().references(() => eventTypes.id),
+  name:                text('name').notNull(),
+  emoji:               text('emoji').default('📌'),
+  defaultValues:       text('default_values').default('{}'),  // JSON: metricId → value
+  defaultUnitOverrides:text('default_unit_overrides').default('{}'), // JSON: metricId → unitId
+  defaultNotes:        text('default_notes'),
+  sortOrder:           integer('sort_order').default(0),
+  isQuickAction:       integer('is_quick_action', { mode: 'boolean' }).default(false),
+  createdAt:           integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+export type EventPreset = typeof eventPresets.$inferSelect;
 export const foodCatalog = sqliteTable('food_catalog', {
   id:        text('id').primaryKey(),
   name:      text('name').notNull(),

@@ -202,6 +202,18 @@ export async function runMigrations() {
       notes TEXT,
       created_at INTEGER NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS event_presets (
+      id TEXT PRIMARY KEY NOT NULL,
+      event_type_id TEXT NOT NULL REFERENCES event_types(id),
+      name TEXT NOT NULL,
+      emoji TEXT DEFAULT '📌',
+      default_values TEXT DEFAULT '{}',
+      default_unit_overrides TEXT DEFAULT '{}',
+      default_notes TEXT,
+      sort_order INTEGER DEFAULT 0,
+      is_quick_action INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL
+    )`,
   ];
   for (const sql of CREATE_TABLES) {
     await _raw.execAsync(sql);

@@ -170,6 +170,12 @@ export default function PerfilScreen() {
                 onPress={() => router.push("/logs/food/history")}
               />
               <MenuLink
+                emoji="🌡️"
+                label="Salud"
+                subtitle="Temperatura, medicamentos y síntomas"
+                onPress={() => router.push("/logs/health/new")}
+              />
+              <MenuLink
                 emoji="🥗"
                 label="Alimentos OMS"
                 subtitle="Catálogo de alimentación complementaria"

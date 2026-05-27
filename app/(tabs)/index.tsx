@@ -48,6 +48,9 @@ import {
 } from "@/src/components/ui/TimelineBubbles";
 import { InlineEventTypeModal } from "@/src/components/ui/CatalogModals";
 import { useTheme } from "@/src/theme/useTheme";
+import { useQuickActionPresets, useQuickSavePreset } from "@/src/hooks/useEventPresets";
+import type { EventPreset } from "@/src/hooks/useEventPresets";
+import { QuickPresetSheet } from "@/src/components/ui/QuickPresetSheet";
 
 function QuickBtn({
   emoji,
@@ -262,6 +265,10 @@ export default function HomeScreen() {
   const startSleep = useStartSleep();
   const finishSleep = useFinishSleep();
   const saveEvent = useSaveTimelineEvent();
+  const { data: quickPresets } = useQuickActionPresets();
+  const quickSavePreset = useQuickSavePreset();
+  const [showQuickPreset, setShowQuickPreset] = useState(false);
+  const [activePreset, setActivePreset] = useState<EventPreset | null>(null);
 
   const c = theme.colors;
 
@@ -428,6 +435,23 @@ export default function HomeScreen() {
         pathname: "/logs/event/new",
         params: { preselect: typeId },
       });
+  };
+
+  const handlePresetTap = (preset: EventPreset) => {
+    setActivePreset(preset);
+    setShowQuickPreset(true);
+  };
+
+  const handleQuickSave = async (timestamp: Date, notes: string) => {
+    if (!baby || !activePreset) return;
+    await quickSavePreset.mutateAsync({
+      babyId: baby.id,
+      preset: activePreset,
+      timestamp,
+      notes,
+    });
+    setShowQuickPreset(false);
+    setActivePreset(null);
   };
 
   const renderItem = ({ item, index }: { item: TLItem; index: number }) => {
@@ -771,6 +795,13 @@ export default function HomeScreen() {
                 disabled={!!loadingType}
               />
               <QuickBtn
+                emoji="🌡️"
+                label="Salud"
+                bgColor="#F97316"
+                onPress={() => router.push("/logs/health/new")}
+                disabled={!!loadingType}
+              />
+              <QuickBtn
                 emoji="🍑"
                 label="Pañal"
                 bgColor={c.warning}
@@ -785,6 +816,31 @@ export default function HomeScreen() {
                 disabled={!!loadingType}
               />
             </View>
+
+            {(quickPresets?.length ?? 0) > 0 && (
+              <View style={{ marginBottom: 8, paddingHorizontal: 2 }}>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                  {quickPresets?.map((p) => (
+                    <TouchableOpacity
+                      key={p.id}
+                      onPress={() => handlePresetTap(p)}
+                      style={{
+                        flexDirection: "row", alignItems: "center", gap: 4,
+                        paddingVertical: 8, paddingHorizontal: 14,
+                        borderRadius: 99,
+                        backgroundColor: c.elevated,
+                        minHeight: 36,
+                      }}
+                    >
+                      <Text style={{ fontSize: 16 }}>{p.emoji}</Text>
+                      <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "700" }}>
+                        {p.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
 
             <View style={{ flexDirection: "row", gap: 8, marginBottom: 8, paddingHorizontal: 2 }}>
               <TouchableOpacity
@@ -869,6 +925,13 @@ export default function HomeScreen() {
         onSelect={(id: string) => {
           handleEventSelect(id);
         }}
+      />
+      <QuickPresetSheet
+        preset={activePreset}
+        visible={showQuickPreset}
+        onClose={() => { setShowQuickPreset(false); setActivePreset(null); }}
+        onSave={handleQuickSave}
+        saving={quickSavePreset.isPending}
       />
     </SafeAreaView>
   );

@@ -22,13 +22,19 @@ import {
   useCreateDiaperObservation,
   useUpdateDiaperObservation,
 } from "@/src/hooks/useTimeline";
+import {
+  useEventPresets,
+  useCreateEventPreset,
+  useUpdateEventPreset,
+  useDeleteEventPreset,
+} from "@/src/hooks/useEventPresets";
 import { getDb } from "@/src/db/client";
-import { eventTypes, diaperObservations } from "@/src/db/schema";
+import { eventTypes, diaperObservations, eventPresets } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/src/theme/useTheme";
 import type { DiaperObservation, ObservationMetric, ObservationZone } from "@/src/db/schema";
-import type { EventType } from "@/src/db/schema";
+import type { EventType, EventPreset } from "@/src/db/schema";
 import type { EventMetric } from "@/src/units/types";
 import { getUnit, getUnitsByDimension } from "@/src/units/registry";
 import { generateId } from "@/src/utils/id";
@@ -1217,15 +1223,99 @@ export default function CatalogsScreen() {
   const c = theme.colors;
   const { data: events } = useEventTypes();
   const { data: diaperObs } = useDiaperObservations();
+  const { data: presets } = useEventPresets();
+  const createPreset = useCreateEventPreset();
+  const updatePreset = useUpdateEventPreset();
+  const deletePreset = useDeleteEventPreset();
   const createEvent = useCreateEventType();
   const createDiaper = useCreateDiaperObservation();
   const updateDiaper = useUpdateDiaperObservation();
   const qc = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<"events" | "pee" | "poop" | "obs">("events");
+  const [activeTab, setActiveTab] = useState<"events" | "pee" | "poop" | "obs" | "presets">("events");
   const [showForm, setShowForm] = useState(false);
   const [editingObs, setEditingObs] = useState<DiaperObservation | null>(null);
   const [editingEventMetrics, setEditingEventMetrics] = useState<EventType | null>(null);
+
+  // ─── Preset form state ───
+  const [presetForm, setPresetForm] = useState(false);
+  const [presetEdit, setPresetEdit] = useState<EventPreset | null>(null);
+  const [pfName, setPfName] = useState("");
+  const [pfEmoji, setPfEmoji] = useState("📌");
+  const [pfEventType, setPfEventType] = useState("");
+  const [pfValues, setPfValues] = useState("");
+  const [pfUnitOverrides, setPfUnitOverrides] = useState("");
+  const [pfNotes, setPfNotes] = useState("");
+  const [pfQuick, setPfQuick] = useState(false);
+
+  const resetPresetForm = () => {
+    setPfName("");
+    setPfEmoji("📌");
+    setPfEventType("");
+    setPfValues("");
+    setPfUnitOverrides("");
+    setPfNotes("");
+    setPfQuick(false);
+  };
+
+  const openPresetForm = (p?: EventPreset) => {
+    if (p) {
+      setPresetEdit(p);
+      setPfName(p.name);
+      setPfEmoji(p.emoji ?? "📌");
+      setPfEventType(p.eventTypeId);
+      setPfValues(p.defaultValues ?? "{}");
+      setPfUnitOverrides(p.defaultUnitOverrides ?? "{}");
+      setPfNotes(p.defaultNotes ?? "");
+      setPfQuick(p.isQuickAction ?? false);
+    } else {
+      setPresetEdit(null);
+      resetPresetForm();
+    }
+    setPresetForm(true);
+  };
+
+  const handleSavePreset = async () => {
+    if (!pfName.trim() || !pfEventType) return;
+    let dv: Record<string, number> = {};
+    let duo: Record<string, string> = {};
+    try { dv = JSON.parse(pfValues || "{}"); } catch {}
+    try { duo = JSON.parse(pfUnitOverrides || "{}"); } catch {}
+    try {
+      if (presetEdit) {
+        await updatePreset.mutateAsync({
+          id: presetEdit.id,
+          name: pfName.trim(),
+          emoji: pfEmoji,
+          defaultValues: dv,
+          defaultUnitOverrides: duo,
+          defaultNotes: pfNotes || undefined,
+          isQuickAction: pfQuick,
+        });
+      } else {
+        await createPreset.mutateAsync({
+          eventTypeId: pfEventType,
+          name: pfName.trim(),
+          emoji: pfEmoji,
+          defaultValues: dv,
+          defaultUnitOverrides: duo,
+          defaultNotes: pfNotes || undefined,
+          isQuickAction: pfQuick,
+        });
+      }
+      setPresetForm(false);
+      setPresetEdit(null);
+    } catch (e) {
+      Alert.alert("Error", "No se pudo guardar la plantilla");
+    }
+  };
+
+  const handleDeletePreset = (id: string) => {
+    Alert.alert("Eliminar plantilla", "¿Estás seguro?", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Eliminar", style: "destructive", onPress: () => deletePreset.mutate(id) },
+    ]);
+  };
 
   // ─── Pee config ───
   const [peeIntensity, setPeeIntensity] = useState<ConfigRange & { zones: Zone[] }>({
@@ -1430,6 +1520,7 @@ export default function CatalogsScreen() {
             { key: "pee" as const, label: "💧 Pipí" },
             { key: "poop" as const, label: "💩 Popó" },
             { key: "obs" as const, label: "🧷 Obs. Pañal" },
+            { key: "presets" as const, label: "📌 Plantillas" },
           ].map((t) => (
             <TouchableOpacity
               key={t.key}
@@ -1881,7 +1972,294 @@ export default function CatalogsScreen() {
               </>
             )}
 
-            {activeTab !== "obs" && (
+            {/* ─── Presets Tab ─── */}
+            {activeTab === "presets" && !presetForm && (
+              <View
+                style={{
+                  backgroundColor: c.card,
+                  borderRadius: 20,
+                  padding: 16,
+                  marginBottom: 20,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 16,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontWeight: "800",
+                      fontSize: 13,
+                      color: c.textMuted,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Plantillas ({presets?.length || 0})
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => openPresetForm()}
+                    style={{
+                      backgroundColor: c.accent,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 99,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: c.textBody,
+                        fontWeight: "800",
+                        fontSize: 12,
+                      }}
+                    >
+                      + Nueva
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={{ gap: 8 }}>
+                  {presets?.map((p) => {
+                    const et = events?.find((e) => e.id === p.eventTypeId);
+                    return (
+                      <TouchableOpacity
+                        key={p.id}
+                        onPress={() => openPresetForm(p)}
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          paddingVertical: 8,
+                          borderBottomWidth: 1,
+                          borderBottomColor: c.surface,
+                        }}
+                      >
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 12,
+                            flex: 1,
+                          }}
+                        >
+                          <Text style={{ fontSize: 24 }}>{p.emoji}</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{
+                                fontSize: 15,
+                                fontWeight: "800",
+                                color: c.textBody,
+                              }}
+                            >
+                              {p.name}
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                color: c.textMuted,
+                                fontWeight: "600",
+                              }}
+                            >
+                              {et?.emoji} {et?.label ?? p.eventTypeId}
+                              {p.isQuickAction ? " · ⚡ Acceso directo" : ""}
+                            </Text>
+                          </View>
+                          <Text style={{ color: c.textMuted, fontSize: 14 }}>
+                            ✏️
+                          </Text>
+                        </View>
+                        <TouchableOpacity onPress={() => handleDeletePreset(p.id)}>
+                          <Text style={{ color: c.danger, fontSize: 18 }}>🗑️</Text>
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {(presets?.length ?? 0) === 0 && (
+                    <Text style={{ color: c.textDim, fontSize: 14, textAlign: "center", padding: 20 }}>
+                      Crea tu primera plantilla para acceder rápido a medicamentos, síntomas o eventos recurrentes
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {activeTab === "presets" && presetForm && (
+              <View
+                style={{
+                  backgroundColor: c.card,
+                  borderRadius: 20,
+                  padding: 16,
+                  marginBottom: 20,
+                }}
+              >
+                <Text
+                  style={{
+                    fontWeight: "800",
+                    fontSize: 13,
+                    color: c.textMuted,
+                    marginBottom: 16,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {presetEdit ? "Editar plantilla" : "Nueva plantilla"}
+                </Text>
+
+                <View style={{ gap: 12 }}>
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Emoji</Text>
+                    <TextInput
+                      value={pfEmoji}
+                      onChangeText={setPfEmoji}
+                      style={{
+                        backgroundColor: c.surface,
+                        borderRadius: 12, padding: 12,
+                        color: c.textBody, fontSize: 20,
+                        textAlign: "center",
+                      }}
+                    />
+                  </View>
+
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Nombre</Text>
+                    <TextInput
+                      value={pfName}
+                      onChangeText={setPfName}
+                      placeholder="Ej: OneDrop, Paracetamol..."
+                      placeholderTextColor={c.textDim}
+                      style={{
+                        backgroundColor: c.surface,
+                        borderRadius: 12, padding: 12,
+                        color: c.textBody, fontSize: 15,
+                      }}
+                    />
+                  </View>
+
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Tipo de evento</Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                      {events?.filter((e) => e.id !== "note" && e.id !== "diaper").map((et) => (
+                        <TouchableOpacity
+                          key={et.id}
+                          onPress={() => setPfEventType(et.id)}
+                          style={{
+                            paddingVertical: 8, paddingHorizontal: 12,
+                            borderRadius: 99,
+                            backgroundColor: pfEventType === et.id ? c.accent : c.surface,
+                            minHeight: 36,
+                          }}
+                        >
+                          <Text style={{
+                            color: pfEventType === et.id ? "#FFF" : c.textBody,
+                            fontWeight: "700", fontSize: 13,
+                          }}>
+                            {et.emoji} {et.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>
+                      Valores por defecto (JSON)
+                    </Text>
+                    <TextInput
+                      value={pfValues}
+                      onChangeText={setPfValues}
+                      placeholder='{"dose":1}'
+                      placeholderTextColor={c.textDim}
+                      style={{
+                        backgroundColor: c.surface,
+                        borderRadius: 12, padding: 12,
+                        color: c.textBody, fontSize: 13,
+                        fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+                      }}
+                    />
+                    <Text style={{ color: c.textDim, fontSize: 11 }}>
+                      Ej: {`{"dose":1}`} para medicamento, {`{"temperature":38}`} para temperatura
+                    </Text>
+                  </View>
+
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>
+                      Unidades alternativas (JSON)
+                    </Text>
+                    <TextInput
+                      value={pfUnitOverrides}
+                      onChangeText={setPfUnitOverrides}
+                      placeholder='{"dose":"drop"}'
+                      placeholderTextColor={c.textDim}
+                      style={{
+                        backgroundColor: c.surface,
+                        borderRadius: 12, padding: 12,
+                        color: c.textBody, fontSize: 13,
+                        fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+                      }}
+                    />
+                    <Text style={{ color: c.textDim, fontSize: 11 }}>
+                      Ej: {"{"}"dose":"drop"{">"} para gotas, {"{"}"dose":"sachet"{">"} para sobres
+                    </Text>
+                  </View>
+
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Notas por defecto</Text>
+                    <TextInput
+                      value={pfNotes}
+                      onChangeText={setPfNotes}
+                      placeholder="Notas que se pre-cargarán al usar la plantilla"
+                      placeholderTextColor={c.textDim}
+                      multiline
+                      style={{
+                        backgroundColor: c.surface,
+                        borderRadius: 12, padding: 12,
+                        color: c.textBody, fontSize: 15,
+                        minHeight: 60, textAlignVertical: "top",
+                      }}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => setPfQuick(!pfQuick)}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                  >
+                    <View style={{
+                      width: 24, height: 24, borderRadius: 6, borderWidth: 2,
+                      borderColor: pfQuick ? c.accent : c.textDim,
+                      backgroundColor: pfQuick ? c.accent : "transparent",
+                      alignItems: "center", justifyContent: "center",
+                    }}>
+                      {pfQuick && <Text style={{ color: "#FFF", fontSize: 14, fontWeight: "800" }}>✓</Text>}
+                    </View>
+                    <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 14 }}>
+                      ⚡ Mostrar en inicio como acceso directo
+                    </Text>
+                  </TouchableOpacity>
+
+                  <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <BigButton
+                        label="Cancelar"
+                        variant="secondary"
+                        onPress={() => { setPresetForm(false); setPresetEdit(null); }}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <BigButton
+                        label="Guardar"
+                        onPress={handleSavePreset}
+                        loading={createPreset.isPending || updatePreset.isPending}
+                        disabled={!pfName.trim() || !pfEventType}
+                      />
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {activeTab !== "obs" && activeTab !== "presets" && (
               <View style={{ marginTop: 12 }}>
                 <BigButton label="💾 Guardar configuración" onPress={saveAllConfigs} />
               </View>
