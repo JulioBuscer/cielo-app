@@ -74,6 +74,12 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 - SUS estimado: ~68 → ~73/100
 - Fix: `handleEventSelect` ya no redirige `"note"` a FoodSheet (rompía eventos genéricos)
 
+## 🟡 Sprint 8b — UX Plantillas (fixes)
+- QuickPresetSheet: ahora muestra nombre de métrica + valor (ej. "Dosis: 3 mL"), no solo valor
+- Botones de preset en home: tamaño 52 (como los principales), truncamiento a 10 chars
+- Alert post-creación: indica dónde usar la plantilla
+- Botón "+" excedentes cambia a "⚡ +N"
+
 ## Planes futuros
 **Objetivo:** Misma táctica BottomSheet inline en Health y Food logs.
 **Patrón:** Copiar estructura de DiaperSheet — defaults inteligentes + detalles expandibles. Sin navegación a pantalla dedicada para el caso común.

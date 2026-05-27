@@ -148,6 +148,12 @@ export default function CatalogsScreen() {
           defaultNotes: pfNotes || undefined,
           isQuickAction: pfQuick,
         });
+        if (pfQuick) {
+          Alert.alert(
+            "✅ Plantilla creada",
+            `Presiona "${pfEmoji} ${pfName.trim()}" en la pantalla de inicio para usarla.`
+          );
+        }
       }
       setPresetForm(false);
       setPresetEdit(null);

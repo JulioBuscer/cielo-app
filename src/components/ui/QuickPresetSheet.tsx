@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   View, Text, TouchableOpacity,
   TextInput, Modal, Platform,
@@ -7,6 +7,7 @@ import { useTheme } from "@/src/theme/useTheme";
 import { DateTimePicker } from "./DateTimePicker";
 import { BigButton } from "./BigButton";
 import { getUnit } from "@/src/units/registry";
+import { useEventTypes } from "@/src/hooks/useTimeline";
 import type { EventPreset } from "@/src/hooks/useEventPresets";
 
 export function QuickPresetSheet({
@@ -24,21 +25,52 @@ export function QuickPresetSheet({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const { data: eventTypes } = useEventTypes();
   const [timestamp, setTimestamp] = useState(new Date());
   const [notes, setNotes] = useState("");
 
-  if (!preset) return null;
+  const eventType = useMemo(() => {
+    if (!preset || !eventTypes) return null;
+    return eventTypes.find((et) => et.id === preset.eventTypeId) ?? null;
+  }, [preset, eventTypes]);
 
-  const vals = (() => { try { return JSON.parse(preset.defaultValues ?? '{}'); } catch { return {}; } })();
-  const units = (() => { try { return JSON.parse(preset.defaultUnitOverrides ?? '{}'); } catch { return {}; } })();
-  const valueText = Object.entries(vals)
-    .map(([k, v]) => {
-      const unitId = units[k] as string | undefined;
+  const metricList = useMemo(() => {
+    if (!eventType) return [];
+    try {
+      return JSON.parse(eventType.metrics ?? "[]") as Array<{
+        id: string;
+        name: string;
+        unitId: string;
+      }>;
+    } catch {
+      return [];
+    }
+  }, [eventType]);
+
+  const units = useMemo(() => {
+    if (!preset) return {};
+    try { return JSON.parse(preset.defaultUnitOverrides ?? "{}"); } catch { return {}; }
+  }, [preset]);
+
+  const vals = useMemo(() => {
+    if (!preset) return {};
+    try { return JSON.parse(preset.defaultValues ?? "{}") as Record<string, number>; } catch { return {}; }
+  }, [preset]);
+
+  const namedValues = useMemo(() => {
+    return Object.entries(vals).map(([metricId, value]) => {
+      const metric = metricList.find((m) => m.id === metricId);
+      const unitId = (units as Record<string, string>)[metricId] ?? metric?.unitId;
       const unit = unitId ? getUnit(unitId) : undefined;
-      const symbol = unit?.symbol ?? "";
-      return `${v}${symbol ? " " + symbol : ""}`;
-    })
-    .join(", ");
+      return {
+        name: metric?.name ?? metricId,
+        value,
+        unit: unit?.symbol ?? "",
+      };
+    });
+  }, [vals, metricList, units]);
+
+  if (!preset) return null;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -62,10 +94,25 @@ export function QuickPresetSheet({
           <View style={{ alignItems: "center", gap: 4 }}>
             <Text style={{ fontSize: 40 }}>{preset.emoji}</Text>
             <Text style={{ color: c.textBody, fontSize: 20, fontWeight: "800" }}>{preset.name}</Text>
-            <Text style={{ color: c.textMuted, fontSize: 13, fontWeight: "600" }}>
-              {valueText || "Sin valores"}
-            </Text>
+            {eventType && (
+              <Text style={{ color: c.textMuted, fontSize: 13, fontWeight: "600" }}>
+                {eventType.emoji} {eventType.label}
+              </Text>
+            )}
           </View>
+
+          {namedValues.length > 0 && (
+            <View style={{ backgroundColor: c.card, borderRadius: 12, padding: 14, gap: 8 }}>
+              {namedValues.map((nv) => (
+                <View key={nv.name} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ color: c.textMuted, fontSize: 13, fontWeight: "600" }}>{nv.name}</Text>
+                  <Text style={{ color: c.textBody, fontSize: 16, fontWeight: "800" }}>
+                    {nv.value}{nv.unit ? ` ${nv.unit}` : ""}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={{ flexDirection: "row", justifyContent: "center" }}>
             <DateTimePicker value={timestamp} onChange={setTimestamp} />
@@ -86,7 +133,7 @@ export function QuickPresetSheet({
           />
 
           <BigButton
-            title="Guardar"
+            title={namedValues.length > 0 ? `Guardar ${preset.emoji ?? ""}` : "Guardar"}
             onPress={() => onSave(timestamp, notes)}
             loading={saving}
             disabled={saving}

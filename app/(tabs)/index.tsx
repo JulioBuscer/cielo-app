@@ -809,16 +809,16 @@ export default function HomeScreen() {
                 <QuickBtn
                   key={p.id}
                   emoji={p.emoji ?? "📌"}
-                  label={p.name.length > 8 ? p.name.substring(0, 7) + "…" : p.name}
+                  label={p.name.length > 10 ? p.name.substring(0, 9) + "…" : p.name}
                   bgColor={c.accentStrong}
                   onPress={() => handlePresetTap(p)}
                   disabled={!!loadingType}
-                  size={48}
+                  size={52}
                 />
               ))}
               <QuickBtn
-                emoji={(quickPresets?.length ?? 0) > 2 ? "➕" : "➕"}
-                label={(quickPresets?.length ?? 0) > 2 ? `${(quickPresets?.length ?? 0) - 2} más` : "Evento"}
+                emoji="⚡"
+                label={(quickPresets?.length ?? 0) > 2 ? `+${(quickPresets?.length ?? 0) - 2}` : "Más"}
                 bgColor={c.accentStrong}
                 onPress={() => setShowEventPicker(true)}
                 disabled={!!loadingType}
