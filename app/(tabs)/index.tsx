@@ -52,6 +52,8 @@ import { useQuickActionPresets, useQuickSavePreset } from "@/src/hooks/useEventP
 import type { EventPreset } from "@/src/hooks/useEventPresets";
 import { QuickPresetSheet } from "@/src/components/ui/QuickPresetSheet";
 import { DiaperSheet } from "@/src/components/diaper/DiaperSheet";
+import { HealthSheet } from "@/src/components/health/HealthSheet";
+import { FoodSheet } from "@/src/components/food/FoodSheet";
 
 function QuickBtn({
   emoji,
@@ -221,6 +223,8 @@ export default function HomeScreen() {
   const [sleepLoading, setSleepLoading] = useState(false);
   const [note, setNote] = useState("");
   const [showDiaperSheet, setShowDiaperSheet] = useState(false);
+  const [showHealthSheet, setShowHealthSheet] = useState(false);
+  const [showFoodSheet, setShowFoodSheet] = useState(false);
   const flatRef = useRef<FlatList>(null);
 
   const { data: baby } = useActiveBaby();
@@ -432,6 +436,8 @@ export default function HomeScreen() {
   const handleEventSelect = (typeId: string) => {
     setShowEventPicker(false);
     if (typeId === "diaper") setShowDiaperSheet(true);
+    else if (typeId === "temperature" || typeId === "medication") setShowHealthSheet(true);
+    else if (typeId === "note") setShowFoodSheet(true);
     else
       router.push({
         pathname: "/logs/event/new",
@@ -783,14 +789,14 @@ export default function HomeScreen() {
                 emoji="🍎"
                 label="Comida"
                 bgColor="#7CB342"
-                onPress={() => router.push("/logs/food/new")}
+                onPress={() => setShowFoodSheet(true)}
                 disabled={!!loadingType}
               />
               <QuickBtn
                 emoji="🌡️"
                 label="Salud"
                 bgColor="#F97316"
-                onPress={() => router.push("/logs/health/new")}
+                onPress={() => setShowHealthSheet(true)}
                 disabled={!!loadingType}
               />
               <QuickBtn
@@ -897,6 +903,14 @@ export default function HomeScreen() {
       <DiaperSheet
         visible={showDiaperSheet}
         onClose={() => setShowDiaperSheet(false)}
+      />
+      <HealthSheet
+        visible={showHealthSheet}
+        onClose={() => setShowHealthSheet(false)}
+      />
+      <FoodSheet
+        visible={showFoodSheet}
+        onClose={() => setShowFoodSheet(false)}
       />
     </SafeAreaView>
   );
