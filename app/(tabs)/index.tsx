@@ -736,15 +736,7 @@ export default function HomeScreen() {
           />
 
           <View style={{ backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.elevated, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 12 }}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "flex-end",
-                justifyContent: "space-between",
-                paddingHorizontal: 2,
-                marginBottom: 10,
-              }}
-            >
+            <View style={{ flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 2, marginBottom: 10, gap: 2, justifyContent: "center" }}>
               <QuickBtn
                 emoji="🤱"
                 label={"Pecho\nIzq."}
@@ -761,7 +753,6 @@ export default function HomeScreen() {
                 loading={loadingType === "breast_right"}
                 disabled={!!loadingType}
               />
-
               <QuickBtn
                 emoji={activeSleep ? "☀️" : "😴"}
                 label={activeSleep ? "Despertar" : "Dormir"}
@@ -771,7 +762,6 @@ export default function HomeScreen() {
                 loading={sleepLoading}
                 disabled={sleepLoading}
               />
-
               <QuickBtn
                 emoji="📏"
                 label="Medir"
@@ -808,55 +798,24 @@ export default function HomeScreen() {
                 onPress={() => router.push("/logs/diaper/new")}
                 disabled={!!loadingType}
               />
+              {(quickPresets ?? []).slice(0, 2).map((p) => (
+                <QuickBtn
+                  key={p.id}
+                  emoji={p.emoji ?? "📌"}
+                  label={p.name.length > 8 ? p.name.substring(0, 7) + "…" : p.name}
+                  bgColor={c.accentStrong}
+                  onPress={() => handlePresetTap(p)}
+                  disabled={!!loadingType}
+                  size={48}
+                />
+              ))}
               <QuickBtn
-                emoji="➕"
-                label="Evento"
+                emoji={(quickPresets?.length ?? 0) > 2 ? "➕" : "➕"}
+                label={(quickPresets?.length ?? 0) > 2 ? `${(quickPresets?.length ?? 0) - 2} más` : "Evento"}
                 bgColor={c.accentStrong}
                 onPress={() => setShowEventPicker(true)}
                 disabled={!!loadingType}
               />
-            </View>
-
-            {(quickPresets?.length ?? 0) > 0 && (
-              <View style={{ marginBottom: 8, paddingHorizontal: 2 }}>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                  {quickPresets?.map((p) => (
-                    <TouchableOpacity
-                      key={p.id}
-                      onPress={() => handlePresetTap(p)}
-                      style={{
-                        flexDirection: "row", alignItems: "center", gap: 4,
-                        paddingVertical: 8, paddingHorizontal: 14,
-                        borderRadius: 99,
-                        backgroundColor: c.elevated,
-                        minHeight: 36,
-                      }}
-                    >
-                      <Text style={{ fontSize: 16 }}>{p.emoji}</Text>
-                      <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "700" }}>
-                        {p.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            <View style={{ flexDirection: "row", gap: 8, marginBottom: 8, paddingHorizontal: 2 }}>
-              <TouchableOpacity
-                onPress={() => router.push("/logs/feeding/retro")}
-                style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 99, backgroundColor: c.elevated, minHeight: 36 }}
-              >
-                <Text style={{ fontSize: 14 }}>⏱</Text>
-                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "700" }}>Rezagada</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => router.push("/resources")}
-                style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 99, backgroundColor: c.elevated, minHeight: 36 }}
-              >
-                <Text style={{ fontSize: 14 }}>📖</Text>
-                <Text style={{ fontSize: 12, color: c.textMuted, fontWeight: "700" }}>Recursos</Text>
-              </TouchableOpacity>
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
