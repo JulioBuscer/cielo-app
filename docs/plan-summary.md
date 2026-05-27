@@ -60,7 +60,22 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 
 ---
 
-## 🔴 Sprint 8 — Sheets rápidos para Comida y Salud (PLANEADO)
+## ✅ Sprint 8 — Sheets rápidos para Comida y Salud
+- `src/components/health/HealthSheet.tsx` — BottomSheet salud inline:
+  - N1: temperatura 36.5°C default, 1 tap Guardar Rápido 🌡️
+  - N2: presets + manual + zona fiebre (con indicación por edad)
+  - N3: expande medicamento (nombre/dosis/unidad), síntomas (12 chips), notas
+- `src/components/food/FoodSheet.tsx` — BottomSheet comida inline:
+  - Catálogo completo con filtro por grupo, multi-select
+  - Expandible: primera vez, reacción, foto, hora, notas
+  - Tip ESPGHAN/AAP
+- `app/(tabs)/index.tsx` — quick buttons salud/comida → sheets en vez de push screen
+- CSIM — Temperatura: 4 pts → 2 pts; CSIM — Comida: 8 pts → 4 pts
+- SUS estimado: ~68 → ~73/100
+
+---
+
+## Planes futuros
 **Objetivo:** Misma táctica BottomSheet inline en Health y Food logs.
 **Patrón:** Copiar estructura de DiaperSheet — defaults inteligentes + detalles expandibles. Sin navegación a pantalla dedicada para el caso común.
 
