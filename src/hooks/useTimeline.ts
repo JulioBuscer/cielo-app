@@ -8,6 +8,33 @@ import type { DiaperMetadata, MedicationMetadata, GrowthMetadata, TemperatureMet
 
 export type { DiaperMetadata, MedicationMetadata, GrowthMetadata, TemperatureMetadata };
 
+// ─── SHARED INSERT (unifica patrón de guardado) ────────────────────────────
+export async function insertTimelineEvent(input: {
+  babyId:           string;
+  profileId:        string;
+  eventTypeId:      string;
+  timestamp?:       Date;
+  notes?:           string | null;
+  values?:          Record<string, unknown>;
+  metadata?:        Record<string, unknown> | null;
+  feedingSessionId?: string | null;
+  sleepSessionId?:   string | null;
+}) {
+  await getDb().insert(timelineEvents).values({
+    id:               generateId(),
+    babyId:           input.babyId,
+    profileId:        input.profileId,
+    feedingSessionId: input.feedingSessionId ?? null,
+    sleepSessionId:   input.sleepSessionId ?? null,
+    eventTypeId:      input.eventTypeId,
+    timestamp:        input.timestamp ?? new Date(),
+    notes:            input.notes ?? null,
+    metadata:         input.metadata ? JSON.stringify(input.metadata) : null,
+    values:           input.values ? JSON.stringify(input.values) : '{}',
+    createdAt:        new Date(),
+  });
+}
+
 // ─── QUERIES ──────────────────────────────────────────────────────────────────
 
 export function useTimeline(babyId?: string, limit = 30) {
@@ -89,19 +116,16 @@ export function useSaveTimelineEvent() {
       sleepSessionId?: string;
     }) => {
       const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
-      const now = input.timestamp ?? new Date();
-      await getDb().insert(timelineEvents).values({
-        id:               generateId(),
+      await insertTimelineEvent({
         babyId:           input.babyId,
         profileId,
+        eventTypeId:      input.eventTypeId,
+        timestamp:        input.timestamp,
+        notes:            input.notes ?? null,
+        metadata:         input.metadata ?? null,
+        values:           input.values,
         feedingSessionId: input.feedingSessionId ?? null,
         sleepSessionId:   input.sleepSessionId ?? null,
-        eventTypeId:      input.eventTypeId,
-        timestamp:        now,
-        notes:            input.notes ?? null,
-        metadata:         input.metadata ? JSON.stringify(input.metadata) : null,
-        values:           input.values ? JSON.stringify(input.values) : '{}',
-        createdAt:        new Date(),
       });
     },
     onSuccess: (_, vars) => {

@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getDb } from '@/src/db/client';
-import { eventPresets, timelineEvents } from '@/src/db/schema';
+import { eventPresets } from '@/src/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 import type { EventPreset } from '@/src/db/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { insertTimelineEvent } from './useTimeline';
 
 export type { EventPreset };
 
@@ -121,18 +122,13 @@ export function useQuickSavePreset() {
       const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
       let values: Record<string, number> = {};
       try { values = JSON.parse(input.preset.defaultValues ?? '{}'); } catch {}
-      await getDb().insert(timelineEvents).values({
-        id:               generateId(),
-        babyId:           input.babyId,
+      await insertTimelineEvent({
+        babyId:      input.babyId,
         profileId,
-        feedingSessionId: null,
-        sleepSessionId:   null,
-        eventTypeId:      input.preset.eventTypeId,
-        timestamp:        input.timestamp ?? new Date(),
-        notes:            input.notes ?? input.preset.defaultNotes ?? null,
-        metadata:         null,
-        values:           JSON.stringify(values),
-        createdAt:        new Date(),
+        eventTypeId: input.preset.eventTypeId,
+        timestamp:   input.timestamp,
+        notes:       input.notes ?? input.preset.defaultNotes ?? null,
+        values:      values as Record<string, unknown>,
       });
     },
     onSuccess: (_, vars) => {
