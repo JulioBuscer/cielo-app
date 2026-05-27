@@ -1,13 +1,13 @@
 import { Redirect } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import { getOnboardingDone } from '@/src/utils/storage';
 
 export default function Index() {
   const [target, setTarget] = useState<string | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem('onboarding_done').then((done) => {
+    getOnboardingDone().then((done) => {
       setTarget(done ? '/(tabs)' : '/onboarding/welcome');
     });
   }, []);

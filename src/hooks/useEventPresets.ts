@@ -3,8 +3,8 @@ import { getDb } from '@/src/db/client';
 import { eventPresets } from '@/src/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
+import { getProfileId } from '@/src/utils/storage';
 import type { EventPreset } from '@/src/db/schema';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { insertTimelineEvent } from './useTimeline';
 
 export type { EventPreset };
@@ -122,7 +122,7 @@ export function useQuickSavePreset() {
       timestamp?: Date;
       notes?: string;
     }) => {
-      const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
+      const profileId = await getProfileId();
       let values: Record<string, number> = {};
       try { values = JSON.parse(input.preset.defaultValues ?? '{}'); } catch {}
       await insertTimelineEvent({

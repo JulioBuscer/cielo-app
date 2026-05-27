@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { eq, desc, asc, and, gte, lte } from "drizzle-orm";
 import { getDb } from "@/src/db/client";
 import { foodCatalog, foodLogs } from "@/src/db/schema";
 import { generateId } from "@/src/utils/id";
+import { getProfileId } from "@/src/utils/storage";
 
 export function useFoodCatalog() {
   return useQuery({
@@ -54,7 +54,7 @@ export function useSaveFoodLog() {
       photoUri?: string;
       notes?: string;
     }) => {
-      const profileId = (await AsyncStorage.getItem("active_profile_id")) ?? "";
+      const profileId = await getProfileId();
       await getDb().insert(foodLogs).values({
         id: generateId(),
         babyId: input.babyId,

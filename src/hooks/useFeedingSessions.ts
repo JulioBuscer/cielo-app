@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDb, calcDurationSec } from '@/src/db/client';
 import { feedingSessions, feedingStatusEvents } from '@/src/db/schema';
 import { eq, and, inArray, desc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
+import { getProfileId } from '@/src/utils/storage';
 import type { FeedingSession } from '@/src/db/schema';
 
 // ─── TIPOS ────────────────────────────────────────────────────────────────────
@@ -138,7 +138,7 @@ export function useStartFeeding() {
       bottleSubtype?: BottleSubtype;
     }) => {
       const db = getDb();
-      const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
+      const profileId = await getProfileId();
       const now = new Date();
 
       // Auto-terminar toma activa/pausada existente
@@ -197,7 +197,7 @@ export function usePauseFeeding() {
   return useMutation({
     mutationFn: async (session: FeedingSession) => {
       const db = getDb();
-      const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
+      const profileId = await getProfileId();
       const now = new Date();
       await db.insert(feedingStatusEvents).values({
         id: generateId(), sessionId: session.id,
@@ -222,7 +222,7 @@ export function useResumeFeeding() {
   return useMutation({
     mutationFn: async (session: FeedingSession) => {
       const db = getDb();
-      const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
+      const profileId = await getProfileId();
       const now = new Date();
       await db.insert(feedingStatusEvents).values({
         id: generateId(), sessionId: session.id,
@@ -246,7 +246,7 @@ export function useFinishFeeding() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (session: FeedingSession) => {
-      const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
+      const profileId = await getProfileId();
       await _finishSession(session.id, profileId, new Date());
     },
     onSuccess: (_, session) => {

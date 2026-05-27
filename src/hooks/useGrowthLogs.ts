@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDb } from '@/src/db/client';
 import { growthLogs, timelineEvents } from '@/src/db/schema';
 import { desc, eq, inArray, and } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
+import { getProfileId } from '@/src/utils/storage';
 
 // ─── Helpers de conversión (UI en kg/cm, DB en g/mm) ─────────────────────────
 export const kgToGrams  = (kg: number)  => Math.round(kg * 1000);
@@ -35,7 +35,7 @@ export function useSaveGrowthLog() {
       timestamp?:  Date;
       photoUris?:  string[];
     }) => {
-      const profileId = (await AsyncStorage.getItem('active_profile_id')) ?? '';
+      const profileId = await getProfileId();
       await getDb().insert(growthLogs).values({
         id:          generateId(),
         babyId:      input.babyId,
@@ -71,7 +71,7 @@ export function useSaveMeasurement() {
       timestamp?:  Date;
       photoUris?:  string[];
     }) => {
-      const profileId = (await AsyncStorage.getItem('active_profile_id')) ?? '';
+      const profileId = await getProfileId();
       const now = input.timestamp ?? new Date();
       const db = getDb();
 

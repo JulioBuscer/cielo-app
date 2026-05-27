@@ -3,16 +3,8 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/src/theme/useTheme";
 import { useActiveBaby } from "@/src/hooks/useBaby";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import packageJson from "@/package.json";
-
-const CONFIG_KEYS = [
-  'pee_intensity_config',
-  'poop_intensity_config',
-  'pee_health_config',
-  'poop_health_config',
-  'poop_consistency_config',
-];
+import { resetDiaperConfigs } from '@/src/utils/storage';
 
 const SETTINGS_ITEMS: { emoji: string; label: string; desc: string; route: string }[] = [
   { emoji: "📝", label: "Catálogos", desc: "Eventos, pipí, popó, observaciones", route: "/settings/catalogs" },
@@ -270,7 +262,7 @@ export default function SettingsScreen() {
                   text: "Restaurar",
                   style: "destructive",
                   onPress: async () => {
-                    await Promise.all(CONFIG_KEYS.map((k) => AsyncStorage.removeItem(k)));
+                    await resetDiaperConfigs();
                     Alert.alert("Listo", "Las escalas volverán a fábrica al abrir el formulario de pañal.");
                   },
                 },

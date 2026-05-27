@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDb, calcDurationSec, formatDuration } from '@/src/db/client';
 import { sleepSessions, sleepStatusEvents } from '@/src/db/schema';
 import { eq, and, inArray, desc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
+import { getProfileId } from '@/src/utils/storage';
 import type { SleepSession } from '@/src/db/schema';
 
 // ─── QUERY: Sesión de sueño activa ───────────────────────────────────────────
@@ -91,7 +91,7 @@ export function useStartSleep() {
   return useMutation({
     mutationFn: async (input: { babyId: string }) => {
       const db = getDb();
-      const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
+      const profileId = await getProfileId();
       const now = new Date();
 
       // Auto-terminar sesión activa/pausada si existe
@@ -134,7 +134,7 @@ export function usePauseSleep() {
   return useMutation({
     mutationFn: async (session: SleepSession) => {
       const db = getDb();
-      const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
+      const profileId = await getProfileId();
       const now = new Date();
       await db.insert(sleepStatusEvents).values({
         id: generateId(), sessionId: session.id,
@@ -159,7 +159,7 @@ export function useResumeSleep() {
   return useMutation({
     mutationFn: async (session: SleepSession) => {
       const db = getDb();
-      const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
+      const profileId = await getProfileId();
       const now = new Date();
       await db.insert(sleepStatusEvents).values({
         id: generateId(), sessionId: session.id,
@@ -183,7 +183,7 @@ export function useFinishSleep() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (session: SleepSession) => {
-      const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
+      const profileId = await getProfileId();
       await _finishSleepSession(session.id, profileId, new Date());
     },
     onSuccess: (_, session) => {

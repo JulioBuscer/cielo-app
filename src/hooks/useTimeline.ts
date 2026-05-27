@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDb } from '@/src/db/client';
 import { timelineEvents, eventTypes, diaperObservations } from '@/src/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
+import { getProfileId } from '@/src/utils/storage';
 import type { DiaperMetadata, MedicationMetadata, GrowthMetadata, TemperatureMetadata } from '@/src/db/schema';
 
 export type { DiaperMetadata, MedicationMetadata, GrowthMetadata, TemperatureMetadata };
@@ -115,7 +115,7 @@ export function useSaveTimelineEvent() {
       feedingSessionId?: string;
       sleepSessionId?: string;
     }) => {
-      const profileId = await AsyncStorage.getItem('active_profile_id') ?? '';
+      const profileId = await getProfileId();
       await insertTimelineEvent({
         babyId:           input.babyId,
         profileId,

@@ -13,6 +13,8 @@ import {
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { safeJsonParse } from "@/src/utils/safeJsonParse";
+import { KEYS } from "@/src/utils/storage";
 import { BigButton } from "@/src/components/ui/BigButton";
 import {
   useEventTypes,
@@ -31,7 +33,6 @@ import { getDb } from "@/src/db/client";
 import { eventTypes, diaperObservations } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
 import { useQueryClient } from "@tanstack/react-query";
-import { safeJsonParse } from "@/src/utils/safeJsonParse";
 import { useTheme } from "@/src/theme/useTheme";
 import type { DiaperObservation, ObservationMetric } from "@/src/db/schema";
 import type { EventType, EventPreset } from "@/src/db/schema";
@@ -236,11 +237,11 @@ export default function CatalogsScreen() {
   // Load configs from AsyncStorage
   useEffect(() => {
     Promise.all([
-      AsyncStorage.getItem('pee_intensity_config'),
-      AsyncStorage.getItem('pee_health_config'),
-      AsyncStorage.getItem('poop_intensity_config'),
-      AsyncStorage.getItem('poop_health_config'),
-      AsyncStorage.getItem('poop_consistency_config'),
+      AsyncStorage.getItem(KEYS.PEE_INTENSITY_CONFIG),
+      AsyncStorage.getItem(KEYS.PEE_HEALTH_CONFIG),
+      AsyncStorage.getItem(KEYS.POOP_INTENSITY_CONFIG),
+      AsyncStorage.getItem(KEYS.POOP_HEALTH_CONFIG),
+      AsyncStorage.getItem(KEYS.POOP_CONSISTENCY_CONFIG),
     ]).then(([pi, ph, poi, poh, pc]) => {
       if (pi) try { setPeeIntensity(JSON.parse(pi)); } catch {}
       if (ph) try { setPeeHealth(JSON.parse(ph)); } catch {}
@@ -252,11 +253,11 @@ export default function CatalogsScreen() {
 
   const saveAllConfigs = () => {
     AsyncStorage.multiSet([
-      ['pee_intensity_config', JSON.stringify(peeIntensity)],
-      ['pee_health_config', JSON.stringify(peeHealth)],
-      ['poop_intensity_config', JSON.stringify(poopIntensity)],
-      ['poop_health_config', JSON.stringify(poopHealth)],
-      ['poop_consistency_config', JSON.stringify(poopConsistency)],
+      [KEYS.PEE_INTENSITY_CONFIG, JSON.stringify(peeIntensity)],
+      [KEYS.PEE_HEALTH_CONFIG, JSON.stringify(peeHealth)],
+      [KEYS.POOP_INTENSITY_CONFIG, JSON.stringify(poopIntensity)],
+      [KEYS.POOP_HEALTH_CONFIG, JSON.stringify(poopHealth)],
+      [KEYS.POOP_CONSISTENCY_CONFIG, JSON.stringify(poopConsistency)],
     ]);
     Alert.alert("✅ Listo", "Configuración guardada");
   };

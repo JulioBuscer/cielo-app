@@ -23,6 +23,7 @@ import {
 import { useDiaperObservations, useSaveTimelineEvent } from "@/src/hooks/useTimeline";
 import { useCamera } from "@/src/hooks/useCamera";
 import { useTheme } from "@/src/theme/useTheme";
+import { KEYS } from "@/src/utils/storage";
 import {
   parseMetrics,
   getMetricZoneColor,
@@ -264,11 +265,11 @@ export default function DiaperNewScreen() {
 
   useEffect(() => {
     Promise.all([
-      AsyncStorage.getItem('pee_intensity_config'),
-      AsyncStorage.getItem('poop_intensity_config'),
-      AsyncStorage.getItem('pee_health_config'),
-      AsyncStorage.getItem('poop_health_config'),
-      AsyncStorage.getItem('poop_consistency_config'),
+      AsyncStorage.getItem(KEYS.PEE_INTENSITY_CONFIG),
+      AsyncStorage.getItem(KEYS.POOP_INTENSITY_CONFIG),
+      AsyncStorage.getItem(KEYS.PEE_HEALTH_CONFIG),
+      AsyncStorage.getItem(KEYS.POOP_HEALTH_CONFIG),
+      AsyncStorage.getItem(KEYS.POOP_CONSISTENCY_CONFIG),
     ]).then(([pi, poi, ph, poh, pc]) => {
       if (pi) try { setPeeIntensityCfg(JSON.parse(pi)); } catch {}
       if (poi) try { setPoopIntensityCfg(JSON.parse(poi)); } catch {}

@@ -500,12 +500,8 @@ export async function resetAllData() {
   `);
 
   // 2. Limpiar AsyncStorage (perfil activo, bebé activo, onboarding)
-  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-  await AsyncStorage.multiRemove([
-    'active_profile_id',
-    'active_baby_id',
-    'onboarding_done',
-  ]);
+  const { clearSessionData } = await import('@/src/utils/storage');
+  await clearSessionData();
 }
 
 // ─── HELPERS DE SESIÓN ────────────────────────────────────────────────────────

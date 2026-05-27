@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDb } from '@/src/db/client';
 import { babies } from '@/src/db/schema';
 import { eq } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
+import { setBabyId, setOnboardingDone, getBabyId } from '@/src/utils/storage';
 import type { Baby } from '@/src/db/schema';
 
 export function useCreateBaby() {
@@ -31,8 +31,8 @@ export function useCreateBaby() {
         createdAt:   now,
         updatedAt:   now,
       } as any);
-      await AsyncStorage.setItem('active_baby_id', id);
-      await AsyncStorage.setItem('onboarding_done', 'true');
+      await setBabyId(id);
+      await setOnboardingDone();
       return id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['baby'] }),
@@ -44,7 +44,7 @@ export function useActiveBaby() {
   return useQuery({
     queryKey: ['baby'],
     queryFn: async () => {
-      const id = await AsyncStorage.getItem('active_baby_id');
+      const id = await getBabyId();
       if (!id) return null;
       const res = await getDb().select().from(babies).where(eq(babies.id, id));
       return res[0] ?? null;
