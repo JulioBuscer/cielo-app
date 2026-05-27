@@ -46,6 +46,20 @@
 
 ---
 
+## Visión del Producto
+
+App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp donde se compartían eventos del bebé. La app replica esa dinámica con una **timeline tipo chat** donde todos los cuidadores ven el mismo registro.
+
+**Offline-first, privacidad total, cero dependencia de servidor.**
+
+### Principios de diseño
+- **One-hand first**: bottom nav, acciones al alcance del pulgar
+- **Timeline = registro rápido**: el chat es para LOGUEAR
+- **Análisis = para ENTENDER**: calendario, resúmenes, curvas
+- **Jerarquía clara**: 3 tabs abajo, contenido dentro con subtabs o secciones
+
+---
+
 ## 🔴 Sprint 8 — Sheets rápidos para Comida y Salud (PLANEADO)
 **Objetivo:** Misma táctica BottomSheet inline en Health y Food logs.
 **Patrón:** Copiar estructura de DiaperSheet — defaults inteligentes + detalles expandibles. Sin navegación a pantalla dedicada para el caso común.
@@ -60,9 +74,10 @@
 ## Estado vs Auditorías
 
 | Auditoría | SUS | Completado vs hallazgos |
-|---|---|---|
+|---|---|---|---|
 | v1 (commit 5e857b7) | 52/100 | ✅ 5/5 hallazgos |
 | v2 (post-refactor) | 58/100 | ✅ 9/11 (críticos y altos resueltos) |
+| Actual (post-sprints 3–7) | ~68/100 | [Auditoría unificada](ux-audit.md) |
 
 ### v2 — Resuelto ✅ (9/11)
 - C1 ErrorBoundary → ✅ Sprint 1
@@ -91,3 +106,11 @@
 | **4** | 📂 catálogos.tsx → 5 screens | 🟡 Medio (mantenibilidad) | `settings/` | Ninguna |
 | **5** | 📄 shareReport.ts — eliminar labels duplicados | 🟢 Bajo | `shareReport.ts` + hooks | Ninguna |
 | **6** | 🐛 useUpdateGrowthLog invalidation | 🟢 Bajo | `useGrowthLogs.ts` | Ninguna |
+
+## Ideas en radar (backlog v5)
+- Tip contextual: múltiples popós líquidas seguidas → mensaje de tranquilidad
+- Personalización de quick actions (orden, cuáles mostrar)
+- Notificaciones de ventanas de sueño
+- Vista año (heatmap tipo GitHub)
+- Recetario: agrupar alimentos en "platillos" prefabricados con batch logging
+- Seguimiento de alérgenos por receta
