@@ -3,6 +3,7 @@ import { getDb } from '@/src/db/client';
 import { profiles } from '@/src/db/schema';
 import { eq } from 'drizzle-orm';
 import { getProfileId, setProfileId } from '@/src/utils/storage';
+import { onMutationError } from '@/src/utils/mutationError';
 import type { Role } from '@/src/constants/roles';
 
 export function useCreateProfile() {
@@ -18,7 +19,7 @@ export function useCreateProfile() {
       return id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profile'] }),
-    onError: (e) => console.error('[useCreateProfile]', e),
+    onError: onMutationError("[useCreateProfile]"),
   });
 }
 

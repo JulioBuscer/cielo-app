@@ -4,6 +4,7 @@ import { eventPresets } from '@/src/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 import { getProfileId } from '@/src/utils/storage';
+import { onMutationError } from '@/src/utils/mutationError';
 import type { EventPreset } from '@/src/db/schema';
 import { insertTimelineEvent } from './useTimeline';
 
@@ -66,7 +67,7 @@ export function useCreateEventPreset() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['event_presets'] });
     },
-    onError: (e) => console.error('[useCreateEventPreset]', e),
+    onError: onMutationError("[useCreateEventPreset]"),
   });
 }
 
@@ -96,7 +97,7 @@ export function useUpdateEventPreset() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['event_presets'] });
     },
-    onError: (e) => console.error('[useUpdateEventPreset]', e),
+    onError: onMutationError("[useUpdateEventPreset]"),
   });
 }
 
@@ -109,7 +110,7 @@ export function useDeleteEventPreset() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['event_presets'] });
     },
-    onError: (e) => console.error('[useDeleteEventPreset]', e),
+    onError: onMutationError("[useDeleteEventPreset]"),
   });
 }
 
@@ -138,6 +139,6 @@ export function useQuickSavePreset() {
       qc.invalidateQueries({ queryKey: ['timeline', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['calendar', vars.babyId], refetchType: 'all' });
     },
-    onError: (e) => console.error('[useQuickSavePreset]', e),
+    onError: onMutationError("[useQuickSavePreset]"),
   });
 }

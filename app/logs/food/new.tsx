@@ -11,14 +11,11 @@ import * as ImagePicker from "expo-image-picker";
 import { captureAndStore, deletePhoto } from "@/src/services/imageStorage";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import {
-  useFoodCatalog, FOOD_GROUPS,
+  useFoodCatalog, FOOD_GROUPS, useCreateFoodCatalogItem, useSaveFoodLog,
 } from "@/src/hooks/useFoodLogs";
 import { useSaveTimelineEvent } from "@/src/hooks/useTimeline";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
-import { getDb } from "@/src/db/client";
-import { foodCatalog, foodLogs } from "@/src/db/schema";
-import { generateId } from "@/src/utils/id";
 
 const GROUP_KEYS = Object.keys(FOOD_GROUPS).sort();
 
@@ -40,6 +37,7 @@ function QuickAddModal({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const { mutateAsync: createFood } = useCreateFoodCatalogItem();
   const [name, setName] = useState("");
   const [group, setGroup] = useState("fruit");
   const [emoji, setEmoji] = useState("🍽️");
@@ -69,17 +67,12 @@ function QuickAddModal({
   const handleAdd = async () => {
     if (!name.trim()) return;
     try {
-      const id = name.toLowerCase().replace(/[^a-záéíóúñ]/g, "_");
-      getDb().insert(foodCatalog).values({
-        id,
+      const id = await createFood({
         name: name.trim(),
-        emoji: emoji || null,
-        group: group as any,
-        property: "neutral",
-        allergens: allergens.length > 0 ? allergens.join(",") : null,
-        isSystem: false,
-        createdAt: new Date(),
-      }).run();
+        emoji,
+        group,
+        allergens,
+      });
       onAdded(id);
       onClose();
     } catch (e: any) {
@@ -199,6 +192,7 @@ export default function FoodLogNewScreen() {
   const { data: baby } = useActiveBaby();
   const { data: catalog } = useFoodCatalog();
   const saveEvent = useSaveTimelineEvent();
+  const saveFoodLog = useSaveFoodLog();
   const { theme } = useTheme();
   const c = theme.colors;
 
@@ -229,21 +223,16 @@ export default function FoodLogNewScreen() {
     }
     setSaving(true);
     try {
-      const profileId = (await import("@react-native-async-storage/async-storage").then(m => m.default.getItem('active_profile_id'))) ?? '';
-      const db = getDb();
       for (const foodId of selectedFoodIds) {
-        db.insert(foodLogs).values({
-          id: generateId(),
+        await saveFoodLog.mutateAsync({
           babyId: baby.id,
-          profileId,
           foodId,
           timestamp,
           isFirst,
-          reaction: reaction || null,
-          photoUri: photoUris.length > 0 ? photoUris[0] : null,
-          notes: notes || null,
-          createdAt: new Date(),
-        }).run();
+          reaction,
+          photoUri: photoUris.length > 0 ? photoUris[0] : undefined,
+          notes,
+        });
       }
       const foods = catalog?.filter((f) => selectedFoodIds.includes(f.id)) ?? [];
       const foodList = foods.map((f) => `${f.emoji ?? ""} ${f.name}`).join(", ");

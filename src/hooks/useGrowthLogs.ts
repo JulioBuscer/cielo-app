@@ -4,6 +4,7 @@ import { growthLogs, timelineEvents } from '@/src/db/schema';
 import { desc, eq, inArray, and } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 import { getProfileId } from '@/src/utils/storage';
+import { onMutationError } from '@/src/utils/mutationError';
 
 // ─── Helpers de conversión (UI en kg/cm, DB en g/mm) ─────────────────────────
 export const kgToGrams  = (kg: number)  => Math.round(kg * 1000);
@@ -53,7 +54,7 @@ export function useSaveGrowthLog() {
       qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['growth_last', vars.babyId] });
     },
-    onError: (e) => console.error('[useSaveGrowthLog]', e),
+    onError: onMutationError("[useSaveGrowthLog]"),
   });
 }
 
@@ -113,7 +114,7 @@ export function useSaveMeasurement() {
       qc.invalidateQueries({ queryKey: ['timeline', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['calendar', vars.babyId], refetchType: 'all' });
     },
-    onError: (e) => console.error('[useSaveMeasurement]', e),
+    onError: onMutationError("[useSaveMeasurement]"),
   });
 }
 
@@ -147,7 +148,7 @@ export function useUpdateGrowthLog() {
       qc.invalidateQueries({ queryKey: ['growth_last', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId, 'history'] });
     },
-    onError: (e) => console.error('[useUpdateGrowthLog]', e),
+    onError: onMutationError("[useUpdateGrowthLog]"),
   });
 }
 

@@ -22,6 +22,9 @@ import {
   useCreateEventType,
   useCreateDiaperObservation,
   useUpdateDiaperObservation,
+  useDeleteEventType,
+  useUpdateEventTypeMetrics,
+  useDeleteDiaperObservation,
 } from "@/src/hooks/useTimeline";
 import {
   useEventPresets,
@@ -29,10 +32,7 @@ import {
   useUpdateEventPreset,
   useDeleteEventPreset,
 } from "@/src/hooks/useEventPresets";
-import { getDb } from "@/src/db/client";
-import { eventTypes, diaperObservations } from "@/src/db/schema";
-import { eq } from "drizzle-orm";
-import { useQueryClient } from "@tanstack/react-query";
+
 import { useTheme } from "@/src/theme/useTheme";
 import type { DiaperObservation, ObservationMetric } from "@/src/db/schema";
 import type { EventType, EventPreset } from "@/src/db/schema";
@@ -60,7 +60,6 @@ export default function CatalogsScreen() {
   const createEvent = useCreateEventType();
   const createDiaper = useCreateDiaperObservation();
   const updateDiaper = useUpdateDiaperObservation();
-  const qc = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<"events" | "pee" | "poop" | "obs" | "presets">("events");
   const [showForm, setShowForm] = useState(false);
@@ -283,6 +282,10 @@ export default function CatalogsScreen() {
     );
   };
 
+  const { mutate: deleteEventType } = useDeleteEventType();
+  const { mutate: saveEventMetrics } = useUpdateEventTypeMetrics();
+  const { mutate: deleteDiaperObs } = useDeleteDiaperObservation();
+
   const handleDeleteEvent = async (id: string, isSystem: boolean | null) => {
     if (isSystem)
       return Alert.alert("Ups", "No puedes borrar un tipo del sistema.");
@@ -291,20 +294,13 @@ export default function CatalogsScreen() {
       {
         text: "Borrar",
         style: "destructive",
-        onPress: async () => {
-          await getDb().delete(eventTypes).where(eq(eventTypes.id, id));
-          qc.invalidateQueries({ queryKey: ["event_types"] });
-        },
+        onPress: () => deleteEventType(id),
       },
     ]);
   };
 
   const handleSaveEventMetrics = async (id: string, metrics: EventMetric[]) => {
-    await getDb()
-      .update(eventTypes)
-      .set({ metrics: JSON.stringify(metrics) })
-      .where(eq(eventTypes.id, id));
-    qc.invalidateQueries({ queryKey: ["event_types"] });
+    saveEventMetrics({ id, metrics: JSON.stringify(metrics) });
     setEditingEventMetrics(null);
   };
 
@@ -319,12 +315,7 @@ export default function CatalogsScreen() {
       {
         text: "Borrar",
         style: "destructive",
-        onPress: async () => {
-          await getDb()
-            .delete(diaperObservations)
-            .where(eq(diaperObservations.id, id));
-          qc.invalidateQueries({ queryKey: ["diaper_observations"] });
-        },
+        onPress: () => deleteDiaperObs(id),
       },
     ]);
   };

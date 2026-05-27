@@ -162,3 +162,78 @@ export function useCalendarData(babyId?: string, ref?: Date) {
     },
   });
 }
+
+export function useDayEvents(babyId?: string, dayStart?: Date, dayEnd?: Date, enabled = true) {
+  return useQuery({
+    queryKey: ["dayEvents", babyId, dayStart?.getTime()],
+    enabled: !!babyId && enabled,
+    queryFn: async () => {
+      if (!babyId) return null;
+      const db = getDb();
+      const [events, feedings, sleeps, growths, foods] = await Promise.all([
+        db
+          .select()
+          .from(timelineEvents)
+          .where(and(eq(timelineEvents.babyId, babyId), gte(timelineEvents.timestamp, dayStart!), lte(timelineEvents.timestamp, dayEnd!)))
+          .orderBy(timelineEvents.timestamp),
+        db
+          .select()
+          .from(feedingSessions)
+          .where(and(eq(feedingSessions.babyId, babyId), gte(feedingSessions.startedAt, dayStart!), lte(feedingSessions.startedAt, dayEnd!)))
+          .orderBy(feedingSessions.startedAt),
+        db
+          .select()
+          .from(sleepSessions)
+          .where(and(eq(sleepSessions.babyId, babyId), gte(sleepSessions.startedAt, dayStart!), lte(sleepSessions.startedAt, dayEnd!)))
+          .orderBy(sleepSessions.startedAt),
+        db
+          .select()
+          .from(growthLogs)
+          .where(and(eq(growthLogs.babyId, babyId), gte(growthLogs.timestamp, dayStart!), lte(growthLogs.timestamp, dayEnd!)))
+          .orderBy(growthLogs.timestamp),
+        db
+          .select()
+          .from(foodLogs)
+          .where(and(eq(foodLogs.babyId, babyId), gte(foodLogs.timestamp, dayStart!), lte(foodLogs.timestamp, dayEnd!)))
+          .orderBy(foodLogs.timestamp),
+      ]);
+      return { events, feedings, sleeps, growths, foods };
+    },
+  });
+}
+
+export function useWeekSummary(babyId?: string) {
+  return useQuery({
+    queryKey: ["weekSummary", babyId],
+    enabled: !!babyId,
+    queryFn: async () => {
+      if (!babyId) return [];
+      const db = getDb();
+      const days: { dateKey: string; diapers: number; feeds: number; sleepMs: number; foods: number }[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+        const [events, feedings, sleeps, foods] = await Promise.all([
+          db.select().from(timelineEvents)
+            .where(and(eq(timelineEvents.babyId, babyId), gte(timelineEvents.timestamp, start), lte(timelineEvents.timestamp, end)))
+            .orderBy(timelineEvents.timestamp),
+          db.select().from(feedingSessions)
+            .where(and(eq(feedingSessions.babyId, babyId), gte(feedingSessions.startedAt, start), lte(feedingSessions.startedAt, end))),
+          db.select().from(sleepSessions)
+            .where(and(eq(sleepSessions.babyId, babyId), gte(sleepSessions.startedAt, start), lte(sleepSessions.startedAt, end))),
+          db.select().from(foodLogs)
+            .where(and(eq(foodLogs.babyId, babyId), gte(foodLogs.timestamp, start), lte(foodLogs.timestamp, end))),
+        ]);
+        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const sleepMs = sleeps.reduce((acc, s) => {
+          if (s.status !== "finished" || !s.endedAt) return acc;
+          return acc + (new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime());
+        }, 0);
+        days.push({ dateKey, diapers: events.filter((e) => e.eventTypeId === "diaper").length, feeds: feedings.length, sleepMs, foods: foods.length });
+      }
+      return days;
+    },
+  });
+}

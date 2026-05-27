@@ -14,13 +14,10 @@ import { useActiveProfile } from "@/src/hooks/useProfile";
 import {
   FEEDING_LABELS,
   BOTTLE_SUBTYPE_LABELS,
+  useCreateRetroFeeding,
   type FeedingType,
   type BottleSubtype,
 } from "@/src/hooks/useFeedingSessions";
-import { useQueryClient } from "@tanstack/react-query";
-import { getDb } from "@/src/db/client";
-import { feedingSessions, feedingStatusEvents } from "@/src/db/schema";
-import { generateId } from "@/src/utils/id";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 
@@ -33,7 +30,7 @@ const FEEDING_TYPES: { id: FeedingType; emoji: string; label: string }[] = [
 export default function FeedingRetroScreen() {
   const { data: baby } = useActiveBaby();
   const { data: profile } = useActiveProfile();
-  const qc = useQueryClient();
+  const { mutateAsync: createRetroFeeding, isPending: saving } = useCreateRetroFeeding();
 
   const [type, setType] = useState<FeedingType | null>(null);
   const [bottleSubtype, setBottleSubtype] = useState<BottleSubtype | null>(
@@ -41,7 +38,6 @@ export default function FeedingRetroScreen() {
   );
   const [startedAt, setStartedAt] = useState(new Date());
   const [endedAt, setEndedAt] = useState(new Date());
-  const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!baby || !profile || !type) return;
@@ -52,56 +48,18 @@ export default function FeedingRetroScreen() {
       );
       return;
     }
-    setSaving(true);
     try {
-      const db = getDb();
-      const profileId = profile.id;
-      const now = new Date();
-      const sessionId = generateId();
-      const durationSec = Math.round(
-        (endedAt.getTime() - startedAt.getTime()) / 1000
-      );
-
-      // Insert feeding session
-      await db.insert(feedingSessions).values({
-        id: sessionId,
+      await createRetroFeeding({
         babyId: baby.id,
-        profileId,
+        profileId: profile.id,
         type,
-        bottleSubtype: type === "bottle" ? (bottleSubtype ?? null) : null,
-        status: "finished",
+        bottleSubtype: type === "bottle" ? bottleSubtype : null,
         startedAt,
         endedAt,
-        durationSec,
-        createdAt: now,
       });
-
-      // Insert status events (start + finish)
-      await db.insert(feedingStatusEvents).values([
-        {
-          id: generateId(),
-          sessionId,
-          profileId,
-          type: "start",
-          timestamp: startedAt,
-        },
-        {
-          id: generateId(),
-          sessionId,
-          profileId,
-          type: "finish",
-          timestamp: endedAt,
-        },
-      ]);
-
-      qc.invalidateQueries({ queryKey: ["feeding_session"] });
-      qc.invalidateQueries({ queryKey: ["timeline"] });
-
       router.back();
-    } catch (e) {
+    } catch {
       Alert.alert("Error", "No se pudo guardar la toma rezagada");
-    } finally {
-      setSaving(false);
     }
   };
 

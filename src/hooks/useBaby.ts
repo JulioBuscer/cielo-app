@@ -4,6 +4,7 @@ import { babies } from '@/src/db/schema';
 import { eq } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 import { setBabyId, setOnboardingDone, getBabyId } from '@/src/utils/storage';
+import { onMutationError } from '@/src/utils/mutationError';
 import type { Baby } from '@/src/db/schema';
 
 export function useCreateBaby() {
@@ -36,7 +37,7 @@ export function useCreateBaby() {
       return id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['baby'] }),
-    onError: (e) => console.error('[useCreateBaby]', e),
+    onError: onMutationError("[useCreateBaby]"),
   });
 }
 
@@ -61,7 +62,7 @@ export function useUpdateBaby() {
         .where(eq(babies.id, input.id));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['baby'] }),
-    onError: (e) => console.error('[useUpdateBaby]', e),
+    onError: onMutationError("[useUpdateBaby]"),
   });
 }
 

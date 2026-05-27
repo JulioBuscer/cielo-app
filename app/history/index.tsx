@@ -5,14 +5,11 @@ import {
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
-import { and, eq, gte, lte, desc, or, like } from "drizzle-orm";
-import { getDb } from "@/src/db/client";
-import { timelineEvents, feedingSessions, sleepSessions, growthLogs, foodLogs } from "@/src/db/schema";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import { useTheme } from "@/src/theme/useTheme";
 import { useEventTypes } from "@/src/hooks/useTimeline";
 import { useFoodCatalog } from "@/src/hooks/useFoodLogs";
+import { useHistoryData } from "@/src/hooks/useHistory";
 import { safeJsonParse } from "@/src/utils/safeJsonParse";
 import { timeOptions } from "@/src/utils/timeFormat";
 
@@ -81,50 +78,7 @@ export default function HistoryScreen() {
     return { start: new Date(0), end };
   }, [dateFilter, rangeStart, rangeEnd]);
 
-  const { data: raw, isLoading } = useQuery({
-    queryKey: ["history", baby?.id, dateFilter, typeFilter, rangeStart.getTime(), rangeEnd.getTime()],
-    enabled: !!baby?.id,
-    queryFn: async () => {
-      if (!baby?.id) return null;
-      const db = getDb();
-      const { start, end } = dateBounds;
-
-      const [events, feedings, sleeps, growths, foods] = await Promise.all([
-        db
-          .select()
-          .from(timelineEvents)
-          .where(
-            and(
-              eq(timelineEvents.babyId, baby.id),
-              gte(timelineEvents.timestamp, start),
-              lte(timelineEvents.timestamp, end),
-            )
-          )
-          .orderBy(desc(timelineEvents.timestamp)),
-        db
-          .select()
-          .from(feedingSessions)
-          .where(and(eq(feedingSessions.babyId, baby.id), gte(feedingSessions.startedAt, start), lte(feedingSessions.startedAt, end)))
-          .orderBy(desc(feedingSessions.startedAt)),
-        db
-          .select()
-          .from(sleepSessions)
-          .where(and(eq(sleepSessions.babyId, baby.id), gte(sleepSessions.startedAt, start), lte(sleepSessions.startedAt, end)))
-          .orderBy(desc(sleepSessions.startedAt)),
-        db
-          .select()
-          .from(growthLogs)
-          .where(and(eq(growthLogs.babyId, baby.id), gte(growthLogs.timestamp, start), lte(growthLogs.timestamp, end)))
-          .orderBy(desc(growthLogs.timestamp)),
-        db
-          .select()
-          .from(foodLogs)
-          .where(and(eq(foodLogs.babyId, baby.id), gte(foodLogs.timestamp, start), lte(foodLogs.timestamp, end)))
-          .orderBy(desc(foodLogs.timestamp)),
-      ]);
-      return { events, feedings, sleeps, growths, foods };
-    },
-  });
+  const { data: raw, isLoading } = useHistoryData(baby?.id, dateBounds);
 
   const grouped = useMemo(() => {
     if (!raw) return [];

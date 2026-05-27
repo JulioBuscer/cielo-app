@@ -12,16 +12,12 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
-import { and, eq, gte, lte, desc } from "drizzle-orm";
-import { getDb } from "@/src/db/client";
-import { timelineEvents, feedingSessions, sleepSessions, growthLogs, foodLogs } from "@/src/db/schema";
 import { useActiveBaby, calcAge } from "@/src/hooks/useBaby";
 import { useTimeline } from "@/src/hooks/useTimeline";
 import { safeJsonParse } from "@/src/utils/safeJsonParse";
 import { useTheme } from "@/src/theme/useTheme";
 import { CalendarGrid } from "@/src/components/ui/CalendarGrid";
-import { useCalendarData, type DayEvents } from "@/src/hooks/useCalendarData";
+import { useCalendarData, useDayEvents, useWeekSummary, type DayEvents } from "@/src/hooks/useCalendarData";
 import { useEventTypes } from "@/src/hooks/useTimeline";
 import { useFoodCatalog } from "@/src/hooks/useFoodLogs";
 import { timeOptions } from "@/src/utils/timeFormat";
@@ -118,42 +114,7 @@ function DaySheet({
   const dayStart = useMemo(() => new Date(parts[0], parts[1] - 1, parts[2]), [parts]);
   const dayEnd = useMemo(() => new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999), [parts]);
 
-  const { data: dayEventsRaw, isLoading } = useQuery({
-    queryKey: ["dayEvents", babyId, dateStr],
-    enabled: !!babyId && visible,
-    queryFn: async () => {
-      if (!babyId) return null;
-      const db = getDb();
-      const [events, feedings, sleeps, growths, foods] = await Promise.all([
-        db
-          .select()
-          .from(timelineEvents)
-          .where(and(eq(timelineEvents.babyId, babyId), gte(timelineEvents.timestamp, dayStart), lte(timelineEvents.timestamp, dayEnd)))
-          .orderBy(timelineEvents.timestamp),
-        db
-          .select()
-          .from(feedingSessions)
-          .where(and(eq(feedingSessions.babyId, babyId), gte(feedingSessions.startedAt, dayStart), lte(feedingSessions.startedAt, dayEnd)))
-          .orderBy(feedingSessions.startedAt),
-        db
-          .select()
-          .from(sleepSessions)
-          .where(and(eq(sleepSessions.babyId, babyId), gte(sleepSessions.startedAt, dayStart), lte(sleepSessions.startedAt, dayEnd)))
-          .orderBy(sleepSessions.startedAt),
-        db
-          .select()
-          .from(growthLogs)
-          .where(and(eq(growthLogs.babyId, babyId), gte(growthLogs.timestamp, dayStart), lte(growthLogs.timestamp, dayEnd)))
-          .orderBy(growthLogs.timestamp),
-        db
-          .select()
-          .from(foodLogs)
-          .where(and(eq(foodLogs.babyId, babyId), gte(foodLogs.timestamp, dayStart), lte(foodLogs.timestamp, dayEnd)))
-          .orderBy(foodLogs.timestamp),
-      ]);
-      return { events, feedings, sleeps, growths, foods };
-    },
-  });
+  const { data: dayEventsRaw, isLoading } = useDayEvents(babyId, dayStart, dayEnd, visible);
 
   const dayName = useMemo(() => {
     const d = new Date(parts[0], parts[1] - 1, parts[2]);
@@ -568,45 +529,7 @@ export default function AnalisisScreen() {
     return calData.days.get(selectedDay);
   }, [selectedDay, calData]);
 
-  const { data: weekData } = useQuery({
-    queryKey: ["weekSummary", baby?.id],
-    enabled: !!baby?.id,
-    queryFn: async () => {
-      if (!baby?.id) return [];
-      const db = getDb();
-      const days: { dateKey: string; diapers: number; feeds: number; sleepMs: number; foods: number }[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-        const [events, feedings, sleeps, foods] = await Promise.all([
-          db.select().from(timelineEvents)
-            .where(and(eq(timelineEvents.babyId, baby.id), gte(timelineEvents.timestamp, start), lte(timelineEvents.timestamp, end)))
-            .orderBy(timelineEvents.timestamp),
-          db.select().from(feedingSessions)
-            .where(and(eq(feedingSessions.babyId, baby.id), gte(feedingSessions.startedAt, start), lte(feedingSessions.startedAt, end))),
-          db.select().from(sleepSessions)
-            .where(and(eq(sleepSessions.babyId, baby.id), gte(sleepSessions.startedAt, start), lte(sleepSessions.startedAt, end))),
-          db.select().from(foodLogs)
-            .where(and(eq(foodLogs.babyId, baby.id), gte(foodLogs.timestamp, start), lte(foodLogs.timestamp, end))),
-        ]);
-        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        const sleepMs = sleeps.reduce((acc, s) => {
-          if (s.status !== "finished" || !s.endedAt) return acc;
-          return acc + (new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime());
-        }, 0);
-        days.push({
-          dateKey,
-          diapers: events.filter((e) => e.eventTypeId === "diaper").length,
-          feeds: feedings.length,
-          sleepMs,
-          foods: foods.length,
-        });
-      }
-      return days;
-    },
-  });
+  const { data: weekData } = useWeekSummary(baby?.id);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.surface }} edges={["top"]}>

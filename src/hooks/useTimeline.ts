@@ -4,6 +4,7 @@ import { timelineEvents, eventTypes, diaperObservations } from '@/src/db/schema'
 import { eq, desc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 import { getProfileId } from '@/src/utils/storage';
+import { onMutationError } from '@/src/utils/mutationError';
 import type { DiaperMetadata, MedicationMetadata, GrowthMetadata, TemperatureMetadata } from '@/src/db/schema';
 
 export type { DiaperMetadata, MedicationMetadata, GrowthMetadata, TemperatureMetadata };
@@ -137,7 +138,7 @@ export function useSaveTimelineEvent() {
         qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
       }
     },
-    onError: (e) => console.error('[useSaveTimelineEvent]', e),
+    onError: onMutationError("[useSaveTimelineEvent]"),
   });
 }
 
@@ -168,7 +169,7 @@ export function useUpdateTimelineEvent() {
       qc.invalidateQueries({ queryKey: ['growth_last', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
     },
-    onError: (e) => console.error('[useUpdateTimelineEvent]', e),
+    onError: onMutationError("[useUpdateTimelineEvent]"),
   });
 }
 
@@ -188,7 +189,7 @@ export function useCreateEventType() {
       return id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['event_types'] }),
-    onError: (e) => console.error('[useCreateEventType]', e),
+    onError: onMutationError("[useCreateEventType]"),
   });
 }
 
@@ -214,7 +215,7 @@ export function useCreateDiaperObservation() {
       return id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['diaper_observations'] }),
-    onError: (e) => console.error('[useCreateDiaperObservation]', e),
+    onError: onMutationError("[useCreateDiaperObservation]"),
   });
 }
 
@@ -240,7 +241,45 @@ export function useUpdateDiaperObservation() {
         .where(eq(diaperObservations.id, input.id));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['diaper_observations'] }),
-    onError: (e) => console.error('[useUpdateDiaperObservation]', e),
+    onError: onMutationError("[useUpdateDiaperObservation]"),
+  });
+}
+
+export function useDeleteEventType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await getDb().delete(eventTypes).where(eq(eventTypes.id, id));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['event_types'] }),
+    onError: onMutationError("[useDeleteEventType]"),
+  });
+}
+
+export function useUpdateEventTypeMetrics() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; metrics: string }) => {
+      await getDb()
+        .update(eventTypes)
+        .set({ metrics: input.metrics })
+        .where(eq(eventTypes.id, input.id));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['event_types'] }),
+    onError: onMutationError("[useUpdateEventTypeMetrics]"),
+  });
+}
+
+export function useDeleteDiaperObservation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await getDb()
+        .delete(diaperObservations)
+        .where(eq(diaperObservations.id, id));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['diaper_observations'] }),
+    onError: onMutationError("[useDeleteDiaperObservation]"),
   });
 }
 

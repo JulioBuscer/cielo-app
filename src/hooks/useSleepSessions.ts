@@ -1,215 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getDb, calcDurationSec, formatDuration } from '@/src/db/client';
 import { sleepSessions, sleepStatusEvents } from '@/src/db/schema';
-import { eq, and, inArray, desc } from 'drizzle-orm';
-import { generateId } from '@/src/utils/id';
-import { getProfileId } from '@/src/utils/storage';
-import type { SleepSession } from '@/src/db/schema';
+import { createSessionHooks } from './useSession';
+import type { SleepSession, SleepStatusEvent } from '@/src/db/schema';
 
-// ─── QUERY: Sesión de sueño activa ───────────────────────────────────────────
+// ─── FACTORY HOOKS ───────────────────────────────────────────────────────────
 
-export function useActiveSleepSession(babyId?: string) {
-  return useQuery({
-    queryKey: ['sleep_session', 'active', babyId],
-    enabled:  !!babyId,
-    staleTime: 0,
-    queryFn: async () => {
-      if (!babyId) return null;
-      const res = await getDb()
-        .select()
-        .from(sleepSessions)
-        .where(and(
-          eq(sleepSessions.babyId, babyId),
-          inArray(sleepSessions.status, ['active', 'paused'])
-        ))
-        .orderBy(desc(sleepSessions.startedAt))
-        .limit(1);
-      return res[0] ?? null;
-    },
-  });
-}
+const hooks = createSessionHooks<SleepSession, SleepStatusEvent>({
+  table:             sleepSessions,
+  statusEventsTable: sleepStatusEvents,
+  queryKey:          'sleep_session',
+  tag:               'Sleep',
+});
 
-// ─── QUERY: Sesión individual por ID ──────────────────────────────────────────
-
-export function useSleepSession(sessionId?: string) {
-  return useQuery({
-    queryKey: ['sleep_session', 'detail', sessionId],
-    enabled:  !!sessionId,
-    queryFn: async () => {
-      if (!sessionId) return null;
-      const res = await getDb()
-        .select()
-        .from(sleepSessions)
-        .where(eq(sleepSessions.id, sessionId))
-        .limit(1);
-      return res[0] ?? null;
-    },
-  });
-}
-
-// ─── QUERY: Eventos de estado de sueño (timer preciso) ───────────────────────
-
-export function useSleepStatusEvents(sessionId?: string) {
-  return useQuery({
-    queryKey: ['sleep_status_events', sessionId],
-    enabled:  !!sessionId,
-    staleTime: 0,
-    queryFn: async () => {
-      if (!sessionId) return [];
-      return getDb()
-        .select()
-        .from(sleepStatusEvents)
-        .where(eq(sleepStatusEvents.sessionId, sessionId))
-        .orderBy(sleepStatusEvents.timestamp);
-    },
-  });
-}
-
-// ─── QUERY: Historial de sueño ───────────────────────────────────────────────
-
-export function useSleepHistory(babyId?: string, limit = 20) {
-  return useQuery({
-    queryKey: ['sleep_session', 'history', babyId],
-    enabled:  !!babyId,
-    queryFn: async () => {
-      if (!babyId) return [];
-      return getDb()
-        .select()
-        .from(sleepSessions)
-        .where(eq(sleepSessions.babyId, babyId))
-        .orderBy(desc(sleepSessions.startedAt))
-        .limit(limit);
-    },
-  });
-}
-
-// ─── MUTATION: Iniciar sueño ──────────────────────────────────────────────────
-
-export function useStartSleep() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: { babyId: string }) => {
-      const db = getDb();
-      const profileId = await getProfileId();
-      const now = new Date();
-
-      // Auto-terminar sesión activa/pausada si existe
-      const existing = await db
-        .select().from(sleepSessions)
-        .where(and(
-          eq(sleepSessions.babyId, input.babyId),
-          inArray(sleepSessions.status, ['active', 'paused'])
-        ))
-        .limit(1);
-      if (existing[0]) {
-        await _finishSleepSession(existing[0].id, profileId, now);
-      }
-
-      const sessionId = generateId();
-      await db.insert(sleepSessions).values({
-        id: sessionId, babyId: input.babyId,
-        profileId, status: 'active',
-        startedAt: now, createdAt: now,
-      });
-      await db.insert(sleepStatusEvents).values({
-        id: generateId(), sessionId, profileId,
-        type: 'start', timestamp: now,
-      });
-      return sessionId;
-    },
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ['sleep_session', 'active', vars.babyId] });
-      qc.invalidateQueries({ queryKey: ['sleep_session', 'history', vars.babyId] });
-      qc.invalidateQueries({ queryKey: ['timeline'] });
-    },
-    onError: (e) => console.error('[useStartSleep]', e),
-  });
-}
-
-// ─── MUTATION: Pausar sueño ───────────────────────────────────────────────────
-
-export function usePauseSleep() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (session: SleepSession) => {
-      const db = getDb();
-      const profileId = await getProfileId();
-      const now = new Date();
-      await db.insert(sleepStatusEvents).values({
-        id: generateId(), sessionId: session.id,
-        profileId, type: 'pause', timestamp: now,
-      });
-      await db.update(sleepSessions)
-        .set({ status: 'paused' })
-        .where(eq(sleepSessions.id, session.id));
-    },
-    onSuccess: (_, session) => {
-      qc.invalidateQueries({ queryKey: ['sleep_session', 'active', session.babyId] });
-      qc.invalidateQueries({ queryKey: ['sleep_status_events', session.id] });
-    },
-    onError: (e) => console.error('[usePauseSleep]', e),
-  });
-}
-
-// ─── MUTATION: Continuar sueño ────────────────────────────────────────────────
-
-export function useResumeSleep() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (session: SleepSession) => {
-      const db = getDb();
-      const profileId = await getProfileId();
-      const now = new Date();
-      await db.insert(sleepStatusEvents).values({
-        id: generateId(), sessionId: session.id,
-        profileId, type: 'resume', timestamp: now,
-      });
-      await db.update(sleepSessions)
-        .set({ status: 'active' })
-        .where(eq(sleepSessions.id, session.id));
-    },
-    onSuccess: (_, session) => {
-      qc.invalidateQueries({ queryKey: ['sleep_session', 'active', session.babyId] });
-      qc.invalidateQueries({ queryKey: ['sleep_status_events', session.id] });
-    },
-    onError: (e) => console.error('[useResumeSleep]', e),
-  });
-}
-
-// ─── MUTATION: Terminar sueño ─────────────────────────────────────────────────
-
-export function useFinishSleep() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (session: SleepSession) => {
-      const profileId = await getProfileId();
-      await _finishSleepSession(session.id, profileId, new Date());
-    },
-    onSuccess: (_, session) => {
-      qc.invalidateQueries({ queryKey: ['sleep_session', 'active', session.babyId] });
-      qc.invalidateQueries({ queryKey: ['sleep_session', 'history', session.babyId] });
-      qc.invalidateQueries({ queryKey: ['timeline'] });
-    },
-    onError: (e) => console.error('[useFinishSleep]', e),
-  });
-}
-
-// ─── HELPER INTERNO ───────────────────────────────────────────────────────────
-
-async function _finishSleepSession(sessionId: string, profileId: string, now: Date) {
-  const db = getDb();
-  await db.insert(sleepStatusEvents).values({
-    id: generateId(), sessionId, profileId, type: 'finish', timestamp: now,
-  });
-  const events = await db.select().from(sleepStatusEvents)
-    .where(eq(sleepStatusEvents.sessionId, sessionId))
-    .orderBy(sleepStatusEvents.timestamp);
-  const durationSec = calcDurationSec(events);
-  await db.update(sleepSessions)
-    .set({ status: 'finished', endedAt: now, durationSec })
-    .where(eq(sleepSessions.id, sessionId));
-}
+export const useActiveSleepSession = hooks.useActiveSession;
+export const useSleepSession       = hooks.useSessionDetail;
+export const useSleepHistory       = hooks.useSessionHistory;
+export const useSleepStatusEvents  = hooks.useStatusEvents;
+export const useStartSleep         = hooks.useStartSession;
+export const usePauseSleep         = hooks.usePauseSession;
+export const useResumeSleep        = hooks.useResumeSession;
+export const useFinishSleep        = hooks.useFinishSession;
+export const useUpdateSleepSession = hooks.useUpdateSession;
 
 // ─── HOOK: Timer preciso de sueño ────────────────────────────────────────────
 
@@ -243,41 +54,4 @@ export function useSleepPreciseElapsed(session: SleepSession | null | undefined)
     accumulated += (Date.now() - lastActiveTs) / 1000;
   }
   return Math.floor(accumulated);
-}
-
-// ─── MUTATION: Actualizar sueño ───────────────────────────────────────────────
-
-export function useUpdateSleepSession() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: {
-      id: string;
-      babyId: string;
-      startedAt?: Date;
-      endedAt?: Date | null;
-      notes?: string;
-    }) => {
-      const db = getDb();
-      await db.update(sleepSessions)
-        .set({
-          startedAt: input.startedAt,
-          endedAt:   input.endedAt,
-          notes:     input.notes,
-        })
-        .where(eq(sleepSessions.id, input.id));
-
-      if (input.startedAt && input.endedAt) {
-        const durationSec = Math.round((input.endedAt.getTime() - input.startedAt.getTime()) / 1000);
-        await db.update(sleepSessions)
-          .set({ durationSec })
-          .where(eq(sleepSessions.id, input.id));
-      }
-    },
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ['sleep_session', 'detail', vars.id] });
-      qc.invalidateQueries({ queryKey: ['sleep_session', 'history', vars.babyId] });
-      qc.invalidateQueries({ queryKey: ['timeline'] });
-    },
-    onError: (e) => console.error('[useUpdateSleepSession]', e),
-  });
 }

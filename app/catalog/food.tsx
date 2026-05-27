@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTheme } from "@/src/theme/useTheme";
 import {
   View, Text, ScrollView, TouchableOpacity,
@@ -6,14 +6,8 @@ import {
 } from "react-native";
 import { Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getDb } from "@/src/db/client";
-import { foodCatalog } from "@/src/db/schema";
-import { eq, count as drizzleCount } from "drizzle-orm";
-import { useQueryClient } from "@tanstack/react-query";
 import { useFocusEffect } from "expo-router";
-import { useFoodCatalogAll } from "@/src/hooks/useFoodLogs";
-import { foodLogs } from "@/src/db/schema";
-import { count } from "drizzle-orm";
+import { useFoodCatalogAll, useUpdateFoodCatalog, useDeleteFoodCatalog } from "@/src/hooks/useFoodLogs";
 
 const GROUP_EMOJIS: Record<string, string> = {
   fruit: "🍎", vegetable: "🥕", protein: "🥩",
@@ -48,13 +42,10 @@ const ALLERGEN_LIST = [
 export default function FoodCatalogScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
-  const qc = useQueryClient();
+  const { mutate: updateFood } = useUpdateFoodCatalog();
+  const { mutateAsync: deleteFood } = useDeleteFoodCatalog();
 
   const { data: foods } = useFoodCatalogAll();
-
-  useFocusEffect(() => {
-    qc.invalidateQueries({ queryKey: ["food_catalog_all"] });
-  });
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -75,20 +66,15 @@ export default function FoodCatalogScreen() {
 
   function handleSave() {
     if (!editingId) return;
-    const db = getDb();
-    db.update(foodCatalog)
-      .set({
-        name: editName.trim(),
-        emoji: editEmoji || null,
-        group: editGroup as any,
-        property: editProperty as any,
-        allergens: editAllergens.length > 0 ? editAllergens.join(",") : null,
-      })
-      .where(eq(foodCatalog.id, editingId))
-      .run();
+    updateFood({
+      id: editingId,
+      name: editName.trim(),
+      emoji: editEmoji,
+      group: editGroup,
+      property: editProperty,
+      allergens: editAllergens,
+    });
     setEditingId(null);
-    qc.invalidateQueries({ queryKey: ["food_catalog"] });
-    qc.invalidateQueries({ queryKey: ["food_catalog_all"] });
   }
 
   async function handleDeleteOrHide() {
@@ -96,36 +82,13 @@ export default function FoodCatalogScreen() {
     const food = foods?.find((f: any) => f.id === editingId);
     if (!food) return;
     const name = food.name ?? editingId;
-    const db = getDb();
     try {
-      const [{ c }] = await db.select({ c: drizzleCount() }).from(foodLogs).where(eq(foodLogs.foodId, editingId));
-      const hasLogs = Number(c) > 0;
-      if (hasLogs) {
-        Alert.alert(
-          `Ocultar "${name}"`,
-          `Este alimento tiene ${c} registro(s). Se ocultará del selector, pero el historial lo seguirá mostrando.`,
-          [
-            { text: "Cancelar", style: "cancel" },
-            { text: "Ocultar", style: "destructive", onPress: () => {
-              db.update(foodCatalog).set({ hidden: true as any }).where(eq(foodCatalog.id, editingId)).run();
-              setEditingId(null);
-              qc.invalidateQueries({ queryKey: ["food_catalog_editor"] });
-            }},
-          ]
-        );
+      const result = await deleteFood({ id: editingId });
+      setEditingId(null);
+      if (result === "hidden") {
+        Alert.alert("Ocultado", `"${name}" se ocultó del selector.`);
       } else {
-        Alert.alert(
-          `Eliminar "${name}"`,
-          "Este alimento no tiene registros asociados. Se eliminará permanentemente.",
-          [
-            { text: "Cancelar", style: "cancel" },
-            { text: "Eliminar", style: "destructive", onPress: () => {
-              db.delete(foodCatalog).where(eq(foodCatalog.id, editingId)).run();
-              setEditingId(null);
-              qc.invalidateQueries({ queryKey: ["food_catalog_editor"] });
-            }},
-          ]
-        );
+        Alert.alert("Eliminado", `"${name}" se eliminó permanentemente.`);
       }
     } catch {
       Alert.alert("Error", "No se pudo verificar el alimento");

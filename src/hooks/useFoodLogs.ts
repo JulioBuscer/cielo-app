@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { eq, desc, asc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte, count as drizzleCount } from "drizzle-orm";
 import { getDb } from "@/src/db/client";
 import { foodCatalog, foodLogs } from "@/src/db/schema";
 import { generateId } from "@/src/utils/id";
 import { getProfileId } from "@/src/utils/storage";
+import { onMutationError } from "@/src/utils/mutationError";
 
 export function useFoodCatalog() {
   return useQuery({
@@ -42,6 +43,91 @@ export function useFoodLogs(babyId?: string, limit = 50) {
   });
 }
 
+export function useCreateFoodCatalogItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      name: string;
+      emoji?: string;
+      group: string;
+      allergens: string[];
+    }) => {
+      const id = input.name.toLowerCase().replace(/[^a-záéíóúñ]/g, "_");
+      await getDb().insert(foodCatalog).values({
+        id,
+        name: input.name.trim(),
+        emoji: input.emoji ?? null,
+        group: input.group as any,
+        property: "neutral",
+        allergens: input.allergens.length > 0 ? input.allergens.join(",") : null,
+        isSystem: false,
+        createdAt: new Date(),
+      }).run();
+      return id;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['food_catalog'] });
+      qc.invalidateQueries({ queryKey: ['food_catalog_all'] });
+    },
+    onError: onMutationError("[useCreateFoodCatalogItem]"),
+  });
+}
+
+export function useUpdateFoodCatalog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      name: string;
+      emoji?: string;
+      group: string;
+      property: string;
+      allergens: string[];
+    }) => {
+      await getDb().update(foodCatalog)
+        .set({
+          name: input.name.trim(),
+          emoji: input.emoji || null,
+          group: input.group as any,
+          property: input.property as any,
+          allergens: input.allergens.length > 0 ? input.allergens.join(",") : null,
+        })
+        .where(eq(foodCatalog.id, input.id))
+        .run();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['food_catalog'] });
+      qc.invalidateQueries({ queryKey: ['food_catalog_all'] });
+    },
+    onError: onMutationError("[useUpdateFoodCatalog]"),
+  });
+}
+
+export function useDeleteFoodCatalog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+    }) => {
+      // Count existing logs to decide: delete or soft-hide
+      const [{ c }] = await getDb().select({ c: drizzleCount() }).from(foodLogs).where(eq(foodLogs.foodId, input.id));
+      const hasLogs = Number(c) > 0;
+      if (hasLogs) {
+        await getDb().update(foodCatalog).set({ hidden: true as any }).where(eq(foodCatalog.id, input.id)).run();
+        return "hidden";
+      } else {
+        await getDb().delete(foodCatalog).where(eq(foodCatalog.id, input.id)).run();
+        return "deleted";
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['food_catalog'] });
+      qc.invalidateQueries({ queryKey: ['food_catalog_all'] });
+    },
+    onError: onMutationError("[useDeleteFoodCatalog]"),
+  });
+}
+
 export function useSaveFoodLog() {
   const qc = useQueryClient();
   return useMutation({
@@ -71,7 +157,7 @@ export function useSaveFoodLog() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["food_logs", vars.babyId] });
     },
-    onError: (e) => console.error('[useSaveFoodLog]', e),
+    onError: onMutationError("[useSaveFoodLog]"),
   });
 }
 
