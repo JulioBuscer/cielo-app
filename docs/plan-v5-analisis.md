@@ -259,9 +259,31 @@ Se guarda como evento tipo `measurement`. En el timeline: `📏 3.2 kg · 54 cm 
 - [x] Eliminación física (sin registros) / soft‑delete (con registros, hidden=true)
 - [x] Teclado responsivo en todos los formularios (KeyboardAvoidingView)
 
-### Fase 5 — Actividades + Salud
+### Fase 5 — Salud + Plantillas ✅
+- [x] Pantalla Salud (temperatura, medicamento, síntomas, tipos custom)
+- [x] Sistema de plantillas (event_presets): tabla, hooks CRUD, QuickPresetSheet
+- [x] Quick action 🌡️ Salud en Home + enlace en Perfil
+- [x] Edad del bebé usada para umbrales y mensajes contextuales
+- [x] Editor de plantillas en Catálogos (tab "📌 Plantillas")
+- [x] Accesos directos dinámicos en Home (plantillas con ⚡)
+
+### 🔴 Foco actual — Refactor UX (post-auditoría)
+Prioridad máxima: resolver los hallazgos críticos de la auditoría `docs/ux-audit.md` (SUS 52/100).
+
+| # | Problema | Gravedad | Estado |
+|---|---|---|---|
+| 1 | JSON en editor de plantillas reemplazado por inputs nativos por métrica | Crítica | ✅ |
+| 2 | Home sobrecargado: reducir densidad, colapsar filtros por defecto, unificar accesos directos | Alta | Pendiente |
+| 3 | Validación de datos y manejo de errores (dual-write, batches, rollback) | Alta | Pendiente |
+| 4 | Dividir catálogo editor (2,272 líneas → módulos) | Alta | Pendiente |
+| 5 | Unificar patrón de guardado (tres formas distintas de insertar timeline_events) | Media | Pendiente |
+| 6 | Split de subcomponentes de catálogo en `/src/components/catalogs/` | Alta | Pendiente |
+| 7 | Manejo de errores en batch save (Salud) con feedback granular | Alta | Pendiente |
+| 8 | Ayuda contextual en más pantallas (no solo temperatura) | Media | Pendiente |
+| 9 | Agrupar síntomas en categorías | Baja | Pendiente |
+
+### Fase 6 — Actividades (pausada hasta completar refactor)
 - [ ] Tummy Time, Baño, Juego, Hitos
-- [ ] Temperatura, Medicamentos, Síntomas
 - [ ] Exportar PDF completo para pediatra
 
 ---
