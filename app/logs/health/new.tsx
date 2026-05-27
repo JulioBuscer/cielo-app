@@ -118,32 +118,39 @@ export default function HealthNewScreen() {
     }
     setSaving(true);
     try {
-      const events: Promise<void>[] = [];
+      const saved: string[] = [];
+      const failed: string[] = [];
 
       if (tempEnabled && temp !== "") {
-        events.push(
-          saveEvent.mutateAsync({
+        try {
+          await saveEvent.mutateAsync({
             babyId: baby.id,
             eventTypeId: "temperature",
             timestamp,
             values: { temperature: tempValue },
             metadata: { celsius: tempValue },
             notes: notes || undefined,
-          })
-        );
+          });
+          saved.push("🌡️ Temperatura");
+        } catch {
+          failed.push("🌡️ Temperatura");
+        }
       }
 
       if (medEnabled && medName.trim()) {
-        events.push(
-          saveEvent.mutateAsync({
+        try {
+          await saveEvent.mutateAsync({
             babyId: baby.id,
             eventTypeId: "medication",
             timestamp,
             values: { dose: parseFloat(medDose) || 0, unit: medUnit },
             metadata: { medicineName: medName.trim(), dose: parseFloat(medDose) || 0, unit: medUnit },
             notes: notes || undefined,
-          })
-        );
+          });
+          saved.push("💊 Medicamento");
+        } catch {
+          failed.push("💊 Medicamento");
+        }
       }
 
       if (symptomsEnabled && selectedSymptoms.size > 0) {
@@ -153,31 +160,45 @@ export default function HealthNewScreen() {
             return s ? `${s.emoji} ${s.label}` : id;
           })
           .join(", ");
-        events.push(
-          saveEvent.mutateAsync({
+        try {
+          await saveEvent.mutateAsync({
             babyId: baby.id,
             eventTypeId: "note",
             timestamp,
             notes: [symptomText, notes].filter(Boolean).join(" · "),
-          })
-        );
+          });
+          saved.push("🤒 Síntomas");
+        } catch {
+          failed.push("🤒 Síntomas");
+        }
       }
 
       for (const et of customHealthTypes) {
         if (customEnabled[et.id]) {
-          events.push(
-            saveEvent.mutateAsync({
+          try {
+            await saveEvent.mutateAsync({
               babyId: baby.id,
               eventTypeId: et.id,
               timestamp,
               notes: customNotes[et.id]?.trim() || undefined,
-            })
-          );
+            });
+            saved.push(`${et.emoji} ${et.label}`);
+          } catch {
+            failed.push(`${et.emoji} ${et.label}`);
+          }
         }
       }
 
-      await Promise.all(events);
-      router.back();
+      if (failed.length === 0) {
+        router.back();
+      } else if (saved.length === 0) {
+        Alert.alert("Error", "No se pudo guardar ningún registro");
+      } else {
+        Alert.alert(
+          "Guardado parcial",
+          `✅ ${saved.join(", ")}\n\n❌ Falló: ${failed.join(", ")}`
+        );
+      }
     } catch (e) {
       Alert.alert("Error", "No se pudo guardar");
     } finally {

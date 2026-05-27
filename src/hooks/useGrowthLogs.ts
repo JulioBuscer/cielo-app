@@ -56,6 +56,65 @@ export function useSaveGrowthLog() {
   });
 }
 
+// ─── MUTATION: guardar medición + timeline event en una transacción ───────────
+// Resuelve dual-write: si falla el segundo insert, el primero se revierte.
+export function useSaveMeasurement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      babyId:      string;
+      weightKg?:   number;
+      heightCm?:   number;
+      headCircCm?: number;
+      notes?:      string;
+      timestamp?:  Date;
+      photoUris?:  string[];
+    }) => {
+      const profileId = (await AsyncStorage.getItem('active_profile_id')) ?? '';
+      const now = input.timestamp ?? new Date();
+      const db = getDb();
+
+      await db.transaction(async (tx) => {
+        await tx.insert(growthLogs).values({
+          id:          generateId(),
+          babyId:      input.babyId,
+          profileId,
+          timestamp:   now,
+          weightGrams: input.weightKg   != null ? kgToGrams(input.weightKg)  : null,
+          heightMm:    input.heightCm   != null ? cmToMm(input.heightCm)     : null,
+          headCircMm:  input.headCircCm != null ? cmToMm(input.headCircCm)   : null,
+          notes:       input.notes ?? null,
+          photoUris:   input.photoUris  ? JSON.stringify(input.photoUris) : null,
+          createdAt:   new Date(),
+        });
+
+        const hasPhotos = (input.photoUris?.length ?? 0) > 0;
+        await tx.insert(timelineEvents).values({
+          id:          generateId(),
+          babyId:      input.babyId,
+          profileId,
+          eventTypeId: 'measurement',
+          timestamp:   now,
+          notes:       input.notes ?? null,
+          values: JSON.stringify({
+            weightKg:   input.weightKg,
+            heightCm:   input.heightCm,
+            headCircCm: input.headCircCm,
+            photoUris:  hasPhotos ? input.photoUris : undefined,
+          }),
+          createdAt: new Date(),
+        });
+      });
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['growth_last', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['timeline', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['calendar', vars.babyId], refetchType: 'all' });
+    },
+  });
+}
+
 // ─── MUTATION: actualizar registro de crecimiento ────────────────────────────
 export function useUpdateGrowthLog() {
   const qc = useQueryClient();

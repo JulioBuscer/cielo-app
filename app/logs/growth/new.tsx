@@ -18,13 +18,13 @@ import * as ImagePicker from "expo-image-picker";
 import { captureAndStore, deletePhoto } from "@/src/services/imageStorage";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import {
-  useSaveGrowthLog,
+  useSaveMeasurement,
   useUpdateGrowthLog,
   useLastGrowthLog,
   gramsToKg,
   mmToCm,
 } from "@/src/hooks/useGrowthLogs";
-import { useSaveTimelineEvent, useUpdateTimelineEvent } from "@/src/hooks/useTimeline";
+import { useUpdateTimelineEvent } from "@/src/hooks/useTimeline";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 
@@ -44,9 +44,8 @@ export default function MeasurementNewScreen() {
   const { data: last } = useLastGrowthLog(baby?.id);
   const { theme } = useTheme();
   const c = theme.colors;
-  const saveGrowth = useSaveGrowthLog();
+  const saveMeasurement = useSaveMeasurement();
   const updateGrowth = useUpdateGrowthLog();
-  const saveEvent = useSaveTimelineEvent();
   const updateEvent = useUpdateTimelineEvent();
 
   const [weightKg, setWeightKg] = useState(isEdit ? params.editWeightKg ?? "" : "");
@@ -126,7 +125,7 @@ export default function MeasurementNewScreen() {
           });
         }
       } else {
-        await saveGrowth.mutateAsync({
+        await saveMeasurement.mutateAsync({
           babyId: baby.id,
           weightKg: weightVal,
           heightCm: heightVal,
@@ -134,19 +133,6 @@ export default function MeasurementNewScreen() {
           notes: notes.trim() || undefined,
           timestamp,
           photoUris: hasPhotos ? photoUris : [],
-        });
-
-        await saveEvent.mutateAsync({
-          babyId: baby.id,
-          eventTypeId: "measurement",
-          timestamp,
-          notes: notes.trim() || undefined,
-          values: {
-            weightKg: weightVal,
-            heightCm: heightVal,
-            headCircCm: headVal,
-            photoUris: hasPhotos ? photoUris : undefined,
-          },
         });
       }
 
