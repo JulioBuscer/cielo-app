@@ -51,6 +51,7 @@ import { useTheme } from "@/src/theme/useTheme";
 import { useQuickActionPresets, useQuickSavePreset } from "@/src/hooks/useEventPresets";
 import type { EventPreset } from "@/src/hooks/useEventPresets";
 import { QuickPresetSheet } from "@/src/components/ui/QuickPresetSheet";
+import { DiaperSheet } from "@/src/components/diaper/DiaperSheet";
 
 function QuickBtn({
   emoji,
@@ -219,6 +220,7 @@ export default function HomeScreen() {
   const [loadingType, setLoadingType] = useState<FeedingType | null>(null);
   const [sleepLoading, setSleepLoading] = useState(false);
   const [note, setNote] = useState("");
+  const [showDiaperSheet, setShowDiaperSheet] = useState(false);
   const flatRef = useRef<FlatList>(null);
 
   const { data: baby } = useActiveBaby();
@@ -429,7 +431,7 @@ export default function HomeScreen() {
 
   const handleEventSelect = (typeId: string) => {
     setShowEventPicker(false);
-    if (typeId === "diaper") router.push("/logs/diaper/new");
+    if (typeId === "diaper") setShowDiaperSheet(true);
     else
       router.push({
         pathname: "/logs/event/new",
@@ -795,7 +797,7 @@ export default function HomeScreen() {
                 emoji="🍑"
                 label="Pañal"
                 bgColor={c.warning}
-                onPress={() => router.push("/logs/diaper/new")}
+                onPress={() => setShowDiaperSheet(true)}
                 disabled={!!loadingType}
               />
               {(quickPresets ?? []).slice(0, 2).map((p) => (
@@ -891,6 +893,10 @@ export default function HomeScreen() {
         onClose={() => { setShowQuickPreset(false); setActivePreset(null); }}
         onSave={handleQuickSave}
         saving={quickSavePreset.isPending}
+      />
+      <DiaperSheet
+        visible={showDiaperSheet}
+        onClose={() => setShowDiaperSheet(false)}
       />
     </SafeAreaView>
   );
