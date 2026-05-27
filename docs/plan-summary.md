@@ -29,11 +29,47 @@
 
 ## ✅ Sprint 6 — Feeding/Sleep duplicados unificados
 - `src/hooks/useSession.ts` — factory genérica `createSessionHooks<TRow, TStatusRow>()` con 9 hooks compartidos
-- `useFeedingSessions.ts`: de 384 → ~110 líneas (usa factory + feeding-specific extras: `useLastFeedingSession`, `useCreateRetroFeeding`, types/labels)
-- `useSleepSessions.ts`: de 284 → ~70 líneas (usa factory + sleep-specific: `useSleepPreciseElapsed`)
-- Ahorro total: ~488 líneas eliminadas
+- `useFeedingSessions.ts`: de 384 → ~93 líneas
+- `useSleepSessions.ts`: de 284 → ~58 líneas
+- Ahorro total: ~517 líneas eliminadas
 
-## 🟢 Backlog — Calidad de Vida
-- `settings/catalogs.tsx` (1,136 líneas) — dividir en screens por tab
-- `shareReport.ts` (583 líneas) — duplica labels de hooks
-- `useUpdateGrowthLog` — invalida `'history'` pero `useSaveGrowthLog` no
+## 🔴 Sprint 7 — Flujo Pañal Rápido (PLANEADO)
+**Objetivo:** CSIM 16 pts → 1-3 pts (tap común), sin perder info.
+**Táctica:** BottomSheet inline en Home (elimina push screen).
+**Ver plan completo:** `docs/diaper-flow-plan.md`
+
+---
+
+## Estado vs Auditorías
+
+| Auditoría | SUS | Completado vs hallazgos |
+|---|---|---|
+| v1 (commit 5e857b7) | 52/100 | ✅ 5/5 hallazgos |
+| v2 (post-refactor) | 58/100 | ✅ 9/11 (críticos y altos resueltos) |
+
+### v2 — Resuelto ✅ (9/11)
+- C1 ErrorBoundary → ✅ Sprint 1
+- C2 92.6% mutations sin onError → ✅ Sprint 2+5
+- C3 9 JSON.parse inseguros → ✅ Sprint 1
+- A1 6 app/ files con getDb() → ✅ Sprint 4
+- A2 Feeding/Sleep duplicados → ✅ Sprint 6
+- A3 AsyncStorage keys dispersas → ✅ Sprint 3
+- M1 catálogos.tsx 2,272→1,142 → ✅ Split parcial
+- M3 shareReport.ts → ⏳ Pendiente
+- M4 useUpdateGrowthLog invalidation → ⏳ Pendiente
+- M2 Home density 28 elementos → 🔴 Sprint 7 (pañal es el primer paso)
+- A4 27 catches silenciosos → ⚠️ No priorizado (bajo riesgo)
+
+### SUS estimado actual: ~68/100
+
+---
+
+## Backlog priorizado
+
+| # | Item | Impacto UX | Archivos | Dependencias |
+|---|---|---|---|---|
+| **1** | 🍑 Flujo pañal rápido (BottomSheet inline) | 🔴 Alto (CSIM 16→1) | `index.tsx`, `DiaperSheet.tsx`, `ScaleMeter.tsx` | Ninguna |
+| **2** | 🏠 Home density (filtros a sheet colapsable) | 🔴 Alto (28→~18 elementos) | `index.tsx` | Puede ir en paralelo |
+| **3** | 📂 catálogos.tsx → 5 screens | 🟡 Medio (mantenibilidad) | `settings/` | Ninguna |
+| **4** | 📄 shareReport.ts — eliminar labels duplicados | 🟢 Bajo | `shareReport.ts` + hooks | Ninguna |
+| **5** | 🐛 useUpdateGrowthLog invalidation | 🟢 Bajo | `useGrowthLogs.ts` | Ninguna |
