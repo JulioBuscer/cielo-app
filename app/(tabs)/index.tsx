@@ -437,7 +437,6 @@ export default function HomeScreen() {
     setShowEventPicker(false);
     if (typeId === "diaper") setShowDiaperSheet(true);
     else if (typeId === "temperature" || typeId === "medication") setShowHealthSheet(true);
-    else if (typeId === "note") setShowFoodSheet(true);
     else
       router.push({
         pathname: "/logs/event/new",

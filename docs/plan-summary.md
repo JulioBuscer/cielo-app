@@ -72,8 +72,7 @@ App de seguimiento de bebé para cuidadores. Modelo mental: el grupo de WhatsApp
 - `app/(tabs)/index.tsx` — quick buttons salud/comida → sheets en vez de push screen
 - CSIM — Temperatura: 4 pts → 2 pts; CSIM — Comida: 8 pts → 4 pts
 - SUS estimado: ~68 → ~73/100
-
----
+- Fix: `handleEventSelect` ya no redirige `"note"` a FoodSheet (rompía eventos genéricos)
 
 ## Planes futuros
 **Objetivo:** Misma táctica BottomSheet inline en Health y Food logs.
