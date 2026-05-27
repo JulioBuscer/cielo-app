@@ -6,6 +6,7 @@ import {
 import { useTheme } from "@/src/theme/useTheme";
 import { DateTimePicker } from "./DateTimePicker";
 import { BigButton } from "./BigButton";
+import { getUnit } from "@/src/units/registry";
 import type { EventPreset } from "@/src/hooks/useEventPresets";
 
 export function QuickPresetSheet({
@@ -32,8 +33,10 @@ export function QuickPresetSheet({
   const units = (() => { try { return JSON.parse(preset.defaultUnitOverrides ?? '{}'); } catch { return {}; } })();
   const valueText = Object.entries(vals)
     .map(([k, v]) => {
-      const unit = units[k] ? (units[k] === "drop" ? "gotas" : units[k]) : "";
-      return `${v}${unit ? " " + unit : ""}`;
+      const unitId = units[k] as string | undefined;
+      const unit = unitId ? getUnit(unitId) : undefined;
+      const symbol = unit?.symbol ?? "";
+      return `${v}${symbol ? " " + symbol : ""}`;
     })
     .join(", ");
 

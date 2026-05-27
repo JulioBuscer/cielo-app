@@ -1243,17 +1243,23 @@ export default function CatalogsScreen() {
   const [pfName, setPfName] = useState("");
   const [pfEmoji, setPfEmoji] = useState("📌");
   const [pfEventType, setPfEventType] = useState("");
-  const [pfValues, setPfValues] = useState("");
-  const [pfUnitOverrides, setPfUnitOverrides] = useState("");
+  const [pfMetricValues, setPfMetricValues] = useState<Record<string, string>>({});
+  const [pfMetricUnits, setPfMetricUnits] = useState<Record<string, string>>({});
   const [pfNotes, setPfNotes] = useState("");
   const [pfQuick, setPfQuick] = useState(false);
+
+  const selectedEvent = events?.find((e) => e.id === pfEventType);
+  const selectedMetrics: EventMetric[] = (() => {
+    if (!selectedEvent?.metrics) return [];
+    try { const p = JSON.parse(selectedEvent.metrics); return Array.isArray(p) ? p : []; } catch { return []; }
+  })();
 
   const resetPresetForm = () => {
     setPfName("");
     setPfEmoji("📌");
     setPfEventType("");
-    setPfValues("");
-    setPfUnitOverrides("");
+    setPfMetricValues({});
+    setPfMetricUnits({});
     setPfNotes("");
     setPfQuick(false);
   };
@@ -1264,8 +1270,18 @@ export default function CatalogsScreen() {
       setPfName(p.name);
       setPfEmoji(p.emoji ?? "📌");
       setPfEventType(p.eventTypeId);
-      setPfValues(p.defaultValues ?? "{}");
-      setPfUnitOverrides(p.defaultUnitOverrides ?? "{}");
+      const vals: Record<string, string> = {};
+      const units: Record<string, string> = {};
+      try {
+        const dv = JSON.parse(p.defaultValues ?? "{}");
+        for (const [k, v] of Object.entries(dv)) vals[k] = String(v);
+      } catch {}
+      try {
+        const duo = JSON.parse(p.defaultUnitOverrides ?? "{}");
+        for (const [k, v] of Object.entries(duo)) units[k] = String(v);
+      } catch {}
+      setPfMetricValues(vals);
+      setPfMetricUnits(units);
       setPfNotes(p.defaultNotes ?? "");
       setPfQuick(p.isQuickAction ?? false);
     } else {
@@ -1277,10 +1293,11 @@ export default function CatalogsScreen() {
 
   const handleSavePreset = async () => {
     if (!pfName.trim() || !pfEventType) return;
-    let dv: Record<string, number> = {};
-    let duo: Record<string, string> = {};
-    try { dv = JSON.parse(pfValues || "{}"); } catch {}
-    try { duo = JSON.parse(pfUnitOverrides || "{}"); } catch {}
+    const dv: Record<string, number> = {};
+    for (const [k, v] of Object.entries(pfMetricValues)) {
+      const n = parseFloat(v);
+      if (!isNaN(n)) dv[k] = n;
+    }
     try {
       if (presetEdit) {
         await updatePreset.mutateAsync({
@@ -1288,7 +1305,7 @@ export default function CatalogsScreen() {
           name: pfName.trim(),
           emoji: pfEmoji,
           defaultValues: dv,
-          defaultUnitOverrides: duo,
+          defaultUnitOverrides: pfMetricUnits,
           defaultNotes: pfNotes || undefined,
           isQuickAction: pfQuick,
         });
@@ -1298,7 +1315,7 @@ export default function CatalogsScreen() {
           name: pfName.trim(),
           emoji: pfEmoji,
           defaultValues: dv,
-          defaultUnitOverrides: duo,
+          defaultUnitOverrides: pfMetricUnits,
           defaultNotes: pfNotes || undefined,
           isQuickAction: pfQuick,
         });
@@ -1316,6 +1333,23 @@ export default function CatalogsScreen() {
       { text: "Eliminar", style: "destructive", onPress: () => deletePreset.mutate(id) },
     ]);
   };
+
+  // Helper to cycle unit for a metric
+  const cycleMetricUnit = (metricId: string) => {
+    const metric = selectedMetrics.find((m) => m.id === metricId);
+    if (!metric) return;
+    const compatible = getUnitsByDimension(getUnit(metric.unitId)?.dimension ?? "dimensionless");
+    const current = pfMetricUnits[metricId] ?? metric.unitId;
+    const idx = compatible.findIndex((u) => u.id === current);
+    const next = compatible[(idx + 1) % compatible.length];
+    if (next) setPfMetricUnits((p) => ({ ...p, [metricId]: next.id }));
+  };
+
+  // Reset metric values when event type changes
+  useEffect(() => {
+    setPfMetricValues({});
+    setPfMetricUnits({});
+  }, [pfEventType]);
 
   // ─── Pee config ───
   const [peeIntensity, setPeeIntensity] = useState<ConfigRange & { zones: Zone[] }>({
@@ -2162,47 +2196,63 @@ export default function CatalogsScreen() {
                     </View>
                   </View>
 
-                  <View style={{ gap: 4 }}>
-                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>
-                      Valores por defecto (JSON)
-                    </Text>
-                    <TextInput
-                      value={pfValues}
-                      onChangeText={setPfValues}
-                      placeholder='{"dose":1}'
-                      placeholderTextColor={c.textDim}
-                      style={{
-                        backgroundColor: c.surface,
-                        borderRadius: 12, padding: 12,
-                        color: c.textBody, fontSize: 13,
-                        fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
-                      }}
-                    />
-                    <Text style={{ color: c.textDim, fontSize: 11 }}>
-                      Ej: {`{"dose":1}`} para medicamento, {`{"temperature":38}`} para temperatura
-                    </Text>
-                  </View>
+                  {/* Dynamic metric fields — only shown when event type has metrics */}
+                  {pfEventType && selectedMetrics.length > 0 && (
+                    <View style={{ gap: 12 }}>
+                      <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>
+                        Valores por defecto
+                      </Text>
+                      {selectedMetrics.map((m) => {
+                        const u = getUnit(pfMetricUnits[m.id] ?? m.unitId);
+                        const compatible = u ? getUnitsByDimension(u.dimension) : [];
+                        return (
+                          <View key={m.id} style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+                            <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 13, minWidth: 80 }}>
+                              {m.name}
+                            </Text>
+                            <TextInput
+                              value={pfMetricValues[m.id] ?? ""}
+                              onChangeText={(t) => setPfMetricValues((p) => ({ ...p, [m.id]: t.replace(/[^0-9.]/g, "") }))}
+                              placeholder={String(m.scaleMin ?? 0)}
+                              placeholderTextColor={c.textDim}
+                              keyboardType="decimal-pad"
+                              style={{
+                                flex: 1,
+                                backgroundColor: c.surface,
+                                borderRadius: 12, padding: 10,
+                                color: c.textBody, fontSize: 15,
+                                textAlign: "center",
+                              }}
+                            />
+                            {u && (
+                              <TouchableOpacity
+                                onPress={() => cycleMetricUnit(m.id)}
+                                style={{
+                                  paddingVertical: 8, paddingHorizontal: 12,
+                                  borderRadius: 10,
+                                  backgroundColor: c.surface,
+                                  minHeight: 36,
+                                }}
+                              >
+                                <Text style={{ color: c.accent, fontWeight: "700", fontSize: 13 }}>
+                                  {u.symbol || u.name}
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        );
+                      })}
+                      <Text style={{ color: c.textDim, fontSize: 11 }}>
+                        Toca la unidad para cambiarla (mL → gotas → sobre)
+                      </Text>
+                    </View>
+                  )}
 
-                  <View style={{ gap: 4 }}>
-                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>
-                      Unidades alternativas (JSON)
+                  {pfEventType && selectedMetrics.length === 0 && (
+                    <Text style={{ color: c.textDim, fontSize: 13, fontStyle: "italic" }}>
+                      Este tipo de evento no tiene valores numéricos configurables.
                     </Text>
-                    <TextInput
-                      value={pfUnitOverrides}
-                      onChangeText={setPfUnitOverrides}
-                      placeholder='{"dose":"drop"}'
-                      placeholderTextColor={c.textDim}
-                      style={{
-                        backgroundColor: c.surface,
-                        borderRadius: 12, padding: 12,
-                        color: c.textBody, fontSize: 13,
-                        fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
-                      }}
-                    />
-                    <Text style={{ color: c.textDim, fontSize: 11 }}>
-                      Ej: {"{"}"dose":"drop"{">"} para gotas, {"{"}"dose":"sachet"{">"} para sobres
-                    </Text>
-                  </View>
+                  )}
 
                   <View style={{ gap: 4 }}>
                     <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Notas por defecto</Text>
