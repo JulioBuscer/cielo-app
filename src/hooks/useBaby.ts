@@ -36,6 +36,7 @@ export function useCreateBaby() {
       return id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['baby'] }),
+    onError: (e) => console.error('[useCreateBaby]', e),
   });
 }
 
@@ -60,6 +61,7 @@ export function useUpdateBaby() {
         .where(eq(babies.id, input.id));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['baby'] }),
+    onError: (e) => console.error('[useUpdateBaby]', e),
   });
 }
 

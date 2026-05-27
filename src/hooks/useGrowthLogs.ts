@@ -53,6 +53,7 @@ export function useSaveGrowthLog() {
       qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['growth_last', vars.babyId] });
     },
+    onError: (e) => console.error('[useSaveGrowthLog]', e),
   });
 }
 
@@ -112,6 +113,7 @@ export function useSaveMeasurement() {
       qc.invalidateQueries({ queryKey: ['timeline', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['calendar', vars.babyId], refetchType: 'all' });
     },
+    onError: (e) => console.error('[useSaveMeasurement]', e),
   });
 }
 
@@ -145,6 +147,7 @@ export function useUpdateGrowthLog() {
       qc.invalidateQueries({ queryKey: ['growth_last', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId, 'history'] });
     },
+    onError: (e) => console.error('[useUpdateGrowthLog]', e),
   });
 }
 

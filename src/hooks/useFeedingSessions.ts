@@ -186,6 +186,7 @@ export function useStartFeeding() {
       qc.invalidateQueries({ queryKey: ['feeding_session', 'history', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
     },
+    onError: (e) => console.error('[useStartFeeding]', e),
   });
 }
 
@@ -210,6 +211,7 @@ export function usePauseFeeding() {
       qc.invalidateQueries({ queryKey: ['feeding_session', 'active', session.babyId] });
       qc.invalidateQueries({ queryKey: ['feeding_status_events', session.id] });
     },
+    onError: (e) => console.error('[usePauseFeeding]', e),
   });
 }
 
@@ -234,6 +236,7 @@ export function useResumeFeeding() {
       qc.invalidateQueries({ queryKey: ['feeding_session', 'active', session.babyId] });
       qc.invalidateQueries({ queryKey: ['feeding_status_events', session.id] });
     },
+    onError: (e) => console.error('[useResumeFeeding]', e),
   });
 }
 
@@ -252,6 +255,7 @@ export function useFinishFeeding() {
       qc.invalidateQueries({ queryKey: ['feeding_session', 'last', session.babyId] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
     },
+    onError: (e) => console.error('[useFinishFeeding]', e),
   });
 }
 
@@ -315,5 +319,6 @@ export function useUpdateFeedingSession() {
       qc.invalidateQueries({ queryKey: ['feeding_session', 'history', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
     },
+    onError: (e) => console.error('[useUpdateFeedingSession]', e),
   });
 }

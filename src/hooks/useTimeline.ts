@@ -137,6 +137,7 @@ export function useSaveTimelineEvent() {
         qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
       }
     },
+    onError: (e) => console.error('[useSaveTimelineEvent]', e),
   });
 }
 
@@ -167,6 +168,7 @@ export function useUpdateTimelineEvent() {
       qc.invalidateQueries({ queryKey: ['growth_last', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
     },
+    onError: (e) => console.error('[useUpdateTimelineEvent]', e),
   });
 }
 
@@ -186,6 +188,7 @@ export function useCreateEventType() {
       return id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['event_types'] }),
+    onError: (e) => console.error('[useCreateEventType]', e),
   });
 }
 
@@ -211,6 +214,7 @@ export function useCreateDiaperObservation() {
       return id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['diaper_observations'] }),
+    onError: (e) => console.error('[useCreateDiaperObservation]', e),
   });
 }
 
@@ -236,6 +240,7 @@ export function useUpdateDiaperObservation() {
         .where(eq(diaperObservations.id, input.id));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['diaper_observations'] }),
+    onError: (e) => console.error('[useUpdateDiaperObservation]', e),
   });
 }
 

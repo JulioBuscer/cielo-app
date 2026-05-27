@@ -66,6 +66,7 @@ export function useCreateEventPreset() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['event_presets'] });
     },
+    onError: (e) => console.error('[useCreateEventPreset]', e),
   });
 }
 
@@ -95,6 +96,7 @@ export function useUpdateEventPreset() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['event_presets'] });
     },
+    onError: (e) => console.error('[useUpdateEventPreset]', e),
   });
 }
 
@@ -107,6 +109,7 @@ export function useDeleteEventPreset() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['event_presets'] });
     },
+    onError: (e) => console.error('[useDeleteEventPreset]', e),
   });
 }
 
@@ -135,5 +138,6 @@ export function useQuickSavePreset() {
       qc.invalidateQueries({ queryKey: ['timeline', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['calendar', vars.babyId], refetchType: 'all' });
     },
+    onError: (e) => console.error('[useQuickSavePreset]', e),
   });
 }

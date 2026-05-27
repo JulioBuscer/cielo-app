@@ -123,6 +123,7 @@ export function useStartSleep() {
       qc.invalidateQueries({ queryKey: ['sleep_session', 'history', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
     },
+    onError: (e) => console.error('[useStartSleep]', e),
   });
 }
 
@@ -147,6 +148,7 @@ export function usePauseSleep() {
       qc.invalidateQueries({ queryKey: ['sleep_session', 'active', session.babyId] });
       qc.invalidateQueries({ queryKey: ['sleep_status_events', session.id] });
     },
+    onError: (e) => console.error('[usePauseSleep]', e),
   });
 }
 
@@ -171,6 +173,7 @@ export function useResumeSleep() {
       qc.invalidateQueries({ queryKey: ['sleep_session', 'active', session.babyId] });
       qc.invalidateQueries({ queryKey: ['sleep_status_events', session.id] });
     },
+    onError: (e) => console.error('[useResumeSleep]', e),
   });
 }
 
@@ -188,6 +191,7 @@ export function useFinishSleep() {
       qc.invalidateQueries({ queryKey: ['sleep_session', 'history', session.babyId] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
     },
+    onError: (e) => console.error('[useFinishSleep]', e),
   });
 }
 
@@ -274,5 +278,6 @@ export function useUpdateSleepSession() {
       qc.invalidateQueries({ queryKey: ['sleep_session', 'history', vars.babyId] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
     },
+    onError: (e) => console.error('[useUpdateSleepSession]', e),
   });
 }

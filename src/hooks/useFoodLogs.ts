@@ -71,6 +71,7 @@ export function useSaveFoodLog() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["food_logs", vars.babyId] });
     },
+    onError: (e) => console.error('[useSaveFoodLog]', e),
   });
 }
 

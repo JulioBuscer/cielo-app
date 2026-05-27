@@ -18,6 +18,7 @@ export function useCreateProfile() {
       return id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profile'] }),
+    onError: (e) => console.error('[useCreateProfile]', e),
   });
 }
 
