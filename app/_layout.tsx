@@ -5,6 +5,7 @@ import { Stack } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { runMigrations } from "@/src/db/client";
 import { ThemeProvider } from "@/src/theme/ThemeProvider";
+import { ErrorBoundary } from "@/src/components/ErrorBoundary";
 import packageJson from "@/package.json";
 
 const queryClient = new QueryClient();
@@ -99,7 +100,9 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <Stack screenOptions={{ headerShown: false }} />
+        <ErrorBoundary>
+          <Stack screenOptions={{ headerShown: false }} />
+        </ErrorBoundary>
       </ThemeProvider>
     </QueryClientProvider>
   );

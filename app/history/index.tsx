@@ -13,6 +13,7 @@ import { useActiveBaby } from "@/src/hooks/useBaby";
 import { useTheme } from "@/src/theme/useTheme";
 import { useEventTypes } from "@/src/hooks/useTimeline";
 import { useFoodCatalog } from "@/src/hooks/useFoodLogs";
+import { safeJsonParse } from "@/src/utils/safeJsonParse";
 import { timeOptions } from "@/src/utils/timeFormat";
 
 type FilterType = "all" | "diaper" | "feeding" | "sleep" | "growth" | "food" | "other";
@@ -291,7 +292,7 @@ export default function HistoryScreen() {
 
   function hasDiaperAlert(meta: unknown): boolean {
     if (!meta) return false;
-    const m = typeof meta === "string" ? JSON.parse(meta) : meta as any;
+    const m: Record<string, any> = typeof meta === "string" ? safeJsonParse(meta, {}) : meta as Record<string, any>;
     if (m?.peeHealthAlert || m?.poopHealthAlert || m?.poopConsistencyAlert) return true;
     const ph = m?.peeHealth ?? 0;
     const poh = m?.poopHealth ?? 0;

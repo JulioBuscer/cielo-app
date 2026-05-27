@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TextInput, TouchableOpacity } from "react-nativ
 import { useTheme } from "@/src/theme/useTheme";
 import { ZoneEditor } from "./ZoneEditor";
 import { generateId } from "@/src/utils/id";
+import { safeJsonParse } from "@/src/utils/safeJsonParse";
 import type { Zone } from "./types";
 import type { DiaperObservation, ObservationMetric, ObservationZone } from "@/src/db/schema";
 
@@ -26,7 +27,7 @@ export function ObservationForm({
   const [label, setLabel] = useState(initial?.label ?? "");
   const [isAlert, setIsAlert] = useState(initial?.isAlert ?? false);
   const [metrics, setMetrics] = useState<ObservationMetric[]>(
-    initial?.metrics ? JSON.parse(initial.metrics) : []
+    initial?.metrics ? safeJsonParse(initial.metrics, [] as ObservationMetric[]) : []
   );
 
   const isValid = emoji.trim() && label.trim();

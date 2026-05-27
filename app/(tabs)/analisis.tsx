@@ -18,6 +18,7 @@ import { getDb } from "@/src/db/client";
 import { timelineEvents, feedingSessions, sleepSessions, growthLogs, foodLogs } from "@/src/db/schema";
 import { useActiveBaby, calcAge } from "@/src/hooks/useBaby";
 import { useTimeline } from "@/src/hooks/useTimeline";
+import { safeJsonParse } from "@/src/utils/safeJsonParse";
 import { useTheme } from "@/src/theme/useTheme";
 import { CalendarGrid } from "@/src/components/ui/CalendarGrid";
 import { useCalendarData, type DayEvents } from "@/src/hooks/useCalendarData";
@@ -292,8 +293,8 @@ function DaySheet({
       const evType = eventTypes?.find((t) => t.id === e.eventTypeId);
       const emoji = evType?.emoji ?? "📝";
       const label = evType?.label ?? e.eventTypeId;
-      const meta = typeof e.metadata === "string" ? JSON.parse(e.metadata || "{}") : (e.metadata || {});
-      const vals = typeof e.values === "string" ? JSON.parse(e.values || "{}") : (e.values || {});
+      const meta: Record<string, any> = typeof e.metadata === "string" ? safeJsonParse(e.metadata, {}) : (e.metadata || {});
+      const vals: Record<string, any> = typeof e.values === "string" ? safeJsonParse(e.values, {}) : (e.values || {});
       const isAlert = e.eventTypeId === "diaper" && hasDiaperAlert(meta);
       const tags: { label: string; bg: string; color: string }[] = [];
 

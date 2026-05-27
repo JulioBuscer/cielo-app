@@ -4,6 +4,7 @@ import { useTheme } from "@/src/theme/useTheme";
 import { ZoneEditor } from "./ZoneEditor";
 import { getUnit, getUnitsByDimension } from "@/src/units/registry";
 import { generateId } from "@/src/utils/id";
+import { safeJsonParse } from "@/src/utils/safeJsonParse";
 import type { Zone } from "./types";
 import type { EventType, ObservationZone } from "@/src/db/schema";
 import type { EventMetric } from "@/src/units/types";
@@ -28,7 +29,7 @@ export function EventMetricsEditor({
   const { theme } = useTheme();
   const c = theme.colors;
   const [metrics, setMetrics] = useState<EventMetric[]>(
-    eventType.metrics ? JSON.parse(eventType.metrics) : []
+    eventType.metrics ? safeJsonParse(eventType.metrics, [] as EventMetric[]) : []
   );
   const [hasChanges, setHasChanges] = useState(false);
 

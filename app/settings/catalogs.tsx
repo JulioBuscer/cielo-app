@@ -31,6 +31,7 @@ import { getDb } from "@/src/db/client";
 import { eventTypes, diaperObservations } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
 import { useQueryClient } from "@tanstack/react-query";
+import { safeJsonParse } from "@/src/utils/safeJsonParse";
 import { useTheme } from "@/src/theme/useTheme";
 import type { DiaperObservation, ObservationMetric } from "@/src/db/schema";
 import type { EventType, EventPreset } from "@/src/db/schema";
@@ -585,7 +586,7 @@ export default function CatalogsScreen() {
                 <View style={{ marginTop: 20, gap: 8 }}>
                   {events?.map((item) => {
                     const parsedMetrics: EventMetric[] = item.metrics
-                      ? JSON.parse(item.metrics)
+                      ? safeJsonParse(item.metrics, [] as EventMetric[])
                       : [];
                     return (
                       <View
@@ -756,7 +757,7 @@ export default function CatalogsScreen() {
                   <View style={{ gap: 8 }}>
                     {diaperObs?.map((item) => {
                       const parsedMetrics: ObservationMetric[] = item.metrics
-                        ? JSON.parse(item.metrics)
+                        ? safeJsonParse(item.metrics, [] as ObservationMetric[])
                         : [];
                       const hasMetrics = parsedMetrics.length > 0;
                       return (

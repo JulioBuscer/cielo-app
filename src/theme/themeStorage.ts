@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { safeJsonParse } from "@/src/utils/safeJsonParse";
 import type { AppTheme } from "./types";
 import { lightTheme, darkTheme } from "./themes";
 
@@ -18,7 +19,7 @@ export async function setActiveThemeId(id: string): Promise<void> {
 
 export async function getCustomThemes(): Promise<AppTheme[]> {
   const raw = await AsyncStorage.getItem(CUSTOM_KEY);
-  return raw ? JSON.parse(raw) : [];
+  return raw ? safeJsonParse(raw, [] as AppTheme[]) : [];
 }
 
 export async function saveCustomTheme(theme: AppTheme): Promise<void> {

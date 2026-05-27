@@ -22,6 +22,7 @@ import {
   useDiaperObservations,
 } from "@/src/hooks/useTimeline";
 import { useCamera } from "@/src/hooks/useCamera";
+import { safeJsonParse } from "@/src/utils/safeJsonParse";
 import { useTheme } from "@/src/theme/useTheme";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import {
@@ -258,7 +259,7 @@ export default function DiaperDetailScreen() {
   // Pre-populate from event metadata
   useEffect(() => {
     if (!event || !observations) return;
-    const meta = event.metadata ? JSON.parse(event.metadata) : {};
+    const meta: Record<string, any> = event.metadata ? safeJsonParse(event.metadata, {}) : {};
     setPeeIntensity(meta.peeIntensity ?? 0);
     setPoopIntensity(meta.poopIntensity ?? 0);
     setPeeHealth(meta.peeHealth ?? 0);
