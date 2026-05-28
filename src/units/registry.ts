@@ -148,9 +148,12 @@ export function getUnitsByDimension(dimension: string): Unit[] {
   return Object.values(units).filter((u) => u.dimension === dimension);
 }
 
-export function getUnitsForMetric(metric: { unitGroup?: string[]; unitId: string }): Unit[] {
+export function getUnitsForMetric(metric: { unitGroup?: string[]; unitId: string; id?: string }): Unit[] {
   if (metric.unitGroup && metric.unitGroup.length > 0) {
     return metric.unitGroup.map((id) => units[id]).filter(Boolean);
+  }
+  if (metric.id === 'dose') {
+    return ['milliliter', 'drop', 'count', 'sachet'].map((id) => units[id]).filter(Boolean);
   }
   const u = getUnit(metric.unitId);
   if (!u) return [];

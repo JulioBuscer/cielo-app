@@ -306,6 +306,11 @@ export async function runMigrations() {
     );
   }
 
+  // Always update medication metrics to include unitGroup
+  await _raw.execAsync(
+    `UPDATE event_types SET metrics = '${METRICS_MAP.medication}' WHERE id = 'medication';`
+  );
+
   // Migrate legacy metadata → values
   const LEGACY_MIGRATIONS = [
     {
