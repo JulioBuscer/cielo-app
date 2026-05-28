@@ -297,7 +297,7 @@ export async function runMigrations() {
       { id: 'temperature', name: 'Temperatura', unitId: 'celsius', scaleMin: 34, scaleMax: 42 },
     ]),
     medication: JSON.stringify([
-      { id: 'dose', name: 'Dosis', unitId: 'milliliter', scaleMin: 0, scaleMax: 100 },
+      { id: 'dose', name: 'Dosis', unitId: 'milliliter', scaleMin: 0, scaleMax: 100, unitGroup: ['milliliter', 'drop', 'count', 'sachet'] },
     ]),
   };
   for (const [id, metrics] of Object.entries(METRICS_MAP)) {

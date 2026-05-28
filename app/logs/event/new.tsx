@@ -26,7 +26,7 @@ import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { useTheme } from "@/src/theme/useTheme";
 import type { EventMetric } from "@/src/units/types";
-import { getUnit, getUnitsByDimension } from "@/src/units/registry";
+import { getUnit, getUnitsByDimension, getUnitsForMetric } from "@/src/units/registry";
 import { findBestUnit } from "@/src/units/helpers";
 import { getCategoryLabel } from "@/src/utils/categories";
 
@@ -369,7 +369,7 @@ export default function EventNewScreen() {
                 </Text>
                 {metrics.map((m) => {
                   const u = getUnit(m.unitId);
-                  const compatible = u ? getUnitsByDimension(u.dimension) : [];
+                  const compatible = getUnitsForMetric(m);
                   const displayUnitId = displayUnits[m.id] ?? m.unitId;
                   const displayUnit = getUnit(displayUnitId) ?? u;
                   const cycleUnit = () => {

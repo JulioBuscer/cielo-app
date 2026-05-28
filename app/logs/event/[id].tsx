@@ -24,7 +24,7 @@ import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { getZoneColor, getZoneLabel, parseMetrics, getMetricZoneColor, getMetricZoneLabel } from "@/src/db/schema";
 import { useTheme } from "@/src/theme/useTheme";
-import { getUnit, getUnitsByDimension } from "@/src/units/registry";
+import { getUnit, getUnitsByDimension, getUnitsForMetric } from "@/src/units/registry";
 import { findBestUnit } from "@/src/units/helpers";
 import type { EventMetric } from "@/src/units/types";
 
@@ -390,7 +390,7 @@ export default function EventDetailScreen() {
                 <Text className="font-bold text-xs" style={{ color: c.textMuted }}>📐 Mediciones</Text>
                 {evMetrics.map((m) => {
                   const u = getUnit(m.unitId);
-                  const compatible = u ? getUnitsByDimension(u.dimension) : [];
+                  const compatible = getUnitsForMetric(m);
                   const displayUnitId = editDisplayUnits[m.id] ?? m.unitId;
                   const displayUnit = getUnit(displayUnitId) ?? u;
                   const cycleUnit = () => {

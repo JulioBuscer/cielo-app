@@ -18,4 +18,5 @@ export interface EventMetric {
   scaleMin?: number;
   scaleMax?: number;
   zones?: ObservationZone[];
+  unitGroup?: string[];
 }

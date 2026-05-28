@@ -38,7 +38,7 @@ import { useTheme } from "@/src/theme/useTheme";
 import type { DiaperObservation, ObservationMetric } from "@/src/db/schema";
 import type { EventType, EventPreset } from "@/src/db/schema";
 import type { EventMetric } from "@/src/units/types";
-import { getUnit, getUnitsByDimension } from "@/src/units/registry";
+import { getUnit, getUnitsByDimension, getUnitsForMetric } from "@/src/units/registry";
 import { ZoneEditor } from "@/src/components/catalogs/ZoneEditor";
 import { EventMetricsEditor } from "@/src/components/catalogs/EventMetricsEditor";
 import { ObservationForm } from "@/src/components/catalogs/ObservationForm";
@@ -193,7 +193,7 @@ export default function CatalogsScreen() {
   const cycleMetricUnit = (metricId: string) => {
     const metric = selectedMetrics.find((m) => m.id === metricId);
     if (!metric) return;
-    const compatible = getUnitsByDimension(getUnit(metric.unitId)?.dimension ?? "dimensionless");
+    const compatible = getUnitsForMetric(metric);
     const current = pfMetricUnits[metricId] ?? metric.unitId;
     const idx = compatible.findIndex((u) => u.id === current);
     const next = compatible[(idx + 1) % compatible.length];
@@ -1043,7 +1043,7 @@ export default function CatalogsScreen() {
                       </Text>
                       {selectedMetrics.map((m) => {
                         const u = getUnit(pfMetricUnits[m.id] ?? m.unitId);
-                        const compatible = u ? getUnitsByDimension(u.dimension) : [];
+                        const compatible = getUnitsForMetric(m);
                         return (
                           <View key={m.id} style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
                             <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 13, minWidth: 80 }}>
