@@ -28,13 +28,29 @@ import { useTheme } from "@/src/theme/useTheme";
 import type { EventMetric } from "@/src/units/types";
 import { getUnit, getUnitsByDimension } from "@/src/units/registry";
 import { findBestUnit } from "@/src/units/helpers";
+import { getCategoryLabel } from "@/src/utils/categories";
 
 const MEDICAL_TYPES = ["medication", "temperature", "vomit"];
 
 export default function EventNewScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
-  const { preselect } = useLocalSearchParams<{ preselect?: string }>();
+  const params = useLocalSearchParams<{
+    preselect?: string;
+    presetValues?: string;
+    presetUnitOverrides?: string;
+    presetNotes?: string;
+    presetName?: string;
+    presetEmoji?: string;
+    presetTags?: string;
+  }>();
+  const preselect = params.preselect;
+  const presetValuesRaw = params.presetValues;
+  const presetUnitOverridesRaw = params.presetUnitOverrides;
+  const presetNotesVal = params.presetNotes;
+  const presetName = params.presetName;
+  const presetEmoji = params.presetEmoji;
+  const presetTagsRaw = params.presetTags;
   const { data: baby } = useActiveBaby();
   const { data: profile } = useActiveProfile();
   const { data: eventTypes } = useEventTypes();
@@ -45,11 +61,21 @@ export default function EventNewScreen() {
   const [selectedType, setSelectedType] = useState<string | null>(
     preselect ?? null
   );
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(presetNotesVal ?? "");
   const [timestamp, setTimestamp] = useState(new Date());
   const [saving, setSaving] = useState(false);
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [displayUnits, setDisplayUnits] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    if (!presetValuesRaw) return {};
+    try { const p = JSON.parse(presetValuesRaw); return Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v)])); } catch { return {}; }
+  });
+  const [displayUnits, setDisplayUnits] = useState<Record<string, string>>(() => {
+    if (!presetUnitOverridesRaw) return {};
+    try { return JSON.parse(presetUnitOverridesRaw); } catch { return {}; }
+  });
+  const [tags, setTags] = useState<string[]>(() => {
+    if (!presetTagsRaw) return [];
+    try { return JSON.parse(presetTagsRaw); } catch { return []; }
+  });
 
   const metrics: EventMetric[] = useMemo(() => {
     if (!selectedType || !eventTypes) return [];
@@ -92,13 +118,6 @@ export default function EventNewScreen() {
     }
     return map;
   }, [eventTypes]);
-
-  const CATEGORY_LABELS: Record<string, string> = {
-    feeding: "🤱 Alimentación",
-    health: "💊 Salud",
-    growth: "📏 Crecimiento",
-    other: "📌 Otros",
-  };
 
   const handleSave = async () => {
     if (!baby || !profile || !selectedType) return;
@@ -143,6 +162,10 @@ export default function EventNewScreen() {
         timestamp,
         feedingSessionId: activeFeeding?.id,
         values: Object.keys(numericValues).length > 0 ? numericValues : undefined,
+        metadata: tags.length > 0 ? {
+          tags,
+          ...(presetName && { presetName, presetEmoji }),
+        } : undefined,
       });
 
       router.back();
@@ -210,7 +233,7 @@ export default function EventNewScreen() {
                     letterSpacing: 1,
                   }}
                 >
-                  {CATEGORY_LABELS[category] ?? category}
+                  {getCategoryLabel(category)}
                 </Text>
                 <View
                   style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
@@ -274,6 +297,14 @@ export default function EventNewScreen() {
               </View>
             </TouchableOpacity>
 
+            {presetName && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: -8 }}>
+                <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "600" }}>
+                  Desde plantilla: {presetEmoji ?? ""} {presetName}
+                </Text>
+              </View>
+            )}
+
             {/* Notes */}
             <View style={{ gap: 6 }}>
               <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
@@ -296,6 +327,31 @@ export default function EventNewScreen() {
                 }}
               />
             </View>
+
+            {tags.length > 0 && (
+              <View style={{ gap: 6 }}>
+                <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
+                  🏷️ Etiquetas
+                </Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                  {tags.map((t, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      onPress={() => setTags(tags.filter((_, j) => j !== i))}
+                      style={{
+                        flexDirection: "row", alignItems: "center", gap: 4,
+                        backgroundColor: c.elevated, borderRadius: 99,
+                        paddingVertical: 4, paddingHorizontal: 10,
+                      }}
+                    >
+                      <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 13 }}>{t}</Text>
+                      <Text style={{ color: c.textDim, fontSize: 11 }}>✕</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={{ color: c.textDim, fontSize: 11 }}>Toca para eliminar</Text>
+              </View>
+            )}
 
             {/* Metrics */}
             {metrics.length > 0 && (

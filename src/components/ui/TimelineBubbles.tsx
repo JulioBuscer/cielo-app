@@ -24,6 +24,7 @@ import { useDiaperObservations } from "@/src/hooks/useTimeline";
 import { useTheme } from "@/src/theme/useTheme";
 import { formatWakeWindow } from "@/src/hooks/useWakeWindows";
 import type { Role } from "@/src/constants/roles";
+import { getCategory } from "@/src/utils/categories";
 
 const ROLE_EMOJI: Record<Role, string> = {
   mama: "👩",
@@ -214,6 +215,30 @@ export function TimelineBubble({
         )}
       </View>
 
+      {eventType?.category && (
+        <View style={{ flexDirection: "row", marginBottom: 6 }}>
+          <View
+            style={{
+              backgroundColor: getCategory(eventType.category).color + "20",
+              borderRadius: 99,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: "800",
+                color: getCategory(eventType.category).color,
+              }}
+            >
+              {getCategory(eventType.category).emoji}{" "}
+              {getCategory(eventType.category).label}
+            </Text>
+          </View>
+        </View>
+      )}
+
       {event.eventTypeId === "diaper" && meta && (
         <View style={{ marginBottom: 2 }}>
           {(meta.peeIntensity > 0 || (meta.peeHealth ?? 0) > 0) && (
@@ -351,6 +376,24 @@ export function TimelineBubble({
 
       {event.eventTypeId === "temperature" && meta?.celsius && (
         <MetaTag label={`${meta.celsius} °C`} color={c.warning} bg={c.warning + "20"} />
+      )}
+
+      {event.eventTypeId === "food" && meta?.foods && (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
+          {(meta.foods as { id: string; emoji: string | null; name: string }[]).map((f) => (
+            <MetaTag key={f.id} label={`${f.emoji ?? ""} ${f.name}`} color={c.feeding.bottle ?? "#7CB342"} bg={(c.feeding.bottle ?? "#7CB342") + "20"} />
+          ))}
+          {meta.isFirst && <MetaTag label="🥇 Primera vez" color="#F57C00" bg="#FFF3E0" />}
+          {meta.reaction && <MetaTag label={`😋 ${meta.reaction}`} color={c.textMuted} bg={c.surface} />}
+        </View>
+      )}
+
+      {meta?.tags && Array.isArray(meta.tags) && meta.tags.length > 0 && (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
+          {(meta.tags as string[]).map((t, i) => (
+            <MetaTag key={i} label={t} color={c.textMuted} bg={c.surface} />
+          ))}
+        </View>
       )}
 
       {(event.eventTypeId === "weight" || event.eventTypeId === "height") && meta && (

@@ -8,6 +8,7 @@ import {
   sleepSessions,
   growthLogs,
   foodLogs,
+  eventTypes as eventTypesTable,
 } from "@/src/db/schema";
 
 export interface DayEvents {
@@ -44,7 +45,7 @@ export function useCalendarData(babyId?: string, ref?: Date) {
       if (!babyId) return { days: new Map<string, DayEvents>(), bounds };
       const db = getDb();
 
-      const [events, feedings, sleeps, growths, foods] = await Promise.all([
+      const [events, feedings, sleeps, growths, foods, allEventTypes] = await Promise.all([
         db
           .select()
           .from(timelineEvents)
@@ -95,7 +96,10 @@ export function useCalendarData(babyId?: string, ref?: Date) {
               lte(foodLogs.timestamp, bounds.end)
             )
           ),
+        db.select().from(eventTypesTable),
       ]);
+
+      const categoryMap = new Map(allEventTypes.map((et) => [et.id, et.category]));
 
       const days = new Map<string, DayEvents>();
 
@@ -134,14 +138,17 @@ export function useCalendarData(babyId?: string, ref?: Date) {
           const peeHealth = values?.peeHealth ?? meta?.peeHealth ?? 0;
           if (pi > 0 || ph > 0 || pc > 0) addDay(new Date(e.timestamp), "poop");
           if (peeLevel > 0 || peeHealth > 0) addDay(new Date(e.timestamp), "pee");
-        } else if (["weight", "height"].includes(e.eventTypeId)) {
-          addDay(new Date(e.timestamp), "measurement");
-        } else if (
-          ["medication", "temperature", "vomit", "regurgitation"].includes(e.eventTypeId)
-        ) {
-          addDay(new Date(e.timestamp), "health");
         } else {
-          addDay(new Date(e.timestamp), "other");
+          const cat = categoryMap.get(e.eventTypeId);
+          if (cat === "growth") {
+            addDay(new Date(e.timestamp), "measurement");
+          } else if (cat === "health") {
+            addDay(new Date(e.timestamp), "health");
+          } else if (cat === "feeding") {
+            addDay(new Date(e.timestamp), "food");
+          } else {
+            addDay(new Date(e.timestamp), "other");
+          }
         }
       }
 

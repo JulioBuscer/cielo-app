@@ -277,6 +277,7 @@ export const eventPresets = sqliteTable('event_presets', {
   defaultValues:       text('default_values').default('{}'),  // JSON: metricId → value
   defaultUnitOverrides:text('default_unit_overrides').default('{}'), // JSON: metricId → unitId
   defaultNotes:        text('default_notes'),
+  defaultTags:         text('default_tags').default('[]'), // JSON: string[]
   sortOrder:           integer('sort_order').default(0),
   isQuickAction:       integer('is_quick_action', { mode: 'boolean' }).default(false),
   createdAt:           integer('created_at', { mode: 'timestamp' }).notNull(),

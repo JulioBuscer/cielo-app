@@ -12,8 +12,9 @@ import { useFoodCatalog } from "@/src/hooks/useFoodLogs";
 import { useHistoryData } from "@/src/hooks/useHistory";
 import { safeJsonParse } from "@/src/utils/safeJsonParse";
 import { timeOptions } from "@/src/utils/timeFormat";
+import { getCategory } from "@/src/utils/categories";
 
-type FilterType = "all" | "diaper" | "feeding" | "sleep" | "growth" | "food" | "other";
+type FilterType = "all" | "diaper" | "feeding" | "sleep" | "health" | "growth" | "food" | "other";
 type FilterDate = "today" | "week" | "month" | "all" | "range";
 
 const DATE_FILTERS: { key: FilterDate; label: string }[] = [
@@ -29,6 +30,7 @@ const TYPE_FILTERS: { key: FilterType; emoji: string; label: string }[] = [
   { key: "diaper", emoji: "🍑", label: "Pañal" },
   { key: "feeding", emoji: "🤱", label: "Toma" },
   { key: "sleep", emoji: "😴", label: "Sueño" },
+  { key: "health", emoji: "💊", label: "Salud" },
   { key: "growth", emoji: "📏", label: "Medición" },
   { key: "food", emoji: "🍎", label: "Comida" },
   { key: "other", emoji: "📝", label: "Otros" },
@@ -143,7 +145,7 @@ export default function HistoryScreen() {
     }
 
     for (const g of raw.growths) {
-      if (typeFilter === "food" || typeFilter === "other" || typeFilter === "feeding" || typeFilter === "sleep" || typeFilter === "diaper") continue;
+      if (typeFilter === "food" || typeFilter === "other" || typeFilter === "feeding" || typeFilter === "sleep" || typeFilter === "diaper" || typeFilter === "health") continue;
       const line: string[] = [];
       if (g.weightGrams) line.push(`⚖️ ${(g.weightGrams / 1000).toFixed(2)} kg`);
       if (g.heightMm) line.push(`📏 ${(g.heightMm / 10).toFixed(1)} cm`);
@@ -201,9 +203,12 @@ export default function HistoryScreen() {
     for (const e of raw.events) {
       const evType = eventTypes?.find((t) => t.id === e.eventTypeId);
       const cat = evType?.category;
-      if (typeFilter === "food" || typeFilter === "feeding" || typeFilter === "sleep" || typeFilter === "growth") continue;
+      if (typeFilter === "feeding" || typeFilter === "sleep") continue;
       if (typeFilter === "diaper" && e.eventTypeId !== "diaper") continue;
-      if (typeFilter === "other" && cat !== "other" && cat !== "health") continue;
+      if (typeFilter === "health" && cat !== "health") continue;
+      if (typeFilter === "growth" && cat !== "growth") continue;
+      if (typeFilter === "food" && cat !== "feeding") continue;
+      if (typeFilter === "other" && cat !== "other") continue;
 
       const emoji = evType?.emoji ?? "📝";
       const label = evType?.label ?? e.eventTypeId;
@@ -227,7 +232,34 @@ export default function HistoryScreen() {
                 {isAlert && <Text style={{ fontSize: 12 }}> 🚨</Text>}
               </Text>
               <Text style={{ fontSize: 11, color: c.textMuted }}>{formatTime(e.timestamp)}</Text>
+              {cat && (
+                <View style={{ flexDirection: "row", marginTop: 2 }}>
+                  <View style={{ backgroundColor: getCategory(cat).color + "20", borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1 }}>
+                    <Text style={{ fontSize: 9, fontWeight: "800", color: getCategory(cat).color }}>
+                      {getCategory(cat).emoji} {getCategory(cat).label}
+                    </Text>
+                  </View>
+                </View>
+              )}
               {e.notes && <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 2 }}>{e.notes}</Text>}
+              {e.eventTypeId === "food" && e.metadata && (() => {
+                const foodMeta = safeJsonParse(e.metadata, {} as any);
+                const foods = foodMeta?.foods;
+                if (!foods?.length) return null;
+                return (
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+                    {foods.map((f: any) => (
+                      <View key={f.id} style={{ backgroundColor: "#E8F5E9", borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1 }}>
+                        <Text style={{ fontSize: 10, fontWeight: "700", color: "#4CAF50" }}>{f.emoji ?? ""} {f.name}</Text>
+                      </View>
+                    ))}
+                    {foodMeta.isFirst && <View style={{ backgroundColor: "#FFF3E0", borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1 }}>
+                      <Text style={{ fontSize: 10, fontWeight: "700", color: "#F57C00" }}>🥇 Primera vez</Text>
+                    </View>}
+                    {foodMeta.reaction && <Text style={{ fontSize: 10, color: c.textMuted, marginTop: 1 }}>😋 {foodMeta.reaction}</Text>}
+                  </View>
+                );
+              })()}
             </View>
           </TouchableOpacity>
         ),

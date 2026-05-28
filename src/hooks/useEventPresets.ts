@@ -30,7 +30,7 @@ export function useQuickActionPresets() {
       getDb()
         .select()
         .from(eventPresets)
-        .where(eq(eventPresets.isQuickAction, true as any))
+        .where(eq(eventPresets.isQuickAction, 1 as any))
         .orderBy(asc(eventPresets.sortOrder)),
   });
 }
@@ -47,25 +47,35 @@ export function useCreateEventPreset() {
       defaultValues?: Record<string, number>;
       defaultUnitOverrides?: Record<string, string>;
       defaultNotes?: string;
+      defaultTags?: string[];
       isQuickAction?: boolean;
     }) => {
+      console.log("[useCreateEventPreset] ENTER", { eventTypeId: input.eventTypeId, name: input.name, isQuickAction: input.isQuickAction });
       const id = generateId();
-      await getDb().insert(eventPresets).values({
-        id,
-        eventTypeId: input.eventTypeId,
-        name: input.name,
-        emoji: input.emoji ?? '📌',
-        defaultValues: input.defaultValues ? JSON.stringify(input.defaultValues) : '{}',
-        defaultUnitOverrides: input.defaultUnitOverrides ? JSON.stringify(input.defaultUnitOverrides) : '{}',
-        defaultNotes: input.defaultNotes ?? null,
-        sortOrder: 0,
-        isQuickAction: input.isQuickAction ?? false,
-        createdAt: new Date(),
-      });
+      try {
+        await getDb().insert(eventPresets).values({
+          id,
+          eventTypeId: input.eventTypeId,
+          name: input.name,
+          emoji: input.emoji ?? '📌',
+          defaultValues: input.defaultValues ? JSON.stringify(input.defaultValues) : '{}',
+          defaultUnitOverrides: input.defaultUnitOverrides ? JSON.stringify(input.defaultUnitOverrides) : '{}',
+          defaultNotes: input.defaultNotes ?? null,
+          defaultTags: input.defaultTags ? JSON.stringify(input.defaultTags) : '[]',
+          sortOrder: 0,
+          isQuickAction: input.isQuickAction ?? false,
+          createdAt: new Date(),
+        });
+        console.log("[useCreateEventPreset] INSERT EXECUTED OK");
+      } catch (e) {
+        console.log("[useCreateEventPreset] INSERT ERROR", e);
+        throw e;
+      }
       return id;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['event_presets'] });
+      qc.invalidateQueries({ queryKey: ['event_presets', 'quick'] });
     },
     onError: onMutationError("[useCreateEventPreset]"),
   });
@@ -81,21 +91,24 @@ export function useUpdateEventPreset() {
       defaultValues?: Record<string, number>;
       defaultUnitOverrides?: Record<string, string>;
       defaultNotes?: string;
+      defaultTags?: string[];
       isQuickAction?: boolean;
       sortOrder?: number;
     }) => {
       const update: Record<string, any> = {};
       if (input.name !== undefined) update.name = input.name;
       if (input.emoji !== undefined) update.emoji = input.emoji;
-      if (input.defaultValues !== undefined) update.default_values = JSON.stringify(input.defaultValues);
-      if (input.defaultUnitOverrides !== undefined) update.default_unit_overrides = JSON.stringify(input.defaultUnitOverrides);
-      if (input.defaultNotes !== undefined) update.default_notes = input.defaultNotes;
-      if (input.isQuickAction !== undefined) update.is_quick_action = input.isQuickAction;
-      if (input.sortOrder !== undefined) update.sort_order = input.sortOrder;
+      if (input.defaultValues !== undefined) update.defaultValues = JSON.stringify(input.defaultValues);
+      if (input.defaultUnitOverrides !== undefined) update.defaultUnitOverrides = JSON.stringify(input.defaultUnitOverrides);
+      if (input.defaultNotes !== undefined) update.defaultNotes = input.defaultNotes;
+      if (input.defaultTags !== undefined) update.defaultTags = JSON.stringify(input.defaultTags);
+      if (input.isQuickAction !== undefined) update.isQuickAction = input.isQuickAction;
+      if (input.sortOrder !== undefined) update.sortOrder = input.sortOrder;
       await getDb().update(eventPresets).set(update).where(eq(eventPresets.id, input.id));
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['event_presets'] });
+      qc.invalidateQueries({ queryKey: ['event_presets', 'quick'] });
     },
     onError: onMutationError("[useUpdateEventPreset]"),
   });
@@ -105,10 +118,11 @@ export function useDeleteEventPreset() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      await getDb().delete(eventPresets).where(eq(eventPresets.id, id));
+      await getDb().delete(eventPresets).where(eq(eventPresets.id, id)).run();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['event_presets'] });
+      qc.invalidateQueries({ queryKey: ['event_presets', 'quick'] });
     },
     onError: onMutationError("[useDeleteEventPreset]"),
   });
@@ -126,6 +140,8 @@ export function useQuickSavePreset() {
       const profileId = await getProfileId();
       let values: Record<string, number> = {};
       try { values = JSON.parse(input.preset.defaultValues ?? '{}'); } catch {}
+      let tags: string[] = [];
+      try { tags = JSON.parse(input.preset.defaultTags ?? '[]'); } catch {}
       await insertTimelineEvent({
         babyId:      input.babyId,
         profileId,
@@ -133,6 +149,12 @@ export function useQuickSavePreset() {
         timestamp:   input.timestamp,
         notes:       input.notes ?? input.preset.defaultNotes ?? null,
         values:      values as Record<string, unknown>,
+        metadata: {
+          presetId:     input.preset.id,
+          presetName:   input.preset.name,
+          presetEmoji:  input.preset.emoji ?? null,
+          ...(tags.length > 0 && { tags }),
+        },
       });
     },
     onSuccess: (_, vars) => {

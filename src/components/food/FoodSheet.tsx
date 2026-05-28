@@ -91,12 +91,17 @@ export function FoodSheet({
         });
       }
       const foods = catalog?.filter((f) => selectedFoodIds.includes(f.id)) ?? [];
-      const foodList = foods.map((f) => `${f.emoji ?? ""} ${f.name}`).join(", ");
       await saveEvent.mutateAsync({
         babyId: baby.id,
-        eventTypeId: "note",
+        eventTypeId: "food",
         timestamp,
-        notes: `🍽️ ${foodList}${isFirst ? " (primera vez)" : ""}${reaction ? ` — ${reaction}` : ""}`,
+        metadata: {
+          foods: foods.map((f) => ({ id: f.id, emoji: f.emoji, name: f.name })),
+          isFirst,
+          reaction: reaction.trim() || undefined,
+          imageUri: imageUri ?? undefined,
+        },
+        notes: notes.trim() || undefined,
       });
       onClose();
     } catch {

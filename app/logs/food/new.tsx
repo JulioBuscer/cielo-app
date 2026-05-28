@@ -235,12 +235,17 @@ export default function FoodLogNewScreen() {
         });
       }
       const foods = catalog?.filter((f) => selectedFoodIds.includes(f.id)) ?? [];
-      const foodList = foods.map((f) => `${f.emoji ?? ""} ${f.name}`).join(", ");
       await saveEvent.mutateAsync({
         babyId: baby.id,
-        eventTypeId: "note",
+        eventTypeId: "food",
         timestamp,
-        notes: `🍽️ ${foodList}${isFirst ? " (primera vez)" : ""}${reaction ? ` — ${reaction}` : ""}`,
+        metadata: {
+          foods: foods.map((f) => ({ id: f.id, emoji: f.emoji, name: f.name })),
+          isFirst,
+          reaction: reaction.trim() || undefined,
+          imageUri: photoUris.length > 0 ? photoUris[0] : undefined,
+        },
+        notes: notes.trim() || undefined,
       });
       router.back();
     } catch {

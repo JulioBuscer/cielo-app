@@ -14,6 +14,7 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { safeJsonParse } from "@/src/utils/safeJsonParse";
+import { getCategoryLabel, getCategoryEmoji, USER_CATEGORIES } from "@/src/utils/categories";
 import { KEYS } from "@/src/utils/storage";
 import { BigButton } from "@/src/components/ui/BigButton";
 import {
@@ -75,6 +76,8 @@ export default function CatalogsScreen() {
   const [pfMetricValues, setPfMetricValues] = useState<Record<string, string>>({});
   const [pfMetricUnits, setPfMetricUnits] = useState<Record<string, string>>({});
   const [pfNotes, setPfNotes] = useState("");
+  const [pfTags, setPfTags] = useState<string[]>([]);
+  const [pfTagInput, setPfTagInput] = useState("");
   const [pfQuick, setPfQuick] = useState(false);
 
   const selectedEvent = events?.find((e) => e.id === pfEventType);
@@ -90,6 +93,8 @@ export default function CatalogsScreen() {
     setPfMetricValues({});
     setPfMetricUnits({});
     setPfNotes("");
+    setPfTags([]);
+    setPfTagInput("");
     setPfQuick(false);
   };
 
@@ -112,6 +117,9 @@ export default function CatalogsScreen() {
       setPfMetricValues(vals);
       setPfMetricUnits(units);
       setPfNotes(p.defaultNotes ?? "");
+      let tags: string[] = [];
+      try { tags = JSON.parse(p.defaultTags ?? '[]'); } catch {}
+      setPfTags(tags);
       setPfQuick(p.isQuickAction ?? false);
     } else {
       setPresetEdit(null);
@@ -121,13 +129,18 @@ export default function CatalogsScreen() {
   };
 
   const handleSavePreset = async () => {
-    if (!pfName.trim() || !pfEventType) return;
+    console.log("[handleSavePreset] ENTER", { pfName: pfName.trim(), pfEventType, pfQuick, presetEdit: !!presetEdit });
+    if (!pfName.trim() || !pfEventType) {
+      console.log("[handleSavePreset] EARLY RETURN - validation failed");
+      return;
+    }
     const dv: Record<string, number> = {};
     for (const [k, v] of Object.entries(pfMetricValues)) {
       const n = parseFloat(v);
       if (!isNaN(n)) dv[k] = n;
     }
     try {
+      console.log("[handleSavePreset] calling mutateAsync", { isEdit: !!presetEdit });
       if (presetEdit) {
         await updatePreset.mutateAsync({
           id: presetEdit.id,
@@ -136,8 +149,10 @@ export default function CatalogsScreen() {
           defaultValues: dv,
           defaultUnitOverrides: pfMetricUnits,
           defaultNotes: pfNotes || undefined,
+          defaultTags: pfTags,
           isQuickAction: pfQuick,
         });
+        console.log("[handleSavePreset] updatePreset resolved");
       } else {
         await createPreset.mutateAsync({
           eventTypeId: pfEventType,
@@ -146,18 +161,24 @@ export default function CatalogsScreen() {
           defaultValues: dv,
           defaultUnitOverrides: pfMetricUnits,
           defaultNotes: pfNotes || undefined,
+          defaultTags: pfTags,
           isQuickAction: pfQuick,
         });
-        if (pfQuick) {
-          Alert.alert(
-            "✅ Plantilla creada",
-            `Presiona "${pfEmoji} ${pfName.trim()}" en la pantalla de inicio para usarla.`
-          );
-        }
+        console.log("[handleSavePreset] createPreset resolved");
       }
+      console.log("[handleSavePreset] success, showing alert");
       setPresetForm(false);
       setPresetEdit(null);
+      if (pfQuick) {
+        Alert.alert(
+          "✅ Plantilla guardada",
+          `Presiona "${pfEmoji} ${pfName.trim()}" en la pantalla de inicio para usarla.`
+        );
+      } else {
+        Alert.alert("✅ Plantilla guardada", "Actívala como acceso directo editándola si quieres que aparezca en inicio.");
+      }
     } catch (e) {
+      console.log("[handleSavePreset] CAUGHT ERROR", e);
       Alert.alert("Error", "No se pudo guardar la plantilla");
     }
   };
@@ -542,19 +563,19 @@ export default function CatalogsScreen() {
                   <View
                     style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
                   >
-                    {["health", "growth", "other"].map((cat) => (
+                    {USER_CATEGORIES.map((catDef) => (
                       <TouchableOpacity
-                        key={cat}
-                        onPress={() => setCategory(cat)}
+                        key={catDef.id}
+                        onPress={() => setCategory(catDef.id)}
                         style={{
                           paddingHorizontal: 12,
                           paddingVertical: 6,
                           borderRadius: 99,
                           borderWidth: 1.5,
                           backgroundColor:
-                            category === cat ? c.elevated : c.surface,
+                            category === catDef.id ? c.elevated : c.surface,
                           borderColor:
-                            category === cat ? c.accentStrong : "transparent",
+                            category === catDef.id ? c.accentStrong : "transparent",
                         }}
                       >
                         <Text
@@ -562,11 +583,10 @@ export default function CatalogsScreen() {
                             fontSize: 12,
                             fontWeight: "800",
                             color:
-                              category === cat ? c.accentStrong : c.textMuted,
-                            textTransform: "capitalize",
+                              category === catDef.id ? c.accentStrong : c.textMuted,
                           }}
                         >
-                          {cat}
+                          {getCategoryEmoji(catDef.id)} {getCategoryLabel(catDef.id)}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -1088,6 +1108,65 @@ export default function CatalogsScreen() {
                         minHeight: 60, textAlignVertical: "top",
                       }}
                     />
+                  </View>
+
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Etiquetas</Text>
+                    <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+                      <TextInput
+                        value={pfTagInput}
+                        onChangeText={setPfTagInput}
+                        placeholder="Ej: Vitamina"
+                        placeholderTextColor={c.textDim}
+                        onSubmitEditing={() => {
+                          const t = pfTagInput.trim();
+                          if (t && !pfTags.includes(t)) setPfTags([...pfTags, t]);
+                          setPfTagInput("");
+                        }}
+                        style={{
+                          flex: 1,
+                          backgroundColor: c.surface,
+                          borderRadius: 10, padding: 10,
+                          color: c.textBody, fontSize: 14,
+                        }}
+                      />
+                      <TouchableOpacity
+                        onPress={() => {
+                          const t = pfTagInput.trim();
+                          if (t && !pfTags.includes(t)) setPfTags([...pfTags, t]);
+                          setPfTagInput("");
+                        }}
+                        disabled={!pfTagInput.trim()}
+                        style={{
+                          paddingVertical: 10, paddingHorizontal: 16,
+                          borderRadius: 10,
+                          backgroundColor: pfTagInput.trim() ? c.accent : c.textDim,
+                        }}
+                      >
+                        <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>Añadir</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {pfTags.length > 0 && (
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                        {pfTags.map((t, i) => (
+                          <TouchableOpacity
+                            key={i}
+                            onPress={() => setPfTags(pfTags.filter((_, j) => j !== i))}
+                            style={{
+                              flexDirection: "row", alignItems: "center", gap: 4,
+                              backgroundColor: c.surface, borderRadius: 99,
+                              paddingVertical: 4, paddingHorizontal: 10,
+                            }}
+                          >
+                            <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 13 }}>{t}</Text>
+                            <Text style={{ color: c.textDim, fontSize: 12 }}>✕</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                    <Text style={{ color: c.textDim, fontSize: 11 }}>
+                      Toca una etiqueta para eliminarla. Las etiquetas se guardarán en cada evento.
+                    </Text>
                   </View>
 
                   <TouchableOpacity

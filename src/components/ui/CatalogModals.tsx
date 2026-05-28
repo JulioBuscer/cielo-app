@@ -13,6 +13,7 @@ import {
   useCreateEventType,
   useCreateDiaperObservation,
 } from "@/src/hooks/useTimeline";
+import { getCategoryLabel, getCategoryEmoji, USER_CATEGORIES } from "@/src/utils/categories";
 
 export function InlineEventTypeModal({
   visible,
@@ -156,28 +157,27 @@ export function InlineEventTypeModal({
                 CATEGORÍA
               </Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {["health", "growth", "other"].map((cat) => (
+                {USER_CATEGORIES.map((catDef) => (
                   <TouchableOpacity
-                    key={cat}
-                    onPress={() => setCategory(cat)}
+                    key={catDef.id}
+                    onPress={() => setCategory(catDef.id)}
                     style={{
                       paddingHorizontal: 12,
                       paddingVertical: 6,
                       borderRadius: 99,
                       borderWidth: 1.5,
-                      backgroundColor: category === cat ? "#FFE4EE" : "#FFF0F5",
-                      borderColor: category === cat ? "#FF5C9A" : "transparent",
+                      backgroundColor: category === catDef.id ? "#FFE4EE" : "#FFF0F5",
+                      borderColor: category === catDef.id ? "#FF5C9A" : "transparent",
                     }}
                   >
                     <Text
                       style={{
                         fontSize: 12,
                         fontWeight: "800",
-                        color: category === cat ? "#FF5C9A" : "#9B7A88",
-                        textTransform: "capitalize",
+                        color: category === catDef.id ? "#FF5C9A" : "#9B7A88",
                       }}
                     >
-                      {cat}
+                      {getCategoryEmoji(catDef.id)} {getCategoryLabel(catDef.id)}
                     </Text>
                   </TouchableOpacity>
                 ))}

@@ -33,6 +33,7 @@ const DEFAULT_EVENT_TYPES = [
   { id: 'temperature',   emoji: '🌡️', label: 'Temperatura',   category: 'health'  as const },
   { id: 'measurement',   emoji: '📏', label: 'Medición',       category: 'growth'  as const },
   { id: 'note',          emoji: '📝', label: 'Nota',           category: 'other'   as const },
+  { id: 'food',          emoji: '🍽️', label: 'Comida',         category: 'feeding' as const },
 ];
 
 const DEFAULT_DIAPER_OBSERVATIONS = [
@@ -247,6 +248,8 @@ export async function runMigrations() {
     `ALTER TABLE timeline_events ADD COLUMN "values" TEXT DEFAULT '{}'`,
     // food_catalog
     `ALTER TABLE food_catalog ADD COLUMN hidden INTEGER DEFAULT 0`,
+    // event_presets
+    `ALTER TABLE event_presets ADD COLUMN default_tags TEXT DEFAULT '[]'`,
   ]) {
     try { await _raw.execAsync(sql); } catch { /* columna ya existe, ok */ }
   }

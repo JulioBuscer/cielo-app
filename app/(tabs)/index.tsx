@@ -50,15 +50,16 @@ import { InlineEventTypeModal } from "@/src/components/ui/CatalogModals";
 import { useTheme } from "@/src/theme/useTheme";
 import { useQuickActionPresets, useQuickSavePreset } from "@/src/hooks/useEventPresets";
 import type { EventPreset } from "@/src/hooks/useEventPresets";
-import { QuickPresetSheet } from "@/src/components/ui/QuickPresetSheet";
 import { DiaperSheet } from "@/src/components/diaper/DiaperSheet";
 import { HealthSheet } from "@/src/components/health/HealthSheet";
 import { FoodSheet } from "@/src/components/food/FoodSheet";
+import { getCategory, getCategoryLabel } from "@/src/utils/categories";
 
 function QuickBtn({
   emoji,
   label,
   onPress,
+  onLongPress,
   disabled,
   loading,
   bgColor,
@@ -67,6 +68,7 @@ function QuickBtn({
   emoji: string;
   label: string;
   onPress: () => void;
+  onLongPress?: () => void;
   disabled?: boolean;
   loading?: boolean;
   bgColor: string;
@@ -76,6 +78,8 @@ function QuickBtn({
   return (
     <TouchableOpacity
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={400}
       disabled={disabled || loading}
       style={{ alignItems: "center", gap: 3, opacity: disabled ? 0.4 : 1 }}
     >
@@ -245,7 +249,9 @@ export default function HomeScreen() {
     { key: "feeding", emoji: "🤱" },
     { key: "sleep", emoji: "😴" },
     { key: "diaper", emoji: "🍑" },
-    { key: "measurement", emoji: "📏" },
+    { key: "health", emoji: "💊" },
+    { key: "growth", emoji: "📏" },
+    { key: "measurement", emoji: "📐" },
     { key: "food", emoji: "🍎" },
     { key: "other", emoji: "📝" },
   ];
@@ -273,8 +279,6 @@ export default function HomeScreen() {
   const saveEvent = useSaveTimelineEvent();
   const { data: quickPresets } = useQuickActionPresets();
   const quickSavePreset = useQuickSavePreset();
-  const [showQuickPreset, setShowQuickPreset] = useState(false);
-  const [activePreset, setActivePreset] = useState<EventPreset | null>(null);
 
   const c = theme.colors;
 
@@ -348,9 +352,13 @@ export default function HomeScreen() {
       if (!matchesText(e.notes)) return false;
       if (homeFilter === "all") return true;
       if (homeFilter === "diaper") return e.eventTypeId === "diaper";
+      if (homeFilter === "health" || homeFilter === "growth") {
+        const cat = eventTypes?.find((t) => t.id === e.eventTypeId)?.category;
+        return cat === homeFilter;
+      }
       if (homeFilter === "other") {
         const cat = eventTypes?.find((t) => t.id === e.eventTypeId)?.category;
-        return cat === "other" || cat === "health";
+        return cat === "other";
       }
       return false;
     });
@@ -444,21 +452,28 @@ export default function HomeScreen() {
       });
   };
 
-  const handlePresetTap = (preset: EventPreset) => {
-    setActivePreset(preset);
-    setShowQuickPreset(true);
-  };
-
-  const handleQuickSave = async (timestamp: Date, notes: string) => {
-    if (!baby || !activePreset) return;
+  const handlePresetTap = async (preset: EventPreset) => {
+    if (!baby) return;
     await quickSavePreset.mutateAsync({
       babyId: baby.id,
-      preset: activePreset,
-      timestamp,
-      notes,
+      preset,
+      timestamp: new Date(),
     });
-    setShowQuickPreset(false);
-    setActivePreset(null);
+  };
+
+  const handlePresetLongPress = (preset: EventPreset) => {
+    router.push({
+      pathname: "/logs/event/new",
+      params: {
+        preselect: preset.eventTypeId,
+        presetValues: preset.defaultValues,
+        presetUnitOverrides: preset.defaultUnitOverrides,
+        presetNotes: preset.defaultNotes ?? "",
+        presetName: preset.name,
+        presetEmoji: preset.emoji,
+        presetTags: preset.defaultTags,
+      },
+    });
   };
 
   const renderItem = ({ item, index }: { item: TLItem; index: number }) => {
@@ -812,6 +827,7 @@ export default function HomeScreen() {
                   label={p.name.length > 10 ? p.name.substring(0, 9) + "…" : p.name}
                   bgColor={c.accentStrong}
                   onPress={() => handlePresetTap(p)}
+                  onLongPress={() => handlePresetLongPress(p)}
                   disabled={!!loadingType}
                   size={52}
                 />
@@ -891,13 +907,6 @@ export default function HomeScreen() {
         onSelect={(id: string) => {
           handleEventSelect(id);
         }}
-      />
-      <QuickPresetSheet
-        preset={activePreset}
-        visible={showQuickPreset}
-        onClose={() => { setShowQuickPreset(false); setActivePreset(null); }}
-        onSave={handleQuickSave}
-        saving={quickSavePreset.isPending}
       />
       <DiaperSheet
         visible={showDiaperSheet}
