@@ -114,7 +114,6 @@ export function useCreateCatalogItem() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['catalog_items'] });
       qc.invalidateQueries({ queryKey: ['event_types'] });
-      qc.invalidateQueries({ queryKey: ['event_presets'] });
     },
     onError: onMutationError("[useCreateCatalogItem]"),
   });
@@ -148,7 +147,6 @@ export function useUpdateCatalogItem() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['catalog_items'] });
       qc.invalidateQueries({ queryKey: ['event_types'] });
-      qc.invalidateQueries({ queryKey: ['event_presets'] });
     },
     onError: onMutationError("[useUpdateCatalogItem]"),
   });
@@ -163,7 +161,6 @@ export function useDeleteCatalogItem() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['catalog_items'] });
       qc.invalidateQueries({ queryKey: ['event_types'] });
-      qc.invalidateQueries({ queryKey: ['event_presets'] });
     },
     onError: onMutationError("[useDeleteCatalogItem]"),
   });
