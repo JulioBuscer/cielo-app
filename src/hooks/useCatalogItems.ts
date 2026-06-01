@@ -155,8 +155,11 @@ export function useUpdateCatalogItem() {
 export function useDeleteCatalogItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      await getDb().delete(catalogItems).where(eq(catalogItems.id, id));
+    mutationFn: async (ids: string | string[]) => {
+      const idList = Array.isArray(ids) ? ids : [ids];
+      for (const id of idList) {
+        await getDb().delete(catalogItems).where(eq(catalogItems.id, id));
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['catalog_items'] });

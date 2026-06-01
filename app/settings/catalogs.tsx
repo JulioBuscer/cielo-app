@@ -180,10 +180,31 @@ export default function CatalogsScreen() {
   };
 
   const handleDeleteItem = (id: string) => {
-    Alert.alert("Eliminar ítem", "¿Estás seguro?", [
-      { text: "Cancelar", style: "cancel" },
-      { text: "Eliminar", style: "destructive", onPress: () => deleteItem.mutate(id) },
-    ]);
+    const children = allItems?.filter((i) => i.parentId === id) ?? [];
+    const hasChildren = children.length > 0;
+
+    Alert.alert(
+      hasChildren ? "Eliminar contenedor" : "Eliminar ítem",
+      hasChildren
+        ? `Este contenedor tiene ${children.length} ${children.length === 1 ? "ítem" : "ítems"} adentro. ${
+            children.length === 1 ? "También se eliminará." : "También se eliminarán."
+          }`
+        : "¿Estás seguro?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: hasChildren ? "Eliminar todo" : "Eliminar",
+          style: "destructive",
+          onPress: () => {
+            if (hasChildren) {
+              deleteItem.mutate([...children.map((c) => c.id), id]);
+            } else {
+              deleteItem.mutate(id);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const cycleMetricUnit = (metricId: string) => {
