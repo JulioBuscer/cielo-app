@@ -48,7 +48,7 @@ import {
 } from "@/src/components/ui/TimelineBubbles";
 import { InlineEventTypeModal } from "@/src/components/ui/CatalogModals";
 import { useTheme } from "@/src/theme/useTheme";
-import { useQuickActionItems, useQuickSaveCatalogItem } from "@/src/hooks/useCatalogItems";
+import { useQuickActionItems, useQuickSaveCatalogItem, useCatalogItems } from "@/src/hooks/useCatalogItems";
 import type { CatalogItem } from "@/src/hooks/useCatalogItems";
 import { DiaperSheet } from "@/src/components/diaper/DiaperSheet";
 import { HealthSheet } from "@/src/components/health/HealthSheet";
@@ -244,6 +244,13 @@ export default function HomeScreen() {
   const { data: sessions } = useFeedingHistory(baby?.id, 30);
   const { data: sleepHistory } = useSleepHistory(baby?.id, 20);
   const { data: eventTypes } = useEventTypes();
+  const { data: allCatalogItems } = useCatalogItems();
+  const catalogItemMap = useMemo(() => {
+    if (!allCatalogItems) return {};
+    const map: Record<string, CatalogItem> = {};
+    for (const item of allCatalogItems) map[item.id] = item;
+    return map;
+  }, [allCatalogItems]);
   const HOME_FILTERS = [
     { key: "all", emoji: "📋" },
     { key: "feeding", emoji: "🤱" },
@@ -515,11 +522,13 @@ export default function HomeScreen() {
     }
     const isOwn = item.data.profileId === profile?.id;
     const evType = eventTypes?.find((t) => t.id === item.data.eventTypeId);
+    const evCatalogItem = item.data.eventItemId ? catalogItemMap[item.data.eventItemId] : undefined;
 
     return (
       <TimelineBubble
         event={item.data}
         eventType={evType}
+        catalogItem={evCatalogItem}
         isOwn={isOwn}
         isFirstInGroup={isFirstInGroup}
         profile={isOwn ? undefined : itemProfile}

@@ -25,6 +25,7 @@ import { useTheme } from "@/src/theme/useTheme";
 import { formatWakeWindow } from "@/src/hooks/useWakeWindows";
 import type { Role } from "@/src/constants/roles";
 import { getCategory } from "@/src/utils/categories";
+import type { CatalogItem } from "@/src/db/schema";
 
 const ROLE_EMOJI: Record<Role, string> = {
   mama: "👩",
@@ -165,6 +166,7 @@ function ValueTags({ values, metrics }: { values: Record<string, number>; metric
 export function TimelineBubble({
   event,
   eventType,
+  catalogItem,
   isOwn,
   isFirstInGroup,
   profile,
@@ -172,6 +174,7 @@ export function TimelineBubble({
 }: {
   event: TimelineEvent;
   eventType?: EventType;
+  catalogItem?: CatalogItem;
   isOwn: boolean;
   isFirstInGroup: boolean;
   profile?: Profile;
@@ -183,10 +186,13 @@ export function TimelineBubble({
   const c = theme.colors;
 
   const eventValues = parseEventValues(event.values);
-  const evMetrics = parseMetrics(eventType?.metrics ?? null);
+  const evMetrics = catalogItem
+    ? parseMetrics(catalogItem.metrics ?? null)
+    : parseMetrics(eventType?.metrics ?? null);
   const hasValues = Object.keys(eventValues).length > 0 && evMetrics.length > 0;
-  const emoji = eventType?.emoji ?? "📝";
-  const label = eventType?.label ?? event.eventTypeId;
+  const emoji = catalogItem?.emoji ?? eventType?.emoji ?? "📝";
+  const label = catalogItem?.name ?? eventType?.label ?? event.eventTypeId;
+  const categoryKey = catalogItem?.category ?? eventType?.category;
 
   const bubble = (
     <TouchableOpacity
@@ -215,11 +221,11 @@ export function TimelineBubble({
         )}
       </View>
 
-      {eventType?.category && (
+      {categoryKey && (
         <View style={{ flexDirection: "row", marginBottom: 6 }}>
           <View
             style={{
-              backgroundColor: getCategory(eventType.category).color + "20",
+              backgroundColor: getCategory(categoryKey).color + "20",
               borderRadius: 99,
               paddingHorizontal: 8,
               paddingVertical: 2,
@@ -229,11 +235,11 @@ export function TimelineBubble({
               style={{
                 fontSize: 10,
                 fontWeight: "800",
-                color: getCategory(eventType.category).color,
+                color: getCategory(categoryKey).color,
               }}
             >
-              {getCategory(eventType.category).emoji}{" "}
-              {getCategory(eventType.category).label}
+              {getCategory(categoryKey).emoji}{" "}
+              {getCategory(categoryKey).label}
             </Text>
           </View>
         </View>
