@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -18,27 +18,24 @@ import { getCategoryLabel, getCategoryEmoji, USER_CATEGORIES } from "@/src/utils
 import { KEYS } from "@/src/utils/storage";
 import { BigButton } from "@/src/components/ui/BigButton";
 import {
-  useEventTypes,
   useDiaperObservations,
-  useCreateEventType,
   useCreateDiaperObservation,
   useUpdateDiaperObservation,
-  useDeleteEventType,
-  useUpdateEventTypeMetrics,
   useDeleteDiaperObservation,
 } from "@/src/hooks/useTimeline";
 import {
-  useEventPresets,
-  useCreateEventPreset,
-  useUpdateEventPreset,
-  useDeleteEventPreset,
-} from "@/src/hooks/useEventPresets";
+  useCatalogItems,
+  useRootItems,
+  useChildren,
+  useCreateCatalogItem,
+  useUpdateCatalogItem,
+  useDeleteCatalogItem,
+} from "@/src/hooks/useCatalogItems";
 
 import { useTheme } from "@/src/theme/useTheme";
 import type { DiaperObservation, ObservationMetric } from "@/src/db/schema";
-import type { EventType, EventPreset } from "@/src/db/schema";
 import type { EventMetric } from "@/src/units/types";
-import { getUnit, getUnitsByDimension, getUnitsForMetric } from "@/src/units/registry";
+import { getUnit, getUnitsForMetric } from "@/src/units/registry";
 import { ZoneEditor } from "@/src/components/catalogs/ZoneEditor";
 import { EventMetricsEditor } from "@/src/components/catalogs/EventMetricsEditor";
 import { ObservationForm } from "@/src/components/catalogs/ObservationForm";
@@ -52,158 +49,168 @@ import type { Zone, ConfigRange, HealthConfig } from "@/src/components/catalogs/
 export default function CatalogsScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
-  const { data: events } = useEventTypes();
+  const { data: allItems } = useCatalogItems();
   const { data: diaperObs } = useDiaperObservations();
-  const { data: presets } = useEventPresets();
-  const createPreset = useCreateEventPreset();
-  const updatePreset = useUpdateEventPreset();
-  const deletePreset = useDeleteEventPreset();
-  const createEvent = useCreateEventType();
+  const createItem = useCreateCatalogItem();
+  const updateItem = useUpdateCatalogItem();
+  const deleteItem = useDeleteCatalogItem();
   const createDiaper = useCreateDiaperObservation();
   const updateDiaper = useUpdateDiaperObservation();
 
-  const [activeTab, setActiveTab] = useState<"events" | "pee" | "poop" | "obs" | "presets">("events");
-  const [showForm, setShowForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<"catalog" | "pee" | "poop" | "obs">("catalog");
+  // ─── Catalog tree state ───
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editingObs, setEditingObs] = useState<DiaperObservation | null>(null);
-  const [editingEventMetrics, setEditingEventMetrics] = useState<EventType | null>(null);
-
-  // ─── Preset form state ───
-  const [presetForm, setPresetForm] = useState(false);
-  const [presetEdit, setPresetEdit] = useState<EventPreset | null>(null);
-  const [pfName, setPfName] = useState("");
-  const [pfEmoji, setPfEmoji] = useState("📌");
-  const [pfEventType, setPfEventType] = useState("");
-  const [pfMetricValues, setPfMetricValues] = useState<Record<string, string>>({});
-  const [pfMetricUnits, setPfMetricUnits] = useState<Record<string, string>>({});
-  const [pfNotes, setPfNotes] = useState("");
-  const [pfTags, setPfTags] = useState<string[]>([]);
-  const [pfTagInput, setPfTagInput] = useState("");
-  const [pfQuick, setPfQuick] = useState(false);
-
-  const selectedEvent = events?.find((e) => e.id === pfEventType);
-  const selectedMetrics: EventMetric[] = (() => {
-    if (!selectedEvent?.metrics) return [];
-    try { const p = JSON.parse(selectedEvent.metrics); return Array.isArray(p) ? p : []; } catch { return []; }
-  })();
-
-  const resetPresetForm = () => {
-    setPfName("");
-    setPfEmoji("📌");
-    setPfEventType("");
-    setPfMetricValues({});
-    setPfMetricUnits({});
-    setPfNotes("");
-    setPfTags([]);
-    setPfTagInput("");
-    setPfQuick(false);
+  const [showNewObsForm, setShowNewObsForm] = useState(false);
+  const toggleExpanded = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   };
 
-  const openPresetForm = (p?: EventPreset) => {
-    if (p) {
-      setPresetEdit(p);
-      setPfName(p.name);
-      setPfEmoji(p.emoji ?? "📌");
-      setPfEventType(p.eventTypeId);
+  // ─── Item form state ───
+  const [itemForm, setItemForm] = useState(false);
+  const [itemEdit, setItemEdit] = useState<any>(null); // catalog item being edited
+  const [ifName, setIfName] = useState("");
+  const [ifEmoji, setIfEmoji] = useState("📌");
+  const [ifCategory, setIfCategory] = useState("");
+  const [ifParentId, setIfParentId] = useState<string | null>(null);
+  const [ifMetricValues, setIfMetricValues] = useState<Record<string, string>>({});
+  const [ifMetricUnits, setIfMetricUnits] = useState<Record<string, string>>({});
+  const [ifNotes, setIfNotes] = useState("");
+  const [ifTags, setIfTags] = useState<string[]>([]);
+  const [ifTagInput, setIfTagInput] = useState("");
+  const [ifQuick, setIfQuick] = useState(false);
+  const [ifMetricsJson, setIfMetricsJson] = useState("[]");
+
+  const editingMetrics: EventMetric[] = (() => {
+    try { const p = JSON.parse(ifMetricsJson); return Array.isArray(p) ? p : []; } catch { return []; }
+  })();
+
+  const resetItemForm = () => {
+    setIfName("");
+    setIfEmoji("📌");
+    setIfCategory("");
+    setIfParentId(null);
+    setIfMetricValues({});
+    setIfMetricUnits({});
+    setIfNotes("");
+    setIfTags([]);
+    setIfTagInput("");
+    setIfQuick(false);
+    setIfMetricsJson("[]");
+  };
+
+  const openItemForm = (item?: any, parentId?: string | null, category?: string) => {
+    if (item) {
+      setItemEdit(item);
+      setIfName(item.name);
+      setIfEmoji(item.emoji ?? "📌");
+      setIfCategory(item.category);
+      setIfParentId(item.parentId);
+      setIfMetricsJson(item.metrics ?? "[]");
       const vals: Record<string, string> = {};
       const units: Record<string, string> = {};
       try {
-        const dv = JSON.parse(p.defaultValues ?? "{}");
+        const dv = JSON.parse(item.defaultValues ?? "{}");
         for (const [k, v] of Object.entries(dv)) vals[k] = String(v);
       } catch {}
       try {
-        const duo = JSON.parse(p.defaultUnitOverrides ?? "{}");
+        const duo = JSON.parse(item.defaultUnitOverrides ?? "{}");
         for (const [k, v] of Object.entries(duo)) units[k] = String(v);
       } catch {}
-      setPfMetricValues(vals);
-      setPfMetricUnits(units);
-      setPfNotes(p.defaultNotes ?? "");
+      setIfMetricValues(vals);
+      setIfMetricUnits(units);
+      setIfNotes(item.defaultNotes ?? "");
       let tags: string[] = [];
-      try { tags = JSON.parse(p.defaultTags ?? '[]'); } catch {}
-      setPfTags(tags);
-      setPfQuick(p.isQuickAction ?? false);
+      try { tags = JSON.parse(item.defaultTags ?? '[]'); } catch {}
+      setIfTags(tags);
+      setIfQuick(item.isQuickAction ?? false);
     } else {
-      setPresetEdit(null);
-      resetPresetForm();
+      setItemEdit(null);
+      resetItemForm();
+      setIfCategory(category ?? "");
+      setIfParentId(parentId ?? null);
     }
-    setPresetForm(true);
+    setItemForm(true);
   };
 
-  const handleSavePreset = async () => {
-    console.log("[handleSavePreset] ENTER", { pfName: pfName.trim(), pfEventType, pfQuick, presetEdit: !!presetEdit });
-    if (!pfName.trim() || !pfEventType) {
-      console.log("[handleSavePreset] EARLY RETURN - validation failed");
-      return;
-    }
+  const handleSaveItem = async () => {
+    if (!ifName.trim() || !ifCategory) return;
     const dv: Record<string, number> = {};
-    for (const [k, v] of Object.entries(pfMetricValues)) {
+    for (const [k, v] of Object.entries(ifMetricValues)) {
       const n = parseFloat(v);
       if (!isNaN(n)) dv[k] = n;
     }
     try {
-      console.log("[handleSavePreset] calling mutateAsync", { isEdit: !!presetEdit });
-      if (presetEdit) {
-        await updatePreset.mutateAsync({
-          id: presetEdit.id,
-          name: pfName.trim(),
-          emoji: pfEmoji,
+      if (itemEdit) {
+        await updateItem.mutateAsync({
+          id: itemEdit.id,
+          name: ifName.trim(),
+          emoji: ifEmoji,
+          metrics: JSON.parse(ifMetricsJson),
           defaultValues: dv,
-          defaultUnitOverrides: pfMetricUnits,
-          defaultNotes: pfNotes || undefined,
-          defaultTags: pfTags,
-          isQuickAction: pfQuick,
+          defaultUnitOverrides: ifMetricUnits,
+          defaultNotes: ifNotes || undefined,
+          defaultTags: ifTags,
+          isQuickAction: ifQuick,
         });
-        console.log("[handleSavePreset] updatePreset resolved");
       } else {
-        await createPreset.mutateAsync({
-          eventTypeId: pfEventType,
-          name: pfName.trim(),
-          emoji: pfEmoji,
+        await createItem.mutateAsync({
+          category: ifCategory,
+          parentId: ifParentId ?? undefined,
+          name: ifName.trim(),
+          emoji: ifEmoji,
+          metrics: JSON.parse(ifMetricsJson),
           defaultValues: dv,
-          defaultUnitOverrides: pfMetricUnits,
-          defaultNotes: pfNotes || undefined,
-          defaultTags: pfTags,
-          isQuickAction: pfQuick,
+          defaultUnitOverrides: ifMetricUnits,
+          defaultNotes: ifNotes || undefined,
+          defaultTags: ifTags,
+          isQuickAction: ifQuick,
         });
-        console.log("[handleSavePreset] createPreset resolved");
       }
-      console.log("[handleSavePreset] success, showing alert");
-      setPresetForm(false);
-      setPresetEdit(null);
-      if (pfQuick) {
-        Alert.alert(
-          "✅ Plantilla guardada",
-          `Presiona "${pfEmoji} ${pfName.trim()}" en la pantalla de inicio para usarla.`
-        );
-      } else {
-        Alert.alert("✅ Plantilla guardada", "Actívala como acceso directo editándola si quieres que aparezca en inicio.");
-      }
+      setItemForm(false);
+      setItemEdit(null);
+      Alert.alert("✅ Guardado", `"${ifEmoji} ${ifName.trim()}" guardado.`);
     } catch (e) {
-      console.log("[handleSavePreset] CAUGHT ERROR", e);
-      Alert.alert("Error", "No se pudo guardar la plantilla");
+      Alert.alert("Error", "No se pudo guardar el ítem");
     }
   };
 
-  const handleDeletePreset = (id: string) => {
-    Alert.alert("Eliminar plantilla", "¿Estás seguro?", [
+  const handleDeleteItem = (id: string) => {
+    Alert.alert("Eliminar ítem", "¿Estás seguro?", [
       { text: "Cancelar", style: "cancel" },
-      { text: "Eliminar", style: "destructive", onPress: () => deletePreset.mutate(id) },
+      { text: "Eliminar", style: "destructive", onPress: () => deleteItem.mutate(id) },
     ]);
   };
 
   const cycleMetricUnit = (metricId: string) => {
-    const metric = selectedMetrics.find((m) => m.id === metricId);
+    const metric = editingMetrics.find((m) => m.id === metricId);
     if (!metric) return;
     const compatible = getUnitsForMetric(metric);
-    const current = pfMetricUnits[metricId] ?? metric.unitId;
+    const current = ifMetricUnits[metricId] ?? metric.unitId;
     const idx = compatible.findIndex((u) => u.id === current);
     const next = compatible[(idx + 1) % compatible.length];
-    if (next) setPfMetricUnits((p) => ({ ...p, [metricId]: next.id }));
+    if (next) setIfMetricUnits((p) => ({ ...p, [metricId]: next.id }));
   };
 
-  useEffect(() => {
-    setPfMetricValues({});
-    setPfMetricUnits({});
-  }, [pfEventType]);
+  // ─── Build catalog tree from flat list ───
+  const rootItems = useMemo(() => {
+    if (!allItems) return [];
+    return allItems.filter((i) => !i.parentId);
+  }, [allItems]);
+
+  const childrenOf = useCallback((parentId: string) => {
+    if (!allItems) return [];
+    return allItems.filter((i) => i.parentId === parentId);
+  }, [allItems]);
+
+  const hasChildren = useCallback((id: string) => {
+    if (!allItems) return false;
+    return allItems.some((i) => i.parentId === id);
+  }, [allItems]);
 
   // ─── Pee config ───
   const [peeIntensity, setPeeIntensity] = useState<ConfigRange & { zones: Zone[] }>({
@@ -288,48 +295,7 @@ export default function CatalogsScreen() {
     Alert.alert("✅ Listo", "Configuración guardada");
   };
 
-  // Form states for events tab
-  const [emoji, setEmoji] = useState("");
-  const [label, setLabel] = useState("");
-  const [category, setCategory] = useState("other");
-
-  const isEventFormValid = emoji.trim() && label.trim();
-
-  const handleSaveEvent = () => {
-    if (!isEventFormValid) return;
-    createEvent.mutate(
-      { emoji: emoji.trim(), label: label.trim(), category },
-      {
-        onSuccess: () => {
-          setEmoji("");
-          setLabel("");
-          setCategory("other");
-        },
-      }
-    );
-  };
-
-  const { mutate: deleteEventType } = useDeleteEventType();
-  const { mutate: saveEventMetrics } = useUpdateEventTypeMetrics();
   const { mutate: deleteDiaperObs } = useDeleteDiaperObservation();
-
-  const handleDeleteEvent = async (id: string, isSystem: boolean | null) => {
-    if (isSystem)
-      return Alert.alert("Ups", "No puedes borrar un tipo del sistema.");
-    Alert.alert("Confirmar", "¿Borrar este tipo de evento?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Borrar",
-        style: "destructive",
-        onPress: () => deleteEventType(id),
-      },
-    ]);
-  };
-
-  const handleSaveEventMetrics = async (id: string, metrics: EventMetric[]) => {
-    saveEventMetrics({ id, metrics: JSON.stringify(metrics) });
-    setEditingEventMetrics(null);
-  };
 
   const handleDeleteDiaper = async (id: string, isSystem: boolean | null) => {
     if (isSystem)
@@ -359,7 +325,7 @@ export default function CatalogsScreen() {
         { onSuccess: () => setEditingObs(null) }
       );
     } else {
-      createDiaper.mutate(data, { onSuccess: () => setShowForm(false) });
+      createDiaper.mutate(data, { onSuccess: () => setShowNewObsForm(false) });
     }
   };
 
@@ -396,11 +362,10 @@ export default function CatalogsScreen() {
           className="flex-row px-4" style={{ backgroundColor: c.headerBg }}
         >
           {[
-            { key: "events" as const, label: "📝 Eventos" },
+            { key: "catalog" as const, label: "📋 Catálogo" },
             { key: "pee" as const, label: "💧 Pipí" },
             { key: "poop" as const, label: "💩 Popó" },
             { key: "obs" as const, label: "🧷 Obs. Pañal" },
-            { key: "presets" as const, label: "📌 Plantillas" },
           ].map((t) => (
             <TouchableOpacity
               key={t.key}
@@ -430,7 +395,7 @@ export default function CatalogsScreen() {
           ))}
         </View>
 
-        {showForm || editingObs ? (
+        {editingObs || showNewObsForm ? (
           <View
             style={{
               flex: 1,
@@ -440,36 +405,193 @@ export default function CatalogsScreen() {
             <ObservationForm
               initial={editingObs ?? undefined}
               onSave={handleObservationSave}
-              onCancel={() => {
-                setShowForm(false);
-                setEditingObs(null);
-              }}
+              onCancel={() => { setEditingObs(null); setShowNewObsForm(false); }}
             />
           </View>
-        ) : editingEventMetrics ? (
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: c.surface,
-            }}
-          >
-            <EventMetricsEditor
-              eventType={editingEventMetrics}
-              onSave={(metrics) =>
-                handleSaveEventMetrics(editingEventMetrics.id, metrics)
-              }
-              onCancel={() => setEditingEventMetrics(null)}
-            />
-          </View>
-        ) : (
+          ) : (
           <ScrollView
             className="flex-1" style={{ backgroundColor: c.surface }}
             contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* ─── Events Tab ─── */}
-            {activeTab === "events" && (
+            {activeTab === "catalog" && !itemForm && (
+              <View style={{ gap: 16 }}>
+                {USER_CATEGORIES.map((catDef) => {
+                  const catRootItems = rootItems.filter((i) => i.category === catDef.id);
+                  if (catRootItems.length === 0) return null;
+                  return (
+                    <View
+                      key={catDef.id}
+                      style={{
+                        backgroundColor: c.card,
+                        borderRadius: 20,
+                        padding: 16,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontWeight: "800",
+                          fontSize: 13,
+                          color: c.textMuted,
+                          marginBottom: 12,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {getCategoryEmoji(catDef.id)} {getCategoryLabel(catDef.id)}
+                      </Text>
+                      <View style={{ gap: 4 }}>
+                        {catRootItems.map((root) => {
+                          const children = childrenOf(root.id);
+                          const isContainer = children.length > 0;
+                          const isOpen = expanded.has(root.id);
+                          const rootMetrics: EventMetric[] = (() => {
+                            try { return JSON.parse(root.metrics ?? "[]"); } catch { return []; }
+                          })();
+                          return (
+                            <View key={root.id}>
+                              {/* Root item row */}
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  paddingVertical: 10,
+                                  borderBottomWidth: 1,
+                                  borderBottomColor: c.surface,
+                                }}
+                              >
+                                {isContainer ? (
+                                  <TouchableOpacity
+                                    onPress={() => toggleExpanded(root.id)}
+                                    style={{ paddingRight: 8 }}
+                                  >
+                                    <Text style={{ color: c.textMuted, fontSize: 12 }}>
+                                      {isOpen ? "▼" : "▶"}
+                                    </Text>
+                                  </TouchableOpacity>
+                                ) : (
+                                  <View style={{ width: 20 }} />
+                                )}
+                                <Text style={{ fontSize: 22, marginRight: 8 }}>{root.emoji}</Text>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{ fontSize: 15, fontWeight: "800", color: c.textBody }}>
+                                    {root.name}
+                                  </Text>
+                                  {!isContainer && rootMetrics.length > 0 && (
+                                    <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "600" }}>
+                                      ⚙️ {rootMetrics.length} métrica{rootMetrics.length > 1 ? "s" : ""}
+                                    </Text>
+                                  )}
+                                </View>
+                                {!isContainer && (
+                                  <>
+                                    {/* Quick action toggle */}
+                                    <TouchableOpacity
+                                      onPress={() => updateItem.mutate({ id: root.id, isQuickAction: !root.isQuickAction })}
+                                      style={{
+                                        paddingHorizontal: 8, paddingVertical: 4,
+                                        borderRadius: 8,
+                                        backgroundColor: root.isQuickAction ? c.accent : c.surface,
+                                        marginRight: 6,
+                                      }}
+                                    >
+                                      <Text style={{ fontSize: 12, color: root.isQuickAction ? "#FFF" : c.textMuted }}>
+                                        ⚡
+                                      </Text>
+                                    </TouchableOpacity>
+                                    {/* Edit */}
+                                    <TouchableOpacity onPress={() => openItemForm(root)}>
+                                      <Text style={{ color: c.accent, fontSize: 16, paddingHorizontal: 6 }}>✏️</Text>
+                                    </TouchableOpacity>
+                                    {!root.isSystem && (
+                                      <TouchableOpacity onPress={() => handleDeleteItem(root.id)}>
+                                        <Text style={{ color: c.danger, fontSize: 16, paddingHorizontal: 6 }}>🗑️</Text>
+                                      </TouchableOpacity>
+                                    )}
+                                  </>
+                                )}
+                              </View>
+
+                              {/* Children (for container items) */}
+                              {isContainer && isOpen && (
+                                <View style={{ paddingLeft: 28, paddingTop: 4, gap: 4 }}>
+                                  {children.map((child) => {
+                                    const childMetrics: EventMetric[] = (() => {
+                                      try { return JSON.parse(child.metrics ?? "[]"); } catch { return []; }
+                                    })();
+                                    return (
+                                      <View
+                                        key={child.id}
+                                        style={{
+                                          flexDirection: "row",
+                                          alignItems: "center",
+                                          paddingVertical: 8,
+                                          borderBottomWidth: 1,
+                                          borderBottomColor: c.surface,
+                                        }}
+                                      >
+                                        <Text style={{ fontSize: 18, marginRight: 8 }}>{child.emoji}</Text>
+                                        <View style={{ flex: 1 }}>
+                                          <Text style={{ fontSize: 14, fontWeight: "700", color: c.textBody }}>
+                                            {child.name}
+                                          </Text>
+                                          {childMetrics.length > 0 && (
+                                            <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "600" }}>
+                                              ⚙️ {childMetrics.length} métrica{childMetrics.length > 1 ? "s" : ""}
+                                            </Text>
+                                          )}
+                                        </View>
+                                        <TouchableOpacity
+                                          onPress={() => updateItem.mutate({ id: child.id, isQuickAction: !child.isQuickAction })}
+                                          style={{
+                                            paddingHorizontal: 8, paddingVertical: 4,
+                                            borderRadius: 8,
+                                            backgroundColor: child.isQuickAction ? c.accent : c.surface,
+                                            marginRight: 6,
+                                          }}
+                                        >
+                                          <Text style={{ fontSize: 12, color: child.isQuickAction ? "#FFF" : c.textMuted }}>
+                                            ⚡
+                                          </Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={() => openItemForm(child)}>
+                                          <Text style={{ color: c.accent, fontSize: 16, paddingHorizontal: 6 }}>✏️</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={() => handleDeleteItem(child.id)}>
+                                          <Text style={{ color: c.danger, fontSize: 16, paddingHorizontal: 6 }}>🗑️</Text>
+                                        </TouchableOpacity>
+                                      </View>
+                                    );
+                                  })}
+                                  {/* [+ New child] button */}
+                                  {isContainer && isOpen && (
+                                    <TouchableOpacity
+                                      onPress={() => openItemForm(undefined, root.id, root.category)}
+                                      style={{
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        paddingVertical: 8,
+                                        gap: 6,
+                                      }}
+                                    >
+                                      <Text style={{ color: c.accent, fontWeight: "700", fontSize: 13 }}>
+                                        + Nuevo
+                                      </Text>
+                                    </TouchableOpacity>
+                                  )}
+                                </View>
+                              )}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {activeTab === "catalog" && itemForm && (
               <View
                 style={{
                   backgroundColor: c.card,
@@ -483,222 +605,250 @@ export default function CatalogsScreen() {
                     fontWeight: "800",
                     fontSize: 13,
                     color: c.textMuted,
-                    marginBottom: 12,
+                    marginBottom: 16,
                     textTransform: "uppercase",
                   }}
                 >
-                  Añadir nuevo evento
+                  {itemEdit ? "Editar ítem" : ifParentId ? "Nuevo ítem en catálogo" : "Nuevo ítem raíz"}
                 </Text>
 
-                <View
-                  style={{
-                    flexDirection: "row",
-                    gap: 12,
-                    marginBottom: 12,
-                  }}
-                >
-                  <View style={{ width: 60 }}>
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        fontWeight: "800",
-                        color: c.textMuted,
-                        marginBottom: 4,
-                      }}
-                    >
-                      EMOJI
-                    </Text>
-                    <TextInput
-                      style={{
-                        backgroundColor: c.surface,
-                        borderRadius: 12,
-                        padding: 12,
-                        fontSize: 20,
-                        textAlign: "center",
-                        color: c.textBody,
-                      }}
-                      placeholder="✨"
-                      maxLength={2}
-                      value={emoji}
-                      onChangeText={setEmoji}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        fontWeight: "800",
-                        color: c.textMuted,
-                        marginBottom: 4,
-                      }}
-                    >
-                      NOMBRE
-                    </Text>
-                    <TextInput
-                      style={{
-                        backgroundColor: c.surface,
-                        borderRadius: 12,
-                        padding: 12,
-                        fontSize: 15,
-                        color: c.textBody,
-                      }}
-                      placeholder="Ej. Baño"
-                      value={label}
-                      onChangeText={setLabel}
-                    />
-                  </View>
-                </View>
-
-                <View style={{ marginBottom: 16 }}>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontWeight: "800",
-                      color: c.textMuted,
-                      marginBottom: 4,
-                    }}
-                  >
-                    CATEGORÍA
-                  </Text>
-                  <View
-                    style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
-                  >
-                    {USER_CATEGORIES.map((catDef) => (
-                      <TouchableOpacity
-                        key={catDef.id}
-                        onPress={() => setCategory(catDef.id)}
-                        style={{
-                          paddingHorizontal: 12,
-                          paddingVertical: 6,
-                          borderRadius: 99,
-                          borderWidth: 1.5,
-                          backgroundColor:
-                            category === catDef.id ? c.elevated : c.surface,
-                          borderColor:
-                            category === catDef.id ? c.accentStrong : "transparent",
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontWeight: "800",
-                            color:
-                              category === catDef.id ? c.accentStrong : c.textMuted,
-                          }}
-                        >
-                          {getCategoryEmoji(catDef.id)} {getCategoryLabel(catDef.id)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                <BigButton
-                  label={`Añadir Evento`}
-                  disabled={
-                    !isEventFormValid || createEvent.isPending
-                  }
-                  onPress={handleSaveEvent}
-                />
-
-                <View style={{ marginTop: 20, gap: 8 }}>
-                  {events?.map((item) => {
-                    const parsedMetrics: EventMetric[] = item.metrics
-                      ? safeJsonParse(item.metrics, [] as EventMetric[])
-                      : [];
-                    return (
-                      <View
-                        key={item.id}
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          paddingVertical: 8,
-                          borderBottomWidth: 1,
-                          borderBottomColor: c.surface,
-                        }}
-                      >
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 12,
-                            flex: 1,
-                          }}
-                        >
-                          <Text style={{ fontSize: 24 }}>{item.emoji}</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text
-                              style={{
-                                fontSize: 15,
-                                fontWeight: "800",
-                                color: c.textBody,
-                              }}
-                            >
-                              {item.label}
-                            </Text>
-                            <View
-                              style={{
-                                flexDirection: "row",
-                                gap: 6,
-                                alignItems: "center",
-                              }}
-                            >
-                              {!!item.isSystem && (
-                                <Text
-                                  style={{
-                                    fontSize: 10,
-                                    color: c.accentStrong,
-                                    fontWeight: "800",
-                                  }}
-                                >
-                                  SISTEMA
-                                </Text>
-                              )}
-                              {parsedMetrics.length > 0 && (
-                                <Text
-                                  style={{
-                                    fontSize: 10,
-                                    color: c.whatsGreen,
-                                    fontWeight: "800",
-                                  }}
-                                >
-                                  ⚙️ {parsedMetrics.length} métrica
-                                  {parsedMetrics.length > 1 ? "s" : ""}
-                                </Text>
-                              )}
-                            </View>
-                          </View>
-                        </View>
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            gap: 8,
-                            alignItems: "center",
-                          }}
-                        >
+                <View style={{ gap: 12 }}>
+                  {!itemEdit && (
+                    <View style={{ gap: 4 }}>
+                      <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Categoría</Text>
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                        {USER_CATEGORIES.map((catDef) => (
                           <TouchableOpacity
-                            onPress={() => setEditingEventMetrics(item)}
+                            key={catDef.id}
+                            onPress={() => setIfCategory(catDef.id)}
+                            style={{
+                              paddingVertical: 8, paddingHorizontal: 12,
+                              borderRadius: 99,
+                              backgroundColor: ifCategory === catDef.id ? c.accent : c.surface,
+                              minHeight: 36,
+                            }}
                           >
-                            <Text style={{ color: c.accent, fontSize: 16 }}>
-                              ✏️
+                            <Text style={{
+                              color: ifCategory === catDef.id ? "#FFF" : c.textBody,
+                              fontWeight: "700", fontSize: 13,
+                            }}>
+                              {getCategoryEmoji(catDef.id)} {getCategoryLabel(catDef.id)}
                             </Text>
                           </TouchableOpacity>
-                          {!item.isSystem && (
-                            <TouchableOpacity
-                              onPress={() =>
-                                handleDeleteEvent(item.id, item.isSystem)
-                              }
-                            >
-                              <Text style={{ color: c.danger, fontSize: 16 }}>
-                                🗑️
-                              </Text>
-                            </TouchableOpacity>
-                          )}
-                        </View>
+                        ))}
                       </View>
-                    );
-                  })}
+                    </View>
+                  )}
+
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Emoji</Text>
+                    <TextInput
+                      value={ifEmoji}
+                      onChangeText={setIfEmoji}
+                      style={{
+                        backgroundColor: c.surface,
+                        borderRadius: 12, padding: 12,
+                        color: c.textBody, fontSize: 20,
+                        textAlign: "center",
+                      }}
+                    />
+                  </View>
+
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Nombre</Text>
+                    <TextInput
+                      value={ifName}
+                      onChangeText={setIfName}
+                      placeholder="Ej: OneDrop, Paracetamol..."
+                      placeholderTextColor={c.textDim}
+                      style={{
+                        backgroundColor: c.surface,
+                        borderRadius: 12, padding: 12,
+                        color: c.textBody, fontSize: 15,
+                      }}
+                    />
+                  </View>
+
+                  {/* Metrics JSON editor */}
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Métricas (JSON)</Text>
+                    <TextInput
+                      value={ifMetricsJson}
+                      onChangeText={setIfMetricsJson}
+                      placeholder='[{"id":"dose","name":"Dosis","unitId":"milliliter","scaleMin":0,"scaleMax":100}]'
+                      placeholderTextColor={c.textDim}
+                      multiline
+                      style={{
+                        backgroundColor: c.surface,
+                        borderRadius: 12, padding: 12,
+                        color: c.textBody, fontSize: 12,
+                        fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+                        minHeight: 60, textAlignVertical: "top",
+                      }}
+                    />
+                  </View>
+
+                  {editingMetrics.length > 0 && (
+                    <View style={{ gap: 12 }}>
+                      <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>
+                        Valores por defecto
+                      </Text>
+                      {editingMetrics.map((m) => {
+                        const u = getUnit(ifMetricUnits[m.id] ?? m.unitId);
+                        const compatible = getUnitsForMetric(m);
+                        return (
+                          <View key={m.id} style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+                            <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 13, minWidth: 80 }}>
+                              {m.name}
+                            </Text>
+                            <TextInput
+                              value={ifMetricValues[m.id] ?? ""}
+                              onChangeText={(t) => setIfMetricValues((p) => ({ ...p, [m.id]: t.replace(/[^0-9.]/g, "") }))}
+                              placeholder={String(m.scaleMin ?? 0)}
+                              placeholderTextColor={c.textDim}
+                              keyboardType="decimal-pad"
+                              style={{
+                                flex: 1,
+                                backgroundColor: c.surface,
+                                borderRadius: 12, padding: 10,
+                                color: c.textBody, fontSize: 15,
+                                textAlign: "center",
+                              }}
+                            />
+                            {u && (
+                              <TouchableOpacity
+                                onPress={() => cycleMetricUnit(m.id)}
+                                style={{
+                                  paddingVertical: 8, paddingHorizontal: 12,
+                                  borderRadius: 10,
+                                  backgroundColor: c.surface,
+                                  minHeight: 36,
+                                }}
+                              >
+                                <Text style={{ color: c.accent, fontWeight: "700", fontSize: 13 }}>
+                                  {u.symbol || u.name}
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        );
+                      })}
+                      <Text style={{ color: c.textDim, fontSize: 11 }}>
+                        Toca la unidad para cambiarla
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Notas por defecto</Text>
+                    <TextInput
+                      value={ifNotes}
+                      onChangeText={setIfNotes}
+                      placeholder="Notas que se pre-cargarán al usar el ítem"
+                      placeholderTextColor={c.textDim}
+                      multiline
+                      style={{
+                        backgroundColor: c.surface,
+                        borderRadius: 12, padding: 12,
+                        color: c.textBody, fontSize: 15,
+                        minHeight: 60, textAlignVertical: "top",
+                      }}
+                    />
+                  </View>
+
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Etiquetas</Text>
+                    <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+                      <TextInput
+                        value={ifTagInput}
+                        onChangeText={setIfTagInput}
+                        placeholder="Ej: Vitamina"
+                        placeholderTextColor={c.textDim}
+                        onSubmitEditing={() => {
+                          const t = ifTagInput.trim();
+                          if (t && !ifTags.includes(t)) setIfTags([...ifTags, t]);
+                          setIfTagInput("");
+                        }}
+                        style={{
+                          flex: 1,
+                          backgroundColor: c.surface,
+                          borderRadius: 10, padding: 10,
+                          color: c.textBody, fontSize: 14,
+                        }}
+                      />
+                      <TouchableOpacity
+                        onPress={() => {
+                          const t = ifTagInput.trim();
+                          if (t && !ifTags.includes(t)) setIfTags([...ifTags, t]);
+                          setIfTagInput("");
+                        }}
+                        disabled={!ifTagInput.trim()}
+                        style={{
+                          paddingVertical: 10, paddingHorizontal: 16,
+                          borderRadius: 10,
+                          backgroundColor: ifTagInput.trim() ? c.accent : c.textDim,
+                        }}
+                      >
+                        <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>Añadir</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {ifTags.length > 0 && (
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                        {ifTags.map((t, i) => (
+                          <TouchableOpacity
+                            key={i}
+                            onPress={() => setIfTags(ifTags.filter((_, j) => j !== i))}
+                            style={{
+                              flexDirection: "row", alignItems: "center", gap: 4,
+                              backgroundColor: c.surface, borderRadius: 99,
+                              paddingVertical: 4, paddingHorizontal: 10,
+                            }}
+                          >
+                            <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 13 }}>{t}</Text>
+                            <Text style={{ color: c.textDim, fontSize: 12 }}>✕</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                    <Text style={{ color: c.textDim, fontSize: 11 }}>
+                      Toca una etiqueta para eliminarla.
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => setIfQuick(!ifQuick)}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                  >
+                    <View style={{
+                      width: 24, height: 24, borderRadius: 6, borderWidth: 2,
+                      borderColor: ifQuick ? c.accent : c.textDim,
+                      backgroundColor: ifQuick ? c.accent : "transparent",
+                      alignItems: "center", justifyContent: "center",
+                    }}>
+                      {ifQuick && <Text style={{ color: "#FFF", fontSize: 14, fontWeight: "800" }}>✓</Text>}
+                    </View>
+                    <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 14 }}>
+                      ⚡ Mostrar en inicio como acceso directo
+                    </Text>
+                  </TouchableOpacity>
+
+                  <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <BigButton
+                        label="Cancelar"
+                        variant="secondary"
+                        onPress={() => { setItemForm(false); setItemEdit(null); }}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <BigButton
+                        label="Guardar"
+                        onPress={handleSaveItem}
+                        loading={createItem.isPending || updateItem.isPending}
+                        disabled={!ifName.trim() || !ifCategory}
+                      />
+                    </View>
+                  </View>
                 </View>
               </View>
             )}
@@ -752,7 +902,7 @@ export default function CatalogsScreen() {
                       Observaciones ({diaperObs?.length || 0})
                     </Text>
                     <TouchableOpacity
-                      onPress={() => setShowForm(true)}
+                      onPress={() => setShowNewObsForm(true)}
                       style={{
                         backgroundColor: c.accent,
                         paddingHorizontal: 12,
@@ -847,371 +997,12 @@ export default function CatalogsScreen() {
               </>
             )}
 
-            {activeTab === "presets" && !presetForm && (
-              <View
-                style={{
-                  backgroundColor: c.card,
-                  borderRadius: 20,
-                  padding: 16,
-                  marginBottom: 20,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 16,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontWeight: "800",
-                      fontSize: 13,
-                      color: c.textMuted,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Plantillas ({presets?.length || 0})
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => openPresetForm()}
-                    style={{
-                      backgroundColor: c.accent,
-                      paddingHorizontal: 12,
-                      paddingVertical: 6,
-                      borderRadius: 99,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: c.textBody,
-                        fontWeight: "800",
-                        fontSize: 12,
-                      }}
-                    >
-                      + Nueva
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={{ gap: 8 }}>
-                  {presets?.map((p) => {
-                    const et = events?.find((e) => e.id === p.eventTypeId);
-                    return (
-                      <TouchableOpacity
-                        key={p.id}
-                        onPress={() => openPresetForm(p)}
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          paddingVertical: 8,
-                          borderBottomWidth: 1,
-                          borderBottomColor: c.surface,
-                        }}
-                      >
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 12,
-                            flex: 1,
-                          }}
-                        >
-                          <Text style={{ fontSize: 24 }}>{p.emoji}</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text
-                              style={{
-                                fontSize: 15,
-                                fontWeight: "800",
-                                color: c.textBody,
-                              }}
-                            >
-                              {p.name}
-                            </Text>
-                            <Text
-                              style={{
-                                fontSize: 11,
-                                color: c.textMuted,
-                                fontWeight: "600",
-                              }}
-                            >
-                              {et?.emoji} {et?.label ?? p.eventTypeId}
-                              {p.isQuickAction ? " · ⚡ Acceso directo" : ""}
-                            </Text>
-                          </View>
-                          <Text style={{ color: c.textMuted, fontSize: 14 }}>
-                            ✏️
-                          </Text>
-                        </View>
-                        <TouchableOpacity onPress={() => handleDeletePreset(p.id)}>
-                          <Text style={{ color: c.danger, fontSize: 18 }}>🗑️</Text>
-                        </TouchableOpacity>
-                      </TouchableOpacity>
-                    );
-                  })}
-                  {(presets?.length ?? 0) === 0 && (
-                    <Text style={{ color: c.textDim, fontSize: 14, textAlign: "center", padding: 20 }}>
-                      Crea tu primera plantilla para acceder rápido a medicamentos, síntomas o eventos recurrentes
-                    </Text>
-                  )}
-                </View>
-              </View>
-            )}
-
-            {activeTab === "presets" && presetForm && (
-              <View
-                style={{
-                  backgroundColor: c.card,
-                  borderRadius: 20,
-                  padding: 16,
-                  marginBottom: 20,
-                }}
-              >
-                <Text
-                  style={{
-                    fontWeight: "800",
-                    fontSize: 13,
-                    color: c.textMuted,
-                    marginBottom: 16,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {presetEdit ? "Editar plantilla" : "Nueva plantilla"}
-                </Text>
-
-                <View style={{ gap: 12 }}>
-                  <View style={{ gap: 4 }}>
-                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Emoji</Text>
-                    <TextInput
-                      value={pfEmoji}
-                      onChangeText={setPfEmoji}
-                      style={{
-                        backgroundColor: c.surface,
-                        borderRadius: 12, padding: 12,
-                        color: c.textBody, fontSize: 20,
-                        textAlign: "center",
-                      }}
-                    />
-                  </View>
-
-                  <View style={{ gap: 4 }}>
-                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Nombre</Text>
-                    <TextInput
-                      value={pfName}
-                      onChangeText={setPfName}
-                      placeholder="Ej: OneDrop, Paracetamol..."
-                      placeholderTextColor={c.textDim}
-                      style={{
-                        backgroundColor: c.surface,
-                        borderRadius: 12, padding: 12,
-                        color: c.textBody, fontSize: 15,
-                      }}
-                    />
-                  </View>
-
-                  <View style={{ gap: 4 }}>
-                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Tipo de evento</Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                      {events?.filter((e) => e.id !== "note" && e.id !== "diaper").map((et) => (
-                        <TouchableOpacity
-                          key={et.id}
-                          onPress={() => setPfEventType(et.id)}
-                          style={{
-                            paddingVertical: 8, paddingHorizontal: 12,
-                            borderRadius: 99,
-                            backgroundColor: pfEventType === et.id ? c.accent : c.surface,
-                            minHeight: 36,
-                          }}
-                        >
-                          <Text style={{
-                            color: pfEventType === et.id ? "#FFF" : c.textBody,
-                            fontWeight: "700", fontSize: 13,
-                          }}>
-                            {et.emoji} {et.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-
-                  {pfEventType && selectedMetrics.length > 0 && (
-                    <View style={{ gap: 12 }}>
-                      <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>
-                        Valores por defecto
-                      </Text>
-                      {selectedMetrics.map((m) => {
-                        const u = getUnit(pfMetricUnits[m.id] ?? m.unitId);
-                        const compatible = getUnitsForMetric(m);
-                        return (
-                          <View key={m.id} style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-                            <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 13, minWidth: 80 }}>
-                              {m.name}
-                            </Text>
-                            <TextInput
-                              value={pfMetricValues[m.id] ?? ""}
-                              onChangeText={(t) => setPfMetricValues((p) => ({ ...p, [m.id]: t.replace(/[^0-9.]/g, "") }))}
-                              placeholder={String(m.scaleMin ?? 0)}
-                              placeholderTextColor={c.textDim}
-                              keyboardType="decimal-pad"
-                              style={{
-                                flex: 1,
-                                backgroundColor: c.surface,
-                                borderRadius: 12, padding: 10,
-                                color: c.textBody, fontSize: 15,
-                                textAlign: "center",
-                              }}
-                            />
-                            {u && (
-                              <TouchableOpacity
-                                onPress={() => cycleMetricUnit(m.id)}
-                                style={{
-                                  paddingVertical: 8, paddingHorizontal: 12,
-                                  borderRadius: 10,
-                                  backgroundColor: c.surface,
-                                  minHeight: 36,
-                                }}
-                              >
-                                <Text style={{ color: c.accent, fontWeight: "700", fontSize: 13 }}>
-                                  {u.symbol || u.name}
-                                </Text>
-                              </TouchableOpacity>
-                            )}
-                          </View>
-                        );
-                      })}
-                      <Text style={{ color: c.textDim, fontSize: 11 }}>
-                        Toca la unidad para cambiarla (mL → gotas → sobre)
-                      </Text>
-                    </View>
-                  )}
-
-                  {pfEventType && selectedMetrics.length === 0 && (
-                    <Text style={{ color: c.textDim, fontSize: 13, fontStyle: "italic" }}>
-                      Este tipo de evento no tiene valores numéricos configurables.
-                    </Text>
-                  )}
-
-                  <View style={{ gap: 4 }}>
-                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Notas por defecto</Text>
-                    <TextInput
-                      value={pfNotes}
-                      onChangeText={setPfNotes}
-                      placeholder="Notas que se pre-cargarán al usar la plantilla"
-                      placeholderTextColor={c.textDim}
-                      multiline
-                      style={{
-                        backgroundColor: c.surface,
-                        borderRadius: 12, padding: 12,
-                        color: c.textBody, fontSize: 15,
-                        minHeight: 60, textAlignVertical: "top",
-                      }}
-                    />
-                  </View>
-
-                  <View style={{ gap: 4 }}>
-                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Etiquetas</Text>
-                    <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
-                      <TextInput
-                        value={pfTagInput}
-                        onChangeText={setPfTagInput}
-                        placeholder="Ej: Vitamina"
-                        placeholderTextColor={c.textDim}
-                        onSubmitEditing={() => {
-                          const t = pfTagInput.trim();
-                          if (t && !pfTags.includes(t)) setPfTags([...pfTags, t]);
-                          setPfTagInput("");
-                        }}
-                        style={{
-                          flex: 1,
-                          backgroundColor: c.surface,
-                          borderRadius: 10, padding: 10,
-                          color: c.textBody, fontSize: 14,
-                        }}
-                      />
-                      <TouchableOpacity
-                        onPress={() => {
-                          const t = pfTagInput.trim();
-                          if (t && !pfTags.includes(t)) setPfTags([...pfTags, t]);
-                          setPfTagInput("");
-                        }}
-                        disabled={!pfTagInput.trim()}
-                        style={{
-                          paddingVertical: 10, paddingHorizontal: 16,
-                          borderRadius: 10,
-                          backgroundColor: pfTagInput.trim() ? c.accent : c.textDim,
-                        }}
-                      >
-                        <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>Añadir</Text>
-                      </TouchableOpacity>
-                    </View>
-                    {pfTags.length > 0 && (
-                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-                        {pfTags.map((t, i) => (
-                          <TouchableOpacity
-                            key={i}
-                            onPress={() => setPfTags(pfTags.filter((_, j) => j !== i))}
-                            style={{
-                              flexDirection: "row", alignItems: "center", gap: 4,
-                              backgroundColor: c.surface, borderRadius: 99,
-                              paddingVertical: 4, paddingHorizontal: 10,
-                            }}
-                          >
-                            <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 13 }}>{t}</Text>
-                            <Text style={{ color: c.textDim, fontSize: 12 }}>✕</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                    <Text style={{ color: c.textDim, fontSize: 11 }}>
-                      Toca una etiqueta para eliminarla. Las etiquetas se guardarán en cada evento.
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={() => setPfQuick(!pfQuick)}
-                    style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-                  >
-                    <View style={{
-                      width: 24, height: 24, borderRadius: 6, borderWidth: 2,
-                      borderColor: pfQuick ? c.accent : c.textDim,
-                      backgroundColor: pfQuick ? c.accent : "transparent",
-                      alignItems: "center", justifyContent: "center",
-                    }}>
-                      {pfQuick && <Text style={{ color: "#FFF", fontSize: 14, fontWeight: "800" }}>✓</Text>}
-                    </View>
-                    <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 14 }}>
-                      ⚡ Mostrar en inicio como acceso directo
-                    </Text>
-                  </TouchableOpacity>
-
-                  <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-                    <View style={{ flex: 1 }}>
-                      <BigButton
-                        label="Cancelar"
-                        variant="secondary"
-                        onPress={() => { setPresetForm(false); setPresetEdit(null); }}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <BigButton
-                        label="Guardar"
-                        onPress={handleSavePreset}
-                        loading={createPreset.isPending || updatePreset.isPending}
-                        disabled={!pfName.trim() || !pfEventType}
-                      />
-                    </View>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {activeTab !== "obs" && activeTab !== "presets" && (
+            {activeTab !== "obs" && (
               <View style={{ marginTop: 12 }}>
                 <BigButton label="💾 Guardar configuración" onPress={saveAllConfigs} />
               </View>
-            )}
+            )} 
+
           </ScrollView>
         )}
       </KeyboardAvoidingView>

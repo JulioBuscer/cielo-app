@@ -14,6 +14,7 @@ export async function insertTimelineEvent(input: {
   babyId:           string;
   profileId:        string;
   eventTypeId:      string;
+  eventItemId?:     string | null;
   timestamp?:       Date;
   notes?:           string | null;
   values?:          Record<string, unknown>;
@@ -28,6 +29,7 @@ export async function insertTimelineEvent(input: {
     feedingSessionId: input.feedingSessionId ?? null,
     sleepSessionId:   input.sleepSessionId ?? null,
     eventTypeId:      input.eventTypeId,
+    eventItemId:      input.eventItemId ?? null,
     timestamp:        input.timestamp ?? new Date(),
     notes:            input.notes ?? null,
     metadata:         input.metadata ? JSON.stringify(input.metadata) : null,
@@ -109,6 +111,7 @@ export function useSaveTimelineEvent() {
     mutationFn: async (input: {
       babyId: string;
       eventTypeId: string;
+      eventItemId?: string | null;
       metadata?: Record<string, unknown>;
       values?: Record<string, unknown>;
       notes?: string;
@@ -121,6 +124,7 @@ export function useSaveTimelineEvent() {
         babyId:           input.babyId,
         profileId,
         eventTypeId:      input.eventTypeId,
+        eventItemId:      input.eventItemId ?? null,
         timestamp:        input.timestamp,
         notes:            input.notes ?? null,
         metadata:         input.metadata ?? null,

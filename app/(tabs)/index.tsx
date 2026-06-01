@@ -48,8 +48,8 @@ import {
 } from "@/src/components/ui/TimelineBubbles";
 import { InlineEventTypeModal } from "@/src/components/ui/CatalogModals";
 import { useTheme } from "@/src/theme/useTheme";
-import { useQuickActionPresets, useQuickSavePreset } from "@/src/hooks/useEventPresets";
-import type { EventPreset } from "@/src/hooks/useEventPresets";
+import { useQuickActionItems, useQuickSaveCatalogItem } from "@/src/hooks/useCatalogItems";
+import type { CatalogItem } from "@/src/hooks/useCatalogItems";
 import { DiaperSheet } from "@/src/components/diaper/DiaperSheet";
 import { HealthSheet } from "@/src/components/health/HealthSheet";
 import { FoodSheet } from "@/src/components/food/FoodSheet";
@@ -277,8 +277,8 @@ export default function HomeScreen() {
   const startSleep = useStartSleep();
   const finishSleep = useFinishSleep();
   const saveEvent = useSaveTimelineEvent();
-  const { data: quickPresets } = useQuickActionPresets();
-  const quickSavePreset = useQuickSavePreset();
+  const { data: quickItems } = useQuickActionItems();
+  const quickSaveItem = useQuickSaveCatalogItem();
 
   const c = theme.colors;
 
@@ -452,26 +452,26 @@ export default function HomeScreen() {
       });
   };
 
-  const handlePresetTap = async (preset: EventPreset) => {
+  const handleItemTap = async (item: CatalogItem) => {
     if (!baby) return;
-    await quickSavePreset.mutateAsync({
+    await quickSaveItem.mutateAsync({
       babyId: baby.id,
-      preset,
+      item,
       timestamp: new Date(),
     });
   };
 
-  const handlePresetLongPress = (preset: EventPreset) => {
+  const handleItemLongPress = (item: CatalogItem) => {
     router.push({
       pathname: "/logs/event/new",
       params: {
-        preselect: preset.eventTypeId,
-        presetValues: preset.defaultValues,
-        presetUnitOverrides: preset.defaultUnitOverrides,
-        presetNotes: preset.defaultNotes ?? "",
-        presetName: preset.name,
-        presetEmoji: preset.emoji,
-        presetTags: preset.defaultTags,
+        preselect: item.id,
+        presetValues: item.defaultValues,
+        presetUnitOverrides: item.defaultUnitOverrides,
+        presetNotes: item.defaultNotes ?? "",
+        presetName: item.name,
+        presetEmoji: item.emoji,
+        presetTags: item.defaultTags,
       },
     });
   };
@@ -820,21 +820,21 @@ export default function HomeScreen() {
                 onPress={() => setShowDiaperSheet(true)}
                 disabled={!!loadingType}
               />
-              {(quickPresets ?? []).slice(0, 2).map((p) => (
+              {(quickItems ?? []).slice(0, 2).map((p) => (
                 <QuickBtn
                   key={p.id}
                   emoji={p.emoji ?? "📌"}
                   label={p.name.length > 10 ? p.name.substring(0, 9) + "…" : p.name}
                   bgColor={c.accentStrong}
-                  onPress={() => handlePresetTap(p)}
-                  onLongPress={() => handlePresetLongPress(p)}
+                  onPress={() => handleItemTap(p)}
+                  onLongPress={() => handleItemLongPress(p)}
                   disabled={!!loadingType}
                   size={52}
                 />
               ))}
               <QuickBtn
                 emoji="⚡"
-                label={(quickPresets?.length ?? 0) > 2 ? `+${(quickPresets?.length ?? 0) - 2}` : "Más"}
+                label={(quickItems?.length ?? 0) > 2 ? `+${(quickItems?.length ?? 0) - 2}` : "Más"}
                 bgColor={c.accentStrong}
                 onPress={() => setShowEventPicker(true)}
                 disabled={!!loadingType}

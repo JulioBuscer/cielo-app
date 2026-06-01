@@ -19,18 +19,20 @@ import {
   usePauseFeeding,
 } from "@/src/hooks/useFeedingSessions";
 import {
-  useEventTypes,
   useSaveTimelineEvent,
 } from "@/src/hooks/useTimeline";
+import { useCatalogItems } from "@/src/hooks/useCatalogItems";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { useTheme } from "@/src/theme/useTheme";
 import type { EventMetric } from "@/src/units/types";
-import { getUnit, getUnitsByDimension, getUnitsForMetric } from "@/src/units/registry";
+import { getUnit, getUnitsForMetric } from "@/src/units/registry";
 import { findBestUnit } from "@/src/units/helpers";
-import { getCategoryLabel } from "@/src/utils/categories";
+import { getCategoryLabel, getCategoryEmoji, USER_CATEGORIES } from "@/src/utils/categories";
 
-const MEDICAL_TYPES = ["medication", "temperature", "vomit"];
+const MEDICAL_KEYS = new Set(["medication", "temperature", "vomit"]);
+
+type Step = "category" | "root" | "child" | "form";
 
 export default function EventNewScreen() {
   const { theme } = useTheme();
@@ -53,14 +55,15 @@ export default function EventNewScreen() {
   const presetTagsRaw = params.presetTags;
   const { data: baby } = useActiveBaby();
   const { data: profile } = useActiveProfile();
-  const { data: eventTypes } = useEventTypes();
+  const { data: allItems } = useCatalogItems();
   const { data: activeFeeding } = useActiveFeedingSession(baby?.id);
   const pauseFeeding = usePauseFeeding();
   const saveEvent = useSaveTimelineEvent();
 
-  const [selectedType, setSelectedType] = useState<string | null>(
-    preselect ?? null
-  );
+  const [step, setStep] = useState<Step>("category");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedRootId, setSelectedRootId] = useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [notes, setNotes] = useState(presetNotesVal ?? "");
   const [timestamp, setTimestamp] = useState(new Date());
   const [saving, setSaving] = useState(false);
@@ -77,19 +80,30 @@ export default function EventNewScreen() {
     try { return JSON.parse(presetTagsRaw); } catch { return []; }
   });
 
-  const metrics: EventMetric[] = useMemo(() => {
-    if (!selectedType || !eventTypes) return [];
-    const et = eventTypes.find((t) => t.id === selectedType);
-    if (!et?.metrics) return [];
-    try {
-      const parsed = JSON.parse(et.metrics);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }, [selectedType, eventTypes]);
+  // Derived: the selected item (root or child)
+  const selectedItem = useMemo(() => {
+    if (!allItems || !selectedItemId) return null;
+    return allItems.find((i) => i.id === selectedItemId) ?? null;
+  }, [allItems, selectedItemId]);
 
-  // Auto-detect initial display units based on metric scale
+  const selectedRootItem = useMemo(() => {
+    if (!allItems || !selectedRootId) return null;
+    return allItems.find((i) => i.id === selectedRootId) ?? null;
+  }, [allItems, selectedRootId]);
+
+  // Check if a root item has children
+  const itemHasChildren = (id: string) => allItems?.some((i) => i.parentId === id) ?? false;
+
+  const childrenOf = (parentId: string) =>
+    allItems?.filter((i) => i.parentId === parentId) ?? [];
+
+  // Metrics from the selected item
+  const metrics: EventMetric[] = useMemo(() => {
+    if (!selectedItem) return [];
+    try { const p = JSON.parse(selectedItem.metrics ?? "[]"); return Array.isArray(p) ? p : []; } catch { return []; }
+  }, [selectedItem]);
+
+  // Auto-detect display units
   useEffect(() => {
     for (const m of metrics) {
       const u = getUnit(m.unitId);
@@ -106,28 +120,53 @@ export default function EventNewScreen() {
     }
   }, [metrics]);
 
-  const isMedical = selectedType ? MEDICAL_TYPES.includes(selectedType) : false;
+  // Is the selected root medical?
+  const isMedical = selectedRootId ? MEDICAL_KEYS.has(selectedRootId) : false;
 
-  const grouped = useMemo(() => {
-    if (!eventTypes) return {};
-    const map: Record<string, typeof eventTypes> = {};
-    for (const et of eventTypes) {
-      if (et.id === "diaper" || et.id === "note") continue;
-      if (!map[et.category]) map[et.category] = [];
-      map[et.category].push(et);
+  // Build category → root items map
+  const catRoots = useMemo(() => {
+    if (!allItems) return {};
+    const map: Record<string, typeof allItems> = {};
+    for (const item of allItems) {
+      if (item.parentId) continue;
+      if (item.id === "diaper" || item.id === "note") continue;
+      if (!map[item.category]) map[item.category] = [];
+      map[item.category].push(item);
     }
     return map;
-  }, [eventTypes]);
+  }, [allItems]);
+
+  // Build item name lookup for display
+  const itemLabel = (id: string) => {
+    const item = allItems?.find((i) => i.id === id);
+    return item ? `${item.emoji ?? ""} ${item.name}` : id;
+  };
+
+  // Handle preselect on mount
+  useEffect(() => {
+    if (preselect && allItems) {
+      const item = allItems.find((i) => i.id === preselect);
+      if (item) {
+        setSelectedCategory(item.category);
+        if (item.parentId) {
+          // It's a child item
+          const root = allItems.find((i) => i.id === item.parentId);
+          if (root) setSelectedRootId(root.id);
+          setSelectedItemId(item.id);
+        } else {
+          setSelectedRootId(item.id);
+          setSelectedItemId(item.id);
+        }
+        setStep("form");
+      }
+    }
+  }, [preselect, allItems]);
 
   const handleSave = async () => {
-    if (!baby || !profile || !selectedType) return;
+    if (!baby || !profile || !selectedItem || !selectedRootId) return;
     setSaving(true);
     try {
-      if (
-        activeFeeding &&
-        activeFeeding.status === "active" &&
-        isMedical
-      ) {
+      if (activeFeeding && activeFeeding.status === "active" && isMedical) {
         await pauseFeeding.mutateAsync(activeFeeding);
       }
 
@@ -136,7 +175,6 @@ export default function EventNewScreen() {
         if (v !== "") {
           const num = parseFloat(v);
           if (!isNaN(num)) {
-            // Convert from display unit to metric's default unit
             const mDef = metrics.find((m) => m.id === k);
             const displayUnitId = displayUnits[k] ?? mDef?.unitId;
             if (displayUnitId && mDef && displayUnitId !== mDef.unitId) {
@@ -157,7 +195,8 @@ export default function EventNewScreen() {
 
       await saveEvent.mutateAsync({
         babyId: baby.id,
-        eventTypeId: selectedType,
+        eventTypeId: selectedRootId,
+        eventItemId: selectedItemId,
         notes: notes.trim() || undefined,
         timestamp,
         feedingSessionId: activeFeeding?.id,
@@ -174,6 +213,13 @@ export default function EventNewScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const resetSelection = () => {
+    setStep("category");
+    setSelectedCategory(null);
+    setSelectedRootId(null);
+    setSelectedItemId(null);
   };
 
   return (
@@ -219,60 +265,120 @@ export default function EventNewScreen() {
         contentContainerStyle={{ padding: 20, gap: 20 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Step 1: Select type */}
-        {!selectedType ? (
+        {/* Step 1: Pick category */}
+        {step === "category" && (
           <View style={{ gap: 16 }}>
-            {Object.entries(grouped).map(([category, types]) => (
-              <View key={category} style={{ gap: 8 }}>
-                <Text
-                  style={{
-                    color: c.accent,
-                    fontWeight: "800",
-                    fontSize: 14,
-                    textTransform: "uppercase",
-                    letterSpacing: 1,
-                  }}
-                >
-                  {getCategoryLabel(category)}
-                </Text>
-                <View
-                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
-                >
-                  {types.map((et) => (
-                    <TouchableOpacity
-                      key={et.id}
-                      onPress={() => setSelectedType(et.id)}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 6,
-                        paddingHorizontal: 16,
-                        paddingVertical: 14,
-                        borderRadius: 99,
-                        backgroundColor: c.elevated,
-                        minHeight: 48,
-                      }}
-                    >
-                      <Text style={{ fontSize: 20 }}>{et.emoji}</Text>
-                      <Text
-                        style={{
-                          color: c.textBody,
-                          fontWeight: "700",
-                          fontSize: 14,
-                        }}
-                      >
-                        {et.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            ))}
+            <Text style={{ color: c.accent, fontWeight: "800", fontSize: 14, textTransform: "uppercase", letterSpacing: 1 }}>
+              Seleccionar categoría
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {USER_CATEGORIES.map((catDef) => {
+                const count = catRoots[catDef.id]?.length ?? 0;
+                if (count === 0) return null;
+                return (
+                  <TouchableOpacity
+                    key={catDef.id}
+                    onPress={() => {
+                      setSelectedCategory(catDef.id);
+                      setStep("root");
+                    }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                      paddingHorizontal: 20,
+                      paddingVertical: 16,
+                      borderRadius: 99,
+                      backgroundColor: c.elevated,
+                      minHeight: 52,
+                    }}
+                  >
+                    <Text style={{ fontSize: 22 }}>{getCategoryEmoji(catDef.id)}</Text>
+                    <Text style={{ color: c.textBody, fontWeight: "700", fontSize: 15 }}>
+                      {getCategoryLabel(catDef.id)}
+                    </Text>
+                    <Text style={{ color: c.textDim, fontSize: 13, marginLeft: 4 }}>
+                      ({count})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
-        ) : (
+        )}
+
+        {/* Step 2: Pick root item (and optionally child) */}
+        {(step === "root" || step === "child") && selectedCategory && (
+          <View style={{ gap: 16 }}>
+            {/* Back to categories */}
+            {step === "root" && (
+              <TouchableOpacity onPress={resetSelection} style={{ alignSelf: "flex-start" }}>
+                <Text style={{ color: c.accent, fontWeight: "600", fontSize: 14 }}>← Categorías</Text>
+              </TouchableOpacity>
+            )}
+            {step === "child" && selectedRootItem && (
+              <TouchableOpacity onPress={() => { setStep("root"); setSelectedRootId(null); }} style={{ alignSelf: "flex-start" }}>
+                <Text style={{ color: c.accent, fontWeight: "600", fontSize: 14 }}>← {itemLabel(selectedRootId!)}</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={{ color: c.accent, fontWeight: "800", fontSize: 14, textTransform: "uppercase", letterSpacing: 1 }}>
+              {step === "root"
+                ? `${getCategoryEmoji(selectedCategory)} ${getCategoryLabel(selectedCategory)}`
+                : `Ítems en ${itemLabel(selectedRootId!)}`}
+            </Text>
+
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {(step === "root"
+                ? (catRoots[selectedCategory] ?? [])
+                : childrenOf(selectedRootId!)
+              ).map((item) => {
+                const hasChildren = itemHasChildren(item.id);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    onPress={() => {
+                      if (hasChildren) {
+                        setSelectedRootId(item.id);
+                        setStep("child");
+                      } else {
+                        setSelectedRootId(item.id);
+                        setSelectedItemId(item.id);
+                        setStep("form");
+                      }
+                    }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      borderRadius: 99,
+                      backgroundColor: c.elevated,
+                      minHeight: 48,
+                    }}
+                  >
+                    <Text style={{ fontSize: 20 }}>{item.emoji}</Text>
+                    <Text style={{ color: c.textBody, fontWeight: "700", fontSize: 14 }}>
+                      {item.name}
+                    </Text>
+                    {hasChildren && (
+                      <Text style={{ color: c.textDim, fontSize: 12, marginLeft: 4 }}>
+                        ▶
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Step 3: Form */}
+        {step === "form" && selectedItem && selectedRootItem && (
           <>
-            {/* Selected type indicator */}
-            <TouchableOpacity onPress={() => setSelectedType(null)}>
+            {/* Selected item indicator */}
+            <TouchableOpacity onPress={resetSelection}>
               <View
                 style={{
                   flexDirection: "row",
@@ -285,14 +391,15 @@ export default function EventNewScreen() {
                   alignSelf: "flex-start",
                 }}
               >
-                <Text style={{ fontSize: 16 }}>
-                  {eventTypes?.find((t) => t.id === selectedType)?.emoji}
+                <Text style={{ fontSize: 16 }}>{selectedItem.emoji}</Text>
+                <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 14 }}>
+                  {selectedItem.name}
                 </Text>
-                <Text
-                  style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 14 }}
-                >
-                  {eventTypes?.find((t) => t.id === selectedType)?.label}
-                </Text>
+                {selectedItem.id !== selectedRootId && (
+                  <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>
+                    ({selectedRootItem.emoji} {selectedRootItem.name})
+                  </Text>
+                )}
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 16 }}>✕</Text>
               </View>
             </TouchableOpacity>
@@ -356,15 +463,7 @@ export default function EventNewScreen() {
             {/* Metrics */}
             {metrics.length > 0 && (
               <View style={{ gap: 12 }}>
-                <Text
-                  style={{
-                    color: c.accent,
-                    fontWeight: "800",
-                    fontSize: 13,
-                    textTransform: "uppercase",
-                    letterSpacing: 1,
-                  }}
-                >
+                <Text style={{ color: c.accent, fontWeight: "800", fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
                   📐 Mediciones
                 </Text>
                 {metrics.map((m) => {
@@ -391,37 +490,27 @@ export default function EventNewScreen() {
 
                   return (
                     <View key={m.id} style={{ gap: 4 }}>
-                      <Text
-                        style={{
-                          color: c.textMuted,
-                          fontWeight: "700",
-                          fontSize: 13,
-                        }}
-                      >
+                      <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
                         {m.name}{" "}
-                        {m.unitId ? (
-                          <Text style={{ color: c.textDim }}>({m.unitId})</Text>
-                        ) : null}
+                        {m.unitId ? <Text style={{ color: c.textDim }}>({m.unitId})</Text> : null}
                       </Text>
                       <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-                          <TextInput
-                            value={values[m.id] ?? ""}
-                            onChangeText={(v) =>
-                              setValues((prev) => ({ ...prev, [m.id]: v }))
-                            }
-                            placeholder="0"
-                            placeholderTextColor={c.textDim}
-                            keyboardType="numeric"
-                            style={{
-                              flex: 1,
-                              backgroundColor: c.elevated,
-                              borderRadius: 12,
-                              padding: 16,
-                              color: c.textBody,
-                              fontSize: 16,
-                              minHeight: 48,
-                            }}
-                          />
+                        <TextInput
+                          value={values[m.id] ?? ""}
+                          onChangeText={(v) => setValues((prev) => ({ ...prev, [m.id]: v }))}
+                          placeholder="0"
+                          placeholderTextColor={c.textDim}
+                          keyboardType="numeric"
+                          style={{
+                            flex: 1,
+                            backgroundColor: c.elevated,
+                            borderRadius: 12,
+                            padding: 16,
+                            color: c.textBody,
+                            fontSize: 16,
+                            minHeight: 48,
+                          }}
+                        />
                         {compatible.length > 1 && (
                           <TouchableOpacity
                             onPress={cycleUnit}
@@ -434,13 +523,7 @@ export default function EventNewScreen() {
                               justifyContent: "center",
                             }}
                           >
-                            <Text
-                              style={{
-                                color: c.accent,
-                                fontWeight: "800",
-                                fontSize: 14,
-                              }}
-                            >
+                            <Text style={{ color: c.accent, fontWeight: "800", fontSize: 14 }}>
                               {displayUnit?.symbol || displayUnitId}
                             </Text>
                           </TouchableOpacity>
@@ -457,26 +540,13 @@ export default function EventNewScreen() {
               <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
                 🕐 Fecha y hora
               </Text>
-              <DateTimePicker
-                value={timestamp}
-                onChange={setTimestamp}
-              />
+              <DateTimePicker value={timestamp} onChange={setTimestamp} />
             </View>
 
             {/* Medical warning */}
             {isMedical && (
-              <View
-                style={{
-                  backgroundColor: c.danger + "20",
-                  borderRadius: 12,
-                  padding: 12,
-                  borderLeftWidth: 4,
-                  borderLeftColor: c.danger,
-                }}
-              >
-                <Text
-                  style={{ color: c.danger, fontWeight: "700", fontSize: 13 }}
-                >
+              <View style={{ backgroundColor: c.danger + "20", borderRadius: 12, padding: 12, borderLeftWidth: 4, borderLeftColor: c.danger }}>
+                <Text style={{ color: c.danger, fontWeight: "700", fontSize: 13 }}>
                   ⚠️ Esto pausará la toma activa para registrar el evento médico
                 </Text>
               </View>
@@ -489,15 +559,8 @@ export default function EventNewScreen() {
               variant="primary"
             />
 
-            <TouchableOpacity onPress={() => setSelectedType(null)} style={{ minHeight: 48, justifyContent: "center" }}>
-              <Text
-                style={{
-                  color: c.textDim,
-                  textAlign: "center",
-                  fontWeight: "600",
-                  fontSize: 14,
-                }}
-              >
+            <TouchableOpacity onPress={resetSelection} style={{ minHeight: 48, justifyContent: "center" }}>
+              <Text style={{ color: c.textDim, textAlign: "center", fontWeight: "600", fontSize: 14 }}>
                 Cambiar tipo de evento
               </Text>
             </TouchableOpacity>

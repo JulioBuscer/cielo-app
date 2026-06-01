@@ -139,6 +139,7 @@ export const timelineEvents = sqliteTable('timeline_events', {
   feedingSessionId: text('feeding_session_id').references(() => feedingSessions.id),
   sleepSessionId:   text('sleep_session_id').references(() => sleepSessions.id),
   eventTypeId:      text('event_type_id').notNull().references(() => eventTypes.id),
+  eventItemId:      text('event_item_id'),
   timestamp:        integer('timestamp', { mode: 'timestamp' }).notNull(),
   notes:            text('notes'),
   metadata:         text('metadata'),
@@ -284,6 +285,28 @@ export const eventPresets = sqliteTable('event_presets', {
 });
 
 export type EventPreset = typeof eventPresets.$inferSelect;
+
+// ─── CATÁLOGO UNIFICADO (reemplaza event_types + event_presets) ──────────
+export const catalogItems = sqliteTable('catalog_items', {
+  id:                  text('id').primaryKey(),
+  category:            text('category', {
+                         enum: ['diaper', 'feeding', 'health', 'growth', 'milestones', 'other'],
+                       }).notNull(),
+  parentId:            text('parent_id'),
+  name:                text('name').notNull(),
+  emoji:               text('emoji').default('📌'),
+  metrics:             text('metrics').default('[]'), // JSON: EventMetric[]
+  defaultValues:       text('default_values').default('{}'),
+  defaultUnitOverrides:text('default_unit_overrides').default('{}'),
+  defaultNotes:        text('default_notes'),
+  defaultTags:         text('default_tags').default('[]'), // JSON: string[]
+  isSystem:            integer('is_system', { mode: 'boolean' }).default(false),
+  isQuickAction:       integer('is_quick_action', { mode: 'boolean' }).default(false),
+  sortOrder:           integer('sort_order').default(0),
+  createdAt:           integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+export type CatalogItem = typeof catalogItems.$inferSelect;
 export const foodCatalog = sqliteTable('food_catalog', {
   id:        text('id').primaryKey(),
   name:      text('name').notNull(),

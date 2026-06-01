@@ -215,6 +215,22 @@ export async function runMigrations() {
       is_quick_action INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS catalog_items (
+      id TEXT PRIMARY KEY NOT NULL,
+      category TEXT NOT NULL,
+      parent_id TEXT REFERENCES catalog_items(id),
+      name TEXT NOT NULL,
+      emoji TEXT DEFAULT '📌',
+      metrics TEXT DEFAULT '[]',
+      default_values TEXT DEFAULT '{}',
+      default_unit_overrides TEXT DEFAULT '{}',
+      default_notes TEXT,
+      default_tags TEXT DEFAULT '[]',
+      is_system INTEGER DEFAULT 0,
+      is_quick_action INTEGER DEFAULT 0,
+      sort_order INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL
+    )`,
   ];
   for (const sql of CREATE_TABLES) {
     await _raw.execAsync(sql);
@@ -310,6 +326,23 @@ export async function runMigrations() {
   await _raw.execAsync(
     `UPDATE event_types SET metrics = '${METRICS_MAP.medication}' WHERE id = 'medication';`
   );
+
+  // ─── Migrar datos a catalog_items ─────────────────────────────────────────────
+  // Migrar event_types → catalog_items (root items)
+  await _raw.execAsync(`
+    INSERT OR IGNORE INTO catalog_items (id, category, parent_id, name, emoji, metrics, default_values, default_unit_overrides, default_notes, default_tags, is_system, is_quick_action, sort_order, created_at)
+    SELECT id, category, NULL, label, emoji, metrics, '{}', '{}', NULL, '[]', 1, 0, 0, created_at FROM event_types
+  `);
+  // Migrar event_presets → catalog_items (child items)
+  await _raw.execAsync(`
+    INSERT OR IGNORE INTO catalog_items (id, category, parent_id, name, emoji, metrics, default_values, default_unit_overrides, default_notes, default_tags, is_system, is_quick_action, sort_order, created_at)
+    SELECT ep.id, et.category, ep.event_type_id, ep.name, ep.emoji, '[]', COALESCE(ep.default_values, '{}'), COALESCE(ep.default_unit_overrides, '{}'), ep.default_notes, COALESCE(ep.default_tags, '[]'), 0, COALESCE(ep.is_quick_action, 0), COALESCE(ep.sort_order, 0), ep.created_at
+    FROM event_presets ep JOIN event_types et ON et.id = ep.event_type_id
+  `);
+  // Agregar event_item_id a timeline_events
+  try { await _raw.execAsync(`ALTER TABLE timeline_events ADD COLUMN event_item_id TEXT`); } catch {}
+  // Poblar event_item_id con event_type_id para datos existentes
+  await _raw.execAsync(`UPDATE timeline_events SET event_item_id = event_type_id WHERE event_item_id IS NULL`);
 
   // Migrate legacy metadata → values
   const LEGACY_MIGRATIONS = [
