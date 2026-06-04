@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useTheme } from "@/src/theme/useTheme";
 import {
   View, Text, ScrollView, TouchableOpacity,
@@ -205,10 +205,26 @@ export default function FoodLogNewScreen() {
   const [saving, setSaving] = useState(false);
   const [photoUris, setPhotoUris] = useState<string[]>([]);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const filtered = catalog?.filter(
-    (f) => !selectedGroup || f.group === selectedGroup
-  ) ?? [];
+  const toggleGroup = (group: string) => {
+    setCollapsedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
+  };
+
+  const groupedFoods = useMemo(() => {
+    const all = catalog ?? [];
+    const q = searchQuery.toLowerCase().trim();
+    const visible = all.filter((f: any) => !f.hidden);
+    const groups: Record<string, any[]> = {};
+    for (const f of visible) {
+      if (q && !f.name.toLowerCase().includes(q) && !(f.emoji ?? "").includes(q)) continue;
+      const g = f.group || "other";
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(f);
+    }
+    return groups;
+  }, [catalog, searchQuery]);
 
   const toggleFood = (id: string) => {
     setSelectedFoodIds((prev) =>
@@ -300,42 +316,18 @@ export default function FoodLogNewScreen() {
           ¿Qué comió hoy {baby?.name ?? ""}?
         </Text>
 
-        <View>
-          <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted, marginBottom: 8 }}>
-            Grupo
-          </Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            <TouchableOpacity
-              onPress={() => setSelectedGroup(null)}
-              style={{
-                paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
-                backgroundColor: !selectedGroup ? c.accent : c.elevated,
-              }}
-            >
-              <Text style={{
-                fontSize: 14, fontWeight: "600",
-                color: !selectedGroup ? c.textOnAccent : c.textBody,
-              }}>Todos</Text>
-            </TouchableOpacity>
-            {GROUP_KEYS.map((k) => (
-              <TouchableOpacity
-                key={k}
-                onPress={() => setSelectedGroup(k)}
-                style={{
-                  paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
-                  backgroundColor: selectedGroup === k ? c.accent : c.elevated,
-                }}
-              >
-                <Text style={{
-                  fontSize: 14, fontWeight: "600",
-                  color: selectedGroup === k ? c.textOnAccent : c.textBody,
-                }}>
-                  {FOOD_GROUPS[k]}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+        {/* Search */}
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="🔍 Buscar alimento…"
+          placeholderTextColor={c.textDim}
+          style={{
+            backgroundColor: c.elevated, color: c.textBody,
+            padding: 12, borderRadius: 12, fontSize: 15,
+            borderWidth: 1, borderColor: c.border,
+          }}
+        />
 
         <View>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -349,39 +341,73 @@ export default function FoodLogNewScreen() {
               <Text style={{ fontSize: 13, fontWeight: "700", color: c.accent }}>+ Nuevo</Text>
             </TouchableOpacity>
           </View>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {filtered.map((f) => {
-              const selected = selectedFoodIds.includes(f.id);
-              return (
+          {Object.entries(groupedFoods).map(([group, foods]) => {
+            const isCollapsed = collapsedGroups[group] ?? false;
+            const grpLabel = (FOOD_GROUPS as any)[group] ?? group;
+            return (
+            <View key={group} style={{ marginBottom: 12 }}>
               <TouchableOpacity
-                key={f.id}
-                onPress={() => toggleFood(f.id)}
+                onPress={() => toggleGroup(group)}
                 style={{
                   flexDirection: "row", alignItems: "center", gap: 6,
-                  paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
-                  backgroundColor: selected ? c.accent : c.elevated,
-                  borderWidth: 1,
-                  borderColor: selected ? c.accent : c.border,
+                  paddingVertical: 8, paddingHorizontal: 4,
                 }}
               >
-                <View style={{
-                  width: 20, height: 20, borderRadius: 4, borderWidth: 2,
-                  borderColor: selected ? c.textOnAccent : c.textMuted,
-                  alignItems: "center", justifyContent: "center",
-                  backgroundColor: selected ? c.textOnAccent : "transparent",
-                }}>
-                  {selected && <Text style={{ color: c.accent, fontSize: 12, fontWeight: "900" }}>✓</Text>}
-                </View>
+                <Text style={{ fontSize: 12, color: c.textMuted }}>
+                  {isCollapsed ? "▶" : "▼"}
+                </Text>
                 <Text style={{
-                  fontSize: 15,
-                  color: selected ? c.textOnAccent : c.textBody,
+                  fontSize: 14, fontWeight: "700", color: c.textBody,
                 }}>
-                  {f.emoji ?? ""} {f.name}
+                  {grpLabel}
+                </Text>
+                <Text style={{ fontSize: 12, color: c.textMuted }}>
+                  ({foods.length})
                 </Text>
               </TouchableOpacity>
+              {!isCollapsed && (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, paddingLeft: 16 }}>
+                {foods.map((f: any) => {
+                  const selected = selectedFoodIds.includes(f.id);
+                  return (
+                  <TouchableOpacity
+                    key={f.id}
+                    onPress={() => toggleFood(f.id)}
+                    style={{
+                      flexDirection: "row", alignItems: "center", gap: 6,
+                      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
+                      backgroundColor: selected ? c.accent : c.elevated,
+                      borderWidth: 1,
+                      borderColor: selected ? c.accent : c.border,
+                    }}
+                  >
+                    <View style={{
+                      width: 20, height: 20, borderRadius: 4, borderWidth: 2,
+                      borderColor: selected ? c.textOnAccent : c.textMuted,
+                      alignItems: "center", justifyContent: "center",
+                      backgroundColor: selected ? c.textOnAccent : "transparent",
+                    }}>
+                      {selected && <Text style={{ color: c.accent, fontSize: 12, fontWeight: "900" }}>✓</Text>}
+                    </View>
+                    <Text style={{
+                      fontSize: 15,
+                      color: selected ? c.textOnAccent : c.textBody,
+                    }}>
+                      {f.emoji ?? ""} {f.name}
+                    </Text>
+                    {!selected && f.isAllergen && <Text style={{ fontSize: 13 }}>🚨</Text>}
+                    {!selected && f.warning && <Text style={{ fontSize: 13 }}>⚠️</Text>}
+                    {!selected && f.effect === "laxative" && <Text style={{ fontSize: 10, color: "#2E7D32" }}>🟢</Text>}
+                    {!selected && f.effect === "astringent" && <Text style={{ fontSize: 10, color: "#5D4037" }}>🟤</Text>}
+                    {!selected && f.effect === "regulator" && <Text style={{ fontSize: 10 }}>🔄</Text>}
+                  </TouchableOpacity>
+                );
+                })}
+              </View>
+              )}
+            </View>
             );
-            })}
-          </View>
+          })}
         </View>
 
         <DateTimePicker value={timestamp} onChange={setTimestamp} />

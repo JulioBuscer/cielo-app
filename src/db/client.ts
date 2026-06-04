@@ -264,6 +264,23 @@ export async function runMigrations() {
     `ALTER TABLE timeline_events ADD COLUMN "values" TEXT DEFAULT '{}'`,
     // food_catalog
     `ALTER TABLE food_catalog ADD COLUMN hidden INTEGER DEFAULT 0`,
+    `ALTER TABLE food_catalog ADD COLUMN effect TEXT`,
+    `ALTER TABLE food_catalog ADD COLUMN is_allergen INTEGER DEFAULT 0`,
+    `ALTER TABLE food_catalog ADD COLUMN allergen_details TEXT`,
+    `ALTER TABLE food_catalog ADD COLUMN warning TEXT`,
+    `ALTER TABLE food_catalog ADD COLUMN warning_type TEXT`,
+    `ALTER TABLE food_catalog ADD COLUMN secondary_groups TEXT`,
+    // migrate old group values → 5 groups
+    `UPDATE food_catalog SET "group" = 'grain' WHERE "group" = 'cereal_tuber'`,
+    `UPDATE food_catalog SET "group" = 'protein' WHERE "group" = 'legume'`,
+    `UPDATE food_catalog SET "group" = 'protein' WHERE "group" = 'animal_protein'`,
+    `UPDATE food_catalog SET "group" = 'protein' WHERE "group" = 'dairy'`,
+    `UPDATE food_catalog SET "group" = 'protein' WHERE "group" = 'vegetable_protein'`,
+    `UPDATE food_catalog SET "group" = 'fat' WHERE "group" = 'healthy_fats'`,
+    // set secondaryGroups for dual-group foods
+    `UPDATE food_catalog SET secondary_groups = 'fat' WHERE id = 'coconut' AND "group" = 'fruit'`,
+    `UPDATE food_catalog SET secondary_groups = 'fruit' WHERE id = 'avocado' AND "group" = 'fat'`,
+    `UPDATE food_catalog SET secondary_groups = 'fat' WHERE id = 'butter' AND "group" = 'protein'`,
     // event_presets
     `ALTER TABLE event_presets ADD COLUMN default_tags TEXT DEFAULT '[]'`,
   ]) {

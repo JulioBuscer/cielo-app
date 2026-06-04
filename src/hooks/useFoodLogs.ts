@@ -83,6 +83,12 @@ export function useUpdateFoodCatalog() {
       group: string;
       property: string;
       allergens: string[];
+      effect?: string | null;
+      isAllergen?: boolean;
+      allergenDetails?: string | null;
+      warning?: string | null;
+      warningType?: string | null;
+      secondaryGroups?: string | null;
     }) => {
       await getDb().update(foodCatalog)
         .set({
@@ -90,7 +96,13 @@ export function useUpdateFoodCatalog() {
           emoji: input.emoji || null,
           group: input.group as any,
           property: input.property as any,
+          effect: input.effect as any ?? null,
           allergens: input.allergens.length > 0 ? input.allergens.join(",") : null,
+          isAllergen: input.isAllergen ?? false,
+          allergenDetails: input.allergenDetails ?? null,
+          warning: input.warning || null,
+          warningType: input.warningType as any ?? null,
+          secondaryGroups: input.secondaryGroups ?? null,
         })
         .where(eq(foodCatalog.id, input.id))
         .run();
@@ -164,83 +176,136 @@ export function useSaveFoodLog() {
 export const FOOD_GROUPS: Record<string, string> = {
   fruit: "🍎 Frutas",
   vegetable: "🥕 Verduras",
-  protein: "🥩 Proteínas",
   grain: "🌾 Cereales",
-  dairy: "🧀 Lácteos",
-  legume: "🫘 Legumbres",
+  protein: "🥩 Proteína",
+  fat: "🥑 Grasas",
 };
 
-const GROUP_PROPERTY: Record<string, "laxative" | "astringent" | "both" | "neutral"> = {
-  apple: "astringent",
-  pear: "laxative",
-  banana: "astringent",
-  papaya: "laxative",
-  avocado: "neutral",
-  mango: "laxative",
-  prune: "laxative",
-  carrot: "astringent",
-  pumpkin: "neutral",
-  potato: "astringent",
-  sweet_potato: "laxative",
-  broccoli: "neutral",
-  chayote: "neutral",
-  chicken: "neutral",
-  beef: "neutral",
-  white_fish: "neutral",
-  egg: "neutral",
-  tofu: "neutral",
-  rice: "astringent",
-  oats: "neutral",
-  quinoa: "neutral",
-  corn: "neutral",
-  yogurt: "neutral",
-  fresh_cheese: "neutral",
-  bean: "neutral",
-  lentil: "neutral",
-  chickpea: "neutral",
-};
-
-export const DEFAULT_FOODS: Array<{
-  id: string;
-  name: string;
-  emoji: string;
-  group: string;
-  allergens: string;
+const SEED: Array<{
+  id: string; name: string; emoji: string; group: string;
+  property?: "laxative" | "astringent" | "both" | "neutral";
+  effect?: "laxative" | "astringent" | "regulator";
+  allergens?: string; isAllergen?: boolean; allergenDetails?: string;
+  warning?: string; warningType?: string;
+  secondaryGroups?: string;
 }> = [
-  { id: "apple", name: "Manzana", emoji: "🍎", group: "fruit", allergens: "" },
-  { id: "pear", name: "Pera", emoji: "🍐", group: "fruit", allergens: "" },
-  { id: "banana", name: "Plátano", emoji: "🍌", group: "fruit", allergens: "" },
-  { id: "papaya", name: "Papaya", emoji: "🍈", group: "fruit", allergens: "" },
-  { id: "avocado", name: "Aguacate", emoji: "🥑", group: "fruit", allergens: "" },
-  { id: "mango", name: "Mango", emoji: "🥭", group: "fruit", allergens: "" },
-  { id: "prune", name: "Ciruela", emoji: "🫐", group: "fruit", allergens: "" },
-  { id: "carrot", name: "Zanahoria", emoji: "🥕", group: "vegetable", allergens: "" },
-  { id: "pumpkin", name: "Calabaza", emoji: "🎃", group: "vegetable", allergens: "" },
-  { id: "potato", name: "Papa", emoji: "🥔", group: "vegetable", allergens: "" },
-  { id: "sweet_potato", name: "Camote", emoji: "🍠", group: "vegetable", allergens: "" },
-  { id: "broccoli", name: "Brócoli", emoji: "🥦", group: "vegetable", allergens: "" },
-  { id: "chayote", name: "Chayote", emoji: "🥒", group: "vegetable", allergens: "" },
-  { id: "chicken", name: "Pollo", emoji: "🍗", group: "protein", allergens: "" },
-  { id: "beef", name: "Res", emoji: "🥩", group: "protein", allergens: "" },
-  { id: "white_fish", name: "Pescado blanco", emoji: "🐟", group: "protein", allergens: "fish" },
-  { id: "egg", name: "Huevo", emoji: "🥚", group: "protein", allergens: "egg" },
-  { id: "tofu", name: "Tofu", emoji: "🫘", group: "protein", allergens: "soy" },
-  { id: "rice", name: "Arroz", emoji: "🍚", group: "grain", allergens: "" },
-  { id: "oats", name: "Avena", emoji: "🥣", group: "grain", allergens: "" },
-  { id: "quinoa", name: "Quinoa", emoji: "🌾", group: "grain", allergens: "" },
-  { id: "corn", name: "Maíz", emoji: "🌽", group: "grain", allergens: "" },
-  { id: "yogurt", name: "Yogur natural", emoji: "🥛", group: "dairy", allergens: "milk" },
-  { id: "fresh_cheese", name: "Queso fresco", emoji: "🧀", group: "dairy", allergens: "milk" },
-  { id: "bean", name: "Frijol", emoji: "🫘", group: "legume", allergens: "" },
-  { id: "lentil", name: "Lenteja", emoji: "🫘", group: "legume", allergens: "" },
-  { id: "chickpea", name: "Garbanzo", emoji: "🫘", group: "legume", allergens: "" },
+  // ── Cereales (grain) ─────────────────────────────────────────────
+  { id: "amaranth",     name: "Amaranto",       emoji: "🌾", group: "grain", property: "laxative",   effect: "laxative",   warning: "", warningType: "" },
+  { id: "rice_white",   name: "Arroz blanco",   emoji: "🍚", group: "grain", property: "astringent", effect: "astringent", warning: "", warningType: "" },
+  { id: "rice_brown",   name: "Arroz integral",  emoji: "🌾", group: "grain", property: "laxative",   effect: "laxative",   warning: "", warningType: "" },
+  { id: "oats",         name: "Avena natural",   emoji: "🥣", group: "grain", property: "laxative",   effect: "laxative",   warning: "", warningType: "" },
+  { id: "sweet_potato", name: "Camote / Batata", emoji: "🍠", group: "grain", property: "laxative",   effect: "laxative",   warning: "", warningType: "" },
+  { id: "barley",       name: "Cebada",          emoji: "🌾", group: "grain", property: "laxative",   effect: "laxative",   allergens: "wheat", isAllergen: true, allergenDetails: "Contiene gluten; introducir temprano", warning: "", warningType: "" },
+  { id: "rye",          name: "Centeno",         emoji: "🌾", group: "grain", property: "laxative",   effect: "laxative",   allergens: "wheat", isAllergen: true, allergenDetails: "Contiene gluten; aportar temprano", warning: "", warningType: "" },
+  { id: "oat_flour",    name: "Harina de avena", emoji: "🥣", group: "grain", property: "laxative",   effect: "laxative",   warning: "", warningType: "" },
+  { id: "corn_flour",   name: "Harina de maíz",  emoji: "🌽", group: "grain", property: "astringent", effect: "astringent", warning: "", warningType: "" },
+  { id: "corn_grain",   name: "Maíz en grano",   emoji: "🌽", group: "grain", property: "laxative",   effect: "laxative",   warning: "Riesgo de asfixia si se da entero; ofrecer molido/triturado", warningType: "choking" },
+  { id: "polenta",      name: "Polenta",         emoji: "🌽", group: "grain", property: "astringent", effect: "astringent", warning: "", warningType: "" },
+  { id: "bread_whole",  name: "Pan integral",    emoji: "🍞", group: "grain", property: "laxative",   effect: "laxative",   allergens: "wheat", isAllergen: true, allergenDetails: "Contiene trigo/gluten", warning: "", warningType: "" },
+  { id: "potato",       name: "Papa",            emoji: "🥔", group: "grain", property: "astringent", effect: "astringent", warning: "", warningType: "" },
+  { id: "pasta_wheat",  name: "Pasta de trigo",  emoji: "🍝", group: "grain", property: "astringent", effect: "astringent", allergens: "wheat", isAllergen: true, allergenDetails: "Introducción de trigo/gluten", warning: "", warningType: "" },
+  { id: "plantain",     name: "Plátano macho",   emoji: "🍌", group: "grain", property: "both",       effect: "regulator",  warning: "Depende de maduración: verde estriñe, maduro regula", warningType: "" },
+  { id: "quinoa",       name: "Quinoa",          emoji: "🌾", group: "grain", property: "laxative",   effect: "laxative",   warning: "", warningType: "" },
+  { id: "wheat_grain",  name: "Trigo en grano",  emoji: "🌾", group: "grain", property: "laxative",   effect: "laxative",   allergens: "wheat", isAllergen: true, allergenDetails: "Introducción clave de gluten", warning: "", warningType: "" },
+  { id: "cassava",      name: "Yuca",            emoji: "🥔", group: "grain", property: "astringent", effect: "astringent", warning: "", warningType: "" },
+
+  // ── Proteína (protein) ──────────────────────────────────────────
+  { id: "tuna",         name: "Atún",           emoji: "🐟", group: "protein", property: "neutral", effect: "regulator", allergens: "fish", isAllergen: true, allergenDetails: "Alérgeno mayor. Preferir lomo fresco, evitar enlatado", warning: "", warningType: "" },
+  { id: "shrimp",       name: "Camarón",        emoji: "🦐", group: "protein", property: "neutral", effect: "regulator", allergens: "shellfish", isAllergen: true, allergenDetails: "Alérgeno mayor: mariscos", warning: "", warningType: "" },
+  { id: "pork",         name: "Cerdo magro",    emoji: "🥩", group: "protein", property: "neutral", effect: "regulator", warning: "", warningType: "" },
+  { id: "beef",         name: "Res / Ternera",  emoji: "🥩", group: "protein", property: "neutral", effect: "regulator", warning: "", warningType: "" },
+  { id: "liver",        name: "Hígado",         emoji: "🥩", group: "protein", property: "neutral", effect: "regulator", warning: "Máximo 1 vez por semana por exceso de Vitamina A", warningType: "vitamin_a" },
+  { id: "egg",          name: "Huevo",          emoji: "🥚", group: "protein", property: "neutral", effect: "regulator", allergens: "egg", isAllergen: true, allergenDetails: "Alérgeno mayor. Ofrecer completamente cocido desde 6 meses", warning: "", warningType: "" },
+  { id: "turkey",       name: "Pavo",           emoji: "🦃", group: "protein", property: "neutral", effect: "regulator", warning: "", warningType: "" },
+  { id: "white_fish",   name: "Pescado blanco", emoji: "🐟", group: "protein", property: "neutral", effect: "regulator", allergens: "fish", isAllergen: true, allergenDetails: "Alérgeno mayor: lenguado, merluza", warning: "", warningType: "" },
+  { id: "chicken",      name: "Pollo",          emoji: "🍗", group: "protein", property: "neutral", effect: "regulator", warning: "", warningType: "" },
+  { id: "fatty_fish",   name: "Pescado azul",   emoji: "🐟", group: "protein", property: "neutral", effect: "regulator", allergens: "fish", isAllergen: true, allergenDetails: "Alérgeno mayor. Rico en DHA/EPA", warning: "", warningType: "" },
+  { id: "yogurt",       name: "Yogurt natural",    emoji: "🥛", group: "protein", property: "laxative", effect: "laxative", allergens: "milk", isAllergen: true, allergenDetails: "A partir de 9-10 meses. Alérgeno mayor", warning: "A partir de 9-10 meses", warningType: "age_restriction" },
+  { id: "fresh_cheese", name: "Queso fresco",      emoji: "🧀", group: "protein", property: "astringent", effect: "astringent", allergens: "milk", isAllergen: true, allergenDetails: "A partir de 9-10 meses. Alérgeno mayor", warning: "A partir de 9-10 meses, bajo en sal", warningType: "age_restriction" },
+  { id: "jocoque",      name: "Jocoque sin sal",   emoji: "🥣", group: "protein", property: "laxative", effect: "laxative", allergens: "milk", isAllergen: true, allergenDetails: "A partir de 9-10 meses por proteína intacta de vaca", warning: "", warningType: "age_restriction" },
+  { id: "kefir",        name: "Kéfir de leche",    emoji: "🥛", group: "protein", property: "laxative", effect: "laxative", allergens: "milk", isAllergen: true, allergenDetails: "Alérgeno y restricción de edad; probiótico denso", warning: "A partir de 9-10 meses", warningType: "age_restriction" },
+  { id: "butter",       name: "Mantequilla sin sal", emoji: "🧈", group: "protein", property: "laxative", effect: "laxative", warning: "Usar solo como grasa de cocción en cantidades mínimas", warningType: "", secondaryGroups: "fat" },
+  { id: "soy",          name: "Soya en grano", emoji: "🫘", group: "protein", property: "laxative", effect: "laxative", allergens: "soy", isAllergen: true, allergenDetails: "Alérgeno mayor. Alérgeno mayor y gran aporte de fibra", warning: "", warningType: "" },
+  { id: "tofu",         name: "Tofu",          emoji: "⬜", group: "protein", property: "neutral", effect: "regulator", allergens: "soy", isAllergen: true, allergenDetails: "Derivado de la soya. Fácil de ofrecer en cubos BLW", warning: "", warningType: "" },
+  { id: "white_bean",   name: "Frijoles blancos", emoji: "🫘", group: "protein", property: "laxative", effect: "laxative", warning: "", warningType: "", secondaryGroups: "grain" },
+  { id: "peas",         name: "Chícharos",       emoji: "🫛", group: "protein", property: "laxative", effect: "laxative", warning: "", warningType: "", secondaryGroups: "grain" },
+  { id: "edamame",      name: "Edamame",         emoji: "🫛", group: "protein", property: "laxative", effect: "laxative", allergens: "soy", isAllergen: true, allergenDetails: "La soya es un alérgeno mayor; aporta fibra intestinal", warning: "", warningType: "", secondaryGroups: "grain" },
+  { id: "green_bean",   name: "Ejotes",          emoji: "🫛", group: "protein", property: "laxative", effect: "laxative", warning: "", warningType: "", secondaryGroups: "grain" },
+  { id: "black_bean",   name: "Frijoles negros", emoji: "🫘", group: "protein", property: "laxative", effect: "laxative", warning: "", warningType: "", secondaryGroups: "grain" },
+  { id: "chickpea",     name: "Garbanzos",       emoji: "🫘", group: "protein", property: "laxative", effect: "laxative", warning: "", warningType: "", secondaryGroups: "grain" },
+  { id: "broad_bean",   name: "Habas",           emoji: "🫘", group: "protein", property: "laxative", effect: "laxative", warning: "", warningType: "", secondaryGroups: "grain" },
+  { id: "lentil",       name: "Lentejas",        emoji: "🫘", group: "protein", property: "laxative", effect: "laxative", warning: "Iniciar con lenteja roja pelada por ser más suave para el colon del bebé", warningType: "", secondaryGroups: "grain" },
+
+  // ── Verduras (vegetable) ─────────────────────────────────────────
+  { id: "swiss_chard",  name: "Acelgas",         emoji: "🥬", group: "vegetable", property: "laxative", effect: "laxative", warning: "Limitar porción antes de 12 meses por nitratos", warningType: "nitrates" },
+  { id: "eggplant",     name: "Berenjena",       emoji: "🍆", group: "vegetable", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "beetroot",     name: "Betabel",         emoji: "🪵", group: "vegetable", property: "laxative", effect: "laxative", warning: "Alto en nitratos; limitar porción antes de 12 meses", warningType: "nitrates" },
+  { id: "broccoli",     name: "Brócoli",         emoji: "🥦", group: "vegetable", property: "laxative", effect: "laxative", warning: "Puede causar gases benignos", warningType: "" },
+  { id: "zucchini",     name: "Calabacín",       emoji: "🥒", group: "vegetable", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "squash",       name: "Calabaza amarilla", emoji: "🎃", group: "vegetable", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "onion_cooked", name: "Cebolla cocida",  emoji: "🧅", group: "vegetable", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "garlic_cooked",name: "Ajo cocido",      emoji: "🧄", group: "vegetable", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "mushroom",     name: "Champiñón",       emoji: "🍄", group: "vegetable", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "chayote",      name: "Chayote",         emoji: "🥒", group: "vegetable", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "cabbage",      name: "Col / Repollo",   emoji: "🥬", group: "vegetable", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "cauliflower",  name: "Coliflor",        emoji: "🥦", group: "vegetable", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "asparagus",    name: "Espárragos",      emoji: "🫛", group: "vegetable", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "spinach",      name: "Espinacas",       emoji: "🥬", group: "vegetable", property: "laxative", effect: "laxative", warning: "Máximo 30g diarios antes de 12 meses por nitratos", warningType: "nitrates" },
+  { id: "yardlong_bean",name: "Habichuela",      emoji: "🫛", group: "vegetable", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "kale",         name: "Kale / Col rizada", emoji: "🥬", group: "vegetable", property: "laxative", effect: "laxative", warning: "Limitar ración antes del año por nitratos", warningType: "nitrates" },
+  { id: "lettuce",      name: "Lechuga",         emoji: "🥬", group: "vegetable", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "cucumber",     name: "Pepino",          emoji: "🥒", group: "vegetable", property: "laxative", effect: "laxative", warning: "Ofrecer sin semillas ni cáscara inicialmente", warningType: "" },
+  { id: "bell_pepper",  name: "Pimiento morrón", emoji: "🫑", group: "vegetable", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "tomato",       name: "Tomate",          emoji: "🍅", group: "vegetable", property: "laxative", effect: "laxative", warning: "Su acidez natural puede causar enrojecimiento cutáneo", warningType: "" },
+  { id: "tomato_cherry",name: "Tomate cherry",   emoji: "🍅", group: "vegetable", property: "laxative", effect: "laxative", warning: "Riesgo de asfixia: cortar en 4 a lo largo", warningType: "choking" },
+  { id: "carrot",       name: "Zanahoria",       emoji: "🥕", group: "vegetable", property: "astringent", effect: "astringent", warning: "", warningType: "" },
+
+  // ── Frutas (fruit) ───────────────────────────────────────────────
+  { id: "blueberry",    name: "Arándano azul",  emoji: "🫐", group: "fruit", property: "laxative", effect: "laxative", warning: "Riesgo de asfixia: ofrecer siempre aplastados uno por uno", warningType: "choking" },
+  { id: "cherry",       name: "Cerezas",        emoji: "🍒", group: "fruit", property: "laxative", effect: "laxative", warning: "Retirar siempre el hueso; peligro de asfixia", warningType: "choking" },
+  { id: "prune",        name: "Ciruela pasa",   emoji: "🫒", group: "fruit", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "coconut",      name: "Coco rallado",   emoji: "🥥", group: "fruit", property: "laxative", effect: "laxative", warning: "", warningType: "", secondaryGroups: "fat" },
+  { id: "peach",        name: "Durazno",        emoji: "🍑", group: "fruit", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "raspberry",    name: "Frambuesa",      emoji: "🍓", group: "fruit", property: "laxative", effect: "laxative", allergens: "tree_nuts", isAllergen: true, allergenDetails: "Alérgeno secundario / liberador de histamina", warning: "", warningType: "" },
+  { id: "strawberry",   name: "Fresa",          emoji: "🍓", group: "fruit", property: "laxative", effect: "laxative", allergens: "tree_nuts", isAllergen: true, allergenDetails: "Monitorear piel por liberación de histamina", warning: "", warningType: "" },
+  { id: "guava",        name: "Guayaba",        emoji: "🍐", group: "fruit", property: "astringent", effect: "astringent", warning: "Retirar semillas duras antes de ofrecer", warningType: "" },
+  { id: "kiwi",         name: "Kiwi",           emoji: "🥝", group: "fruit", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "lemon",        name: "Limón (gotas)",  emoji: "🍋", group: "fruit", property: "both",      effect: "regulator",  warning: "Usar solo gotas; regulador digestivo", warningType: "" },
+  { id: "mamey",        name: "Mamey",          emoji: "🥭", group: "fruit", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "tangerine",    name: "Mandarina",      emoji: "🍊", group: "fruit", property: "laxative", effect: "laxative", warning: "Ofrecer gajos limpios sin membranas ni semillas", warningType: "" },
+  { id: "mango",        name: "Mango",          emoji: "🥭", group: "fruit", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "apple",        name: "Manzana",        emoji: "🍎", group: "fruit", property: "both",      effect: "regulator",  warning: "Cocida/puré es astringente; cruda rallada es laxante", warningType: "" },
+  { id: "passion_fruit",name: "Maracuyá",       emoji: "🫚", group: "fruit", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "melon",        name: "Melón",          emoji: "🍈", group: "fruit", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "orange",       name: "Naranja",        emoji: "🍊", group: "fruit", property: "laxative", effect: "laxative", warning: "Solo en gajos limpios", warningType: "" },
+  { id: "papaya",       name: "Papaya",         emoji: "🍈", group: "fruit", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "pear",         name: "Pera",           emoji: "🍐", group: "fruit", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "pineapple",    name: "Piña",           emoji: "🍍", group: "fruit", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "banana",       name: "Plátano",        emoji: "🍌", group: "fruit", property: "both",      effect: "regulator",  warning: "Maduro laxante suave; verde estriñe severamente", warningType: "" },
+  { id: "watermelon",   name: "Sandía",         emoji: "🍉", group: "fruit", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "grapefruit",   name: "Toronja",        emoji: "🍊", group: "fruit", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "grape",        name: "Uva",            emoji: "🍇", group: "fruit", property: "laxative", effect: "laxative", warning: "Alto riesgo de asfixia: cortar en 4 partes a lo largo", warningType: "choking" },
+
+  // ── Grasas (fat) ─────────────────────────────────────────────────
+  { id: "avocado",       name: "Aguacate",              emoji: "🥑", group: "fat", property: "laxative", effect: "laxative", warning: "", warningType: "", secondaryGroups: "fruit" },
+  { id: "olive_oil",     name: "Aceite de oliva",       emoji: "🫒", group: "fat", property: "laxative", effect: "laxative", warning: "Añadir una cucharadita cruda sobre la comida", warningType: "" },
+  { id: "avocado_oil",   name: "Aceite de aguacate",    emoji: "🥑", group: "fat", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "coconut_oil",   name: "Aceite de coco",        emoji: "🥥", group: "fat", property: "laxative", effect: "laxative", warning: "", warningType: "" },
+  { id: "sesame",        name: "Ajonjolí / Sésamo",     emoji: "🫘", group: "fat", property: "laxative", effect: "laxative", allergens: "tree_nuts", isAllergen: true, allergenDetails: "Noveno alérgeno mayor (FASTER Act 2023). Protocolo de 3 días", warning: "", warningType: "" },
+  { id: "chia",          name: "Semillas de chía",       emoji: "🌾", group: "fat", property: "laxative", effect: "laxative", warning: "Hidratar antes de ofrecer; forma un gel mucilaginoso", warningType: "" },
+  { id: "flaxseed",      name: "Semillas de linaza",     emoji: "🌾", group: "fat", property: "laxative", effect: "laxative", warning: "Ofrecer molidas para absorber omega-3 y fibra", warningType: "" },
+  { id: "cacao",         name: "Cacao puro 100%",        emoji: "🍫", group: "fat", property: "neutral", effect: "regulator", warning: "A partir de 10-12 meses. Regulador intestinal suave", warningType: "age_restriction" },
+  { id: "peanut_butter", name: "Mantequilla de cacahuate", emoji: "🥜", group: "fat", property: "laxative", effect: "laxative", allergens: "peanut", isAllergen: true, allergenDetails: "Alérgeno mayor. Estudio LEAP demostró reducción de alergias", warning: "Peligro físico: diluir siempre en agua o puré", warningType: "paste" },
+  { id: "almond_butter", name: "Mantequilla de almendras", emoji: "🫘", group: "fat", property: "laxative", effect: "laxative", allergens: "tree_nuts", isAllergen: true, allergenDetails: "Alérgeno mayor", warning: "Requerimiento: diluir siempre en agua o puré", warningType: "paste" },
+  { id: "walnut_butter", name: "Mantequilla de nuez",     emoji: "🫘", group: "fat", property: "laxative", effect: "laxative", allergens: "tree_nuts", isAllergen: true, allergenDetails: "Alérgeno mayor", warning: "Requerimiento: diluir siempre en agua o puré", warningType: "paste" },
+  { id: "sunflower_seed",name: "Semillas de girasol",    emoji: "🌻", group: "fat", property: "laxative", effect: "laxative", warning: "Ofrecer molidas", warningType: "" },
 ];
 
 export function seedFoodCatalog() {
   const db = getDb();
   const now = Date.now();
-  for (const food of DEFAULT_FOODS) {
-    const property = GROUP_PROPERTY[food.id] ?? "neutral";
+  for (const food of SEED) {
+    const property = food.property ?? "neutral";
     db.insert(foodCatalog)
       .values({
         id: food.id,
@@ -248,7 +313,13 @@ export function seedFoodCatalog() {
         emoji: food.emoji,
         group: food.group as any,
         property,
+        effect: food.effect ?? null,
         allergens: food.allergens || null,
+        isAllergen: food.isAllergen ?? false,
+        allergenDetails: food.allergenDetails ?? null,
+        warning: food.warning || null,
+        warningType: (food.warningType as any) || null,
+        secondaryGroups: food.secondaryGroups || null,
         isSystem: true,
         createdAt: new Date(now),
       })

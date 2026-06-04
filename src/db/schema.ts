@@ -308,15 +308,21 @@ export const catalogItems = sqliteTable('catalog_items', {
 
 export type CatalogItem = typeof catalogItems.$inferSelect;
 export const foodCatalog = sqliteTable('food_catalog', {
-  id:        text('id').primaryKey(),
-  name:      text('name').notNull(),
-  emoji:     text('emoji'),
-  group:     text('group', { enum: ['fruit', 'vegetable', 'protein', 'grain', 'dairy', 'legume'] }).notNull(),
-  property:  text('property', { enum: ['laxative', 'astringent', 'both', 'neutral'] }).default('neutral'),
-  allergens: text('allergens'), // comma-separated
-  isSystem:  integer('is_system', { mode: 'boolean' }).default(true),
-  hidden:    integer('hidden', { mode: 'boolean' }).default(false),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  id:             text('id').primaryKey(),
+  name:           text('name').notNull(),
+  emoji:          text('emoji'),
+  group:          text('group', { enum: ['fruit', 'vegetable', 'grain', 'protein', 'fat'] }).notNull(),
+  property:       text('property', { enum: ['laxative', 'astringent', 'both', 'neutral'] }).default('neutral'),
+  effect:         text('effect', { enum: ['laxative', 'astringent', 'regulator'] }),
+  allergens:      text('allergens'),
+  isAllergen:     integer('is_allergen', { mode: 'boolean' }).default(false),
+  allergenDetails: text('allergen_details'),
+  warning:        text('warning'),
+  warningType:    text('warning_type', { enum: ['nitrates', 'choking', 'vitamin_a', 'paste', 'age_restriction'] }),
+  secondaryGroups: text('secondary_groups'), // comma-separated additional groups
+  isSystem:       integer('is_system', { mode: 'boolean' }).default(true),
+  hidden:         integer('hidden', { mode: 'boolean' }).default(false),
+  createdAt:      integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
 // ─── REGISTRO DE ALIMENTACIÓN COMPLEMENTARIA ────────────────────────────────────
@@ -337,10 +343,17 @@ export interface FoodItem {
   id: string;
   name: string;
   emoji: string | null;
-  group: 'fruit' | 'vegetable' | 'protein' | 'grain' | 'dairy' | 'legume';
+  group: 'fruit' | 'vegetable' | 'protein' | 'grain' | 'dairy' | 'legume' | 'cereal_tuber' | 'healthy_fats' | 'animal_protein' | 'vegetable_protein';
   property: 'laxative' | 'astringent' | 'both' | 'neutral' | null;
+  effect: 'laxative' | 'astringent' | 'regulator' | null;
   allergens: string | null;
+  isAllergen: boolean | null;
+  allergenDetails: string | null;
+  warning: string | null;
+  warningType: 'nitrates' | 'choking' | 'vitamin_a' | 'paste' | 'age_restriction' | null;
+  secondaryGroups: string | null;
   isSystem: boolean | null;
+  hidden: boolean | null;
 }
 
 export interface FoodLog {

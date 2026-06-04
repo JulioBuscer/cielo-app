@@ -50,7 +50,7 @@ export function FoodSheet({
   const [imageUri, setImageUri] = useState<string | null>(null);
 
   const filtered = catalog?.filter(
-    (f) => !selectedGroup || f.group === selectedGroup
+    (f) => !selectedGroup || f.group === selectedGroup || (f.secondaryGroups && f.secondaryGroups.split(",").includes(selectedGroup))
   ) ?? [];
 
   const toggleFood = (id: string) => {
@@ -214,6 +214,21 @@ export function FoodSheet({
                     }}>
                       {f.emoji ?? ""} {f.name}
                     </Text>
+                    {!selected && f.isAllergen && (
+                      <Text style={{ fontSize: 12 }}>🚨</Text>
+                    )}
+                    {!selected && f.warning && (
+                      <Text style={{ fontSize: 12 }}>⚠️</Text>
+                    )}
+                    {!selected && f.effect === "laxative" && (
+                      <Text style={{ fontSize: 9, color: "#2E7D32" }}>🟢</Text>
+                    )}
+                    {!selected && f.effect === "astringent" && (
+                      <Text style={{ fontSize: 9, color: "#5D4037" }}>🟤</Text>
+                    )}
+                    {!selected && f.effect === "regulator" && (
+                      <Text style={{ fontSize: 9 }}>🔄</Text>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -244,6 +259,27 @@ export function FoodSheet({
                   </View>
                   <Text style={{ fontSize: 14, color: c.textBody }}>🥇 Primera vez que prueba</Text>
                 </TouchableOpacity>
+
+                {/* Selected foods info */}
+                {selectedFoodIds.length > 0 && (
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 12 }}>Información de alimentos seleccionados</Text>
+                    {filtered.filter((f) => selectedFoodIds.includes(f.id)).map((f) => (
+                      <View key={f.id} style={{
+                        flexDirection: "row", alignItems: "center", gap: 6,
+                        paddingVertical: 4, paddingHorizontal: 8,
+                        backgroundColor: c.elevated, borderRadius: 8,
+                      }}>
+                        <Text style={{ fontSize: 13 }}>{f.emoji ?? ""} {f.name}</Text>
+                        {f.isAllergen && <Text style={{ fontSize: 11, color: "#E53935" }}>🚨 Alérgeno</Text>}
+                        {f.effect === "laxative" && <Text style={{ fontSize: 10, color: "#2E7D32" }}>🟢 Laxante</Text>}
+                        {f.effect === "astringent" && <Text style={{ fontSize: 10, color: "#5D4037" }}>🟤 Astringente</Text>}
+                        {f.effect === "regulator" && <Text style={{ fontSize: 10 }}>🔄 Regulador</Text>}
+                        {f.warning && <Text style={{ fontSize: 10, color: "#E65100", flex: 1 }}>⚠️</Text>}
+                      </View>
+                    ))}
+                  </View>
+                )}
 
                 <View style={{ gap: 6 }}>
                   <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>Reacción</Text>

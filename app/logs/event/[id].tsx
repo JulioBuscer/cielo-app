@@ -74,6 +74,8 @@ export default function EventDetailScreen() {
   const [editReaction, setEditReaction] = useState("");
   const [editImageUri, setEditImageUri] = useState<string | null>(null);
   const [selectedFoodGroup, setSelectedFoodGroup] = useState<string | null>(null);
+  const [collapsedFoodGroups, setCollapsedFoodGroups] = useState<Record<string, boolean>>({});
+  const [foodSearch, setFoodSearch] = useState("");
   const { data: foodCatalog } = useFoodCatalog();
   const { takePhoto, pickImage } = useCamera();
   const { data: allItems } = useCatalogItems();
@@ -145,6 +147,24 @@ export default function EventDetailScreen() {
   };
 
   const itemHasChildren = (id: string) => allItems?.some((i) => i.parentId === id) ?? false;
+
+  const groupedFoods = useMemo(() => {
+    const all = foodCatalog ?? [];
+    const q = foodSearch.toLowerCase().trim();
+    const visible = all.filter((f: any) => !f.hidden);
+    const groups: Record<string, any[]> = {};
+    for (const f of visible) {
+      if (q && !f.name.toLowerCase().includes(q) && !(f.emoji ?? "").includes(q)) continue;
+      const g = f.group || "other";
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(f);
+    }
+    return groups;
+  }, [foodCatalog, foodSearch]);
+
+  const toggleFoodGroup = (group: string) => {
+    setCollapsedFoodGroups((prev) => ({ ...prev, [group]: !prev[group] }));
+  };
 
   const childrenOf = (parentId: string) =>
     allItems?.filter((i) => i.parentId === parentId) ?? [];
@@ -796,40 +816,52 @@ export default function EventDetailScreen() {
                 <Text style={{ color: c.accent, fontWeight: "800", fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
                   🍽️ Alimentos
                 </Text>
-                {/* Group filter */}
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                  {Object.entries(FOOD_GROUPS).map(([key, label]) => {
-                    const active = selectedFoodGroup === key;
-                    return (
-                      <TouchableOpacity
-                        key={key}
-                        onPress={() => setSelectedFoodGroup(active ? null : key)}
-                        style={{
-                          paddingVertical: 6, paddingHorizontal: 12,
-                          borderRadius: 99,
-                          backgroundColor: active ? c.accent : c.elevated,
-                        }}
-                      >
-                        <Text style={{ color: active ? "#FFF" : c.textBody, fontWeight: "700", fontSize: 12 }}>
-                          {label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                {/* Food grid */}
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                  {(foodCatalog ?? [])
-                    .filter((f) => !selectedFoodGroup || f.group === selectedFoodGroup)
-                    .map((f) => {
-                      const selected = editFoods.some((ef) => ef.id === f.id);
-                      if (!f.id) return null;
-                      return (
+                {/* Search */}
+                <TextInput
+                  value={foodSearch}
+                  onChangeText={setFoodSearch}
+                  placeholder="🔍 Buscar alimento…"
+                  placeholderTextColor={c.textDim}
+                  style={{
+                    backgroundColor: c.elevated, color: c.textBody,
+                    padding: 10, borderRadius: 10, fontSize: 14,
+                    borderWidth: 1, borderColor: c.border,
+                  }}
+                />
+                {/* Accordion groups */}
+                {Object.entries(groupedFoods).map(([group, foods]) => {
+                  const isCollapsed = collapsedFoodGroups[group] ?? false;
+                  const grpLabel = (FOOD_GROUPS as any)[group] ?? group;
+                  return (
+                  <View key={group}>
+                    <TouchableOpacity
+                      onPress={() => toggleFoodGroup(group)}
+                      style={{
+                        flexDirection: "row", alignItems: "center", gap: 6,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, color: c.textMuted }}>
+                        {isCollapsed ? "▶" : "▼"}
+                      </Text>
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: c.textBody }}>
+                        {grpLabel}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: c.textMuted }}>
+                        ({foods.length})
+                      </Text>
+                    </TouchableOpacity>
+                    {!isCollapsed && (
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, paddingLeft: 14 }}>
+                      {foods.map((f: any) => {
+                        const selected = editFoods.some((ef: any) => ef.id === f.id);
+                        if (!f.id) return null;
+                        return (
                         <TouchableOpacity
                           key={f.id}
                           onPress={() => {
                             if (selected) {
-                              setEditFoods(editFoods.filter((ef) => ef.id !== f.id));
+                              setEditFoods(editFoods.filter((ef: any) => ef.id !== f.id));
                             } else {
                               setEditFoods([...editFoods, { id: f.id, emoji: f.emoji, name: f.name }]);
                             }
@@ -845,13 +877,20 @@ export default function EventDetailScreen() {
                           <Text style={{ color: selected ? "#FFF" : c.textBody, fontWeight: "600", fontSize: 13 }}>
                             {f.name}
                           </Text>
+                          {!selected && f.isAllergen && <Text style={{ fontSize: 12 }}>🚨</Text>}
+                          {!selected && f.warning && <Text style={{ fontSize: 12 }}>⚠️</Text>}
+                          {!selected && f.effect === "laxative" && <Text style={{ fontSize: 9, color: "#2E7D32" }}>🟢</Text>}
+                          {!selected && f.effect === "astringent" && <Text style={{ fontSize: 9, color: "#5D4037" }}>🟤</Text>}
+                          {!selected && f.effect === "regulator" && <Text style={{ fontSize: 9 }}>🔄</Text>}
                           <Text style={{ color: selected ? "rgba(255,255,255,0.7)" : c.textDim, fontSize: 11 }}>
                             {selected ? "✓" : "+"}
                           </Text>
                         </TouchableOpacity>
-                      );
-                    })}
-                </View>
+                      )})}
+                    </View>
+                    )}
+                  </View>
+                )})}
                 {/* isFirst + Reaction */}
                 <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
                   <TouchableOpacity
