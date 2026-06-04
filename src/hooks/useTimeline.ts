@@ -152,18 +152,22 @@ export function useUpdateTimelineEvent() {
     mutationFn: async (input: {
       id: string;
       babyId: string;
+      eventTypeId?: string;
+      eventItemId?: string | null;
       timestamp?: Date;
       notes?: string | null;
       metadata?: Record<string, unknown> | null;
       values?: Record<string, unknown> | null;
     }) => {
+      const update: Record<string, any> = {};
+      if (input.timestamp !== undefined) update.timestamp = input.timestamp;
+      if (input.notes !== undefined) update.notes = input.notes;
+      if (input.metadata !== undefined) update.metadata = input.metadata ? JSON.stringify(input.metadata) : null;
+      if (input.values !== undefined) update.values = input.values ? JSON.stringify(input.values) : undefined;
+      if (input.eventTypeId !== undefined) update.eventTypeId = input.eventTypeId;
+      if (input.eventItemId !== undefined) update.eventItemId = input.eventItemId ?? null;
       await getDb().update(timelineEvents)
-        .set({
-          timestamp: input.timestamp,
-          notes:     input.notes,
-          metadata:  input.metadata ? JSON.stringify(input.metadata) : null,
-          values:    input.values  ? JSON.stringify(input.values) : undefined,
-        })
+        .set(update)
         .where(eq(timelineEvents.id, input.id));
     },
     onSuccess: (_, vars) => {

@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Image,
   StatusBar,
   Alert,
   KeyboardAvoidingView,
@@ -20,7 +21,11 @@ import {
 } from "@/src/hooks/useTimeline";
 import { useActiveProfile } from "@/src/hooks/useProfile";
 import { useActiveBaby } from "@/src/hooks/useBaby";
-import { useCatalogItem } from "@/src/hooks/useCatalogItems";
+import {
+  useActiveFeedingSession,
+  usePauseFeeding,
+} from "@/src/hooks/useFeedingSessions";
+import { useCatalogItem, useCatalogItems } from "@/src/hooks/useCatalogItems";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { getZoneColor, getZoneLabel, parseMetrics, getMetricZoneColor, getMetricZoneLabel } from "@/src/db/schema";
@@ -28,7 +33,9 @@ import { useTheme } from "@/src/theme/useTheme";
 import { getUnit, getUnitsByDimension, getUnitsForMetric } from "@/src/units/registry";
 import { findBestUnit } from "@/src/units/helpers";
 import type { EventMetric } from "@/src/units/types";
-import { getCategory } from "@/src/utils/categories";
+import { getCategory, getCategoryLabel, getCategoryEmoji, USER_CATEGORIES } from "@/src/utils/categories";
+import { useFoodCatalog, FOOD_GROUPS } from "@/src/hooks/useFoodLogs";
+import { useCamera } from "@/src/hooks/useCamera";
 
 function formatDateTime(ts: Date | string | number | undefined | null): string {
   if (!ts) return "--";
@@ -62,15 +69,52 @@ export default function EventDetailScreen() {
   const [editDisplayUnits, setEditDisplayUnits] = useState<Record<string, string>>({});
   const [editTags, setEditTags] = useState<string[]>([]);
   const [editTagInput, setEditTagInput] = useState("");
+  const [editFoods, setEditFoods] = useState<{ id: string; emoji: string | null; name: string }[]>([]);
+  const [editIsFirst, setEditIsFirst] = useState(false);
+  const [editReaction, setEditReaction] = useState("");
+  const [editImageUri, setEditImageUri] = useState<string | null>(null);
+  const [selectedFoodGroup, setSelectedFoodGroup] = useState<string | null>(null);
+  const { data: foodCatalog } = useFoodCatalog();
+  const { takePhoto, pickImage } = useCamera();
+  const { data: allItems } = useCatalogItems();
+  const { data: activeFeeding } = useActiveFeedingSession(baby?.id);
+  const pauseFeeding = usePauseFeeding();
+  const [editStep, setEditStep] = useState<"category" | "root" | "child" | "form" | null>(null);
+  const [editSelCategory, setEditSelCategory] = useState<string | null>(null);
+  const [editSelRootId, setEditSelRootId] = useState<string | null>(null);
+  const [editSelItemId, setEditSelItemId] = useState<string | null>(null);
 
   const evType = eventTypes?.find((t) => t.id === event?.eventTypeId);
   const isOwn = event?.profileId === profile?.id;
 
-  const evMetrics: EventMetric[] = catalogItem?.metrics
-    ? (() => { try { const p = JSON.parse(catalogItem.metrics); return Array.isArray(p) ? p : []; } catch { return []; } })()
-    : evType?.metrics
-      ? (() => { try { const p = JSON.parse(evType.metrics); return Array.isArray(p) ? p : []; } catch { return []; } })()
-      : [];
+  const MEDICAL_KEYS = new Set(["medication", "temperature", "vomit"]);
+
+  const editSelItem = useMemo(() => {
+    if (!allItems || !editSelItemId) return null;
+    return allItems.find((i) => i.id === editSelItemId) ?? null;
+  }, [allItems, editSelItemId]);
+
+  const editSelRootItem = useMemo(() => {
+    if (!allItems || !editSelRootId) return null;
+    return allItems.find((i) => i.id === editSelRootId) ?? null;
+  }, [allItems, editSelRootId]);
+
+  const parseMetricsJson = (raw: string | null | undefined): EventMetric[] => {
+    if (!raw) return [];
+    try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; } catch { return []; }
+  };
+
+  const editEvMetrics: EventMetric[] = editSelItem
+    ? parseMetricsJson(editSelItem.metrics)
+    : [];
+
+  const evMetrics: EventMetric[] = editing
+    ? editEvMetrics
+    : catalogItem
+      ? parseMetricsJson(catalogItem.metrics)
+      : evType
+        ? parseMetricsJson(evType.metrics)
+        : [];
 
   const meta = event?.metadata
     ? (() => { try { return JSON.parse(event.metadata); } catch { return null; } })()
@@ -82,6 +126,30 @@ export default function EventDetailScreen() {
   const hierarchyLabel = rootCatalogItem
     ? `${rootCatalogItem.emoji} ${rootCatalogItem.name}  ›  ${resolvedEmoji} ${resolvedLabel}`
     : null;
+
+  const catRoots = useMemo(() => {
+    if (!allItems) return {};
+    const map: Record<string, typeof allItems> = {};
+    for (const item of allItems) {
+      if (item.parentId) continue;
+      if (item.id === "diaper" || item.id === "note") continue;
+      if (!map[item.category]) map[item.category] = [];
+      map[item.category].push(item);
+    }
+    return map;
+  }, [allItems]);
+
+  const itemLabel = (id: string) => {
+    const item = allItems?.find((i) => i.id === id);
+    return item ? `${item.emoji ?? ""} ${item.name}` : id;
+  };
+
+  const itemHasChildren = (id: string) => allItems?.some((i) => i.parentId === id) ?? false;
+
+  const childrenOf = (parentId: string) =>
+    allItems?.filter((i) => i.parentId === parentId) ?? [];
+
+  const isMedical = editSelRootId ? MEDICAL_KEYS.has(editSelRootId) : false;
 
   const handleStartEditing = () => {
     if (!event) return;
@@ -100,12 +168,46 @@ export default function EventDetailScreen() {
     setEditTags(tags);
     setEditTagInput("");
 
+    const foodsFromMeta = meta?.foods && Array.isArray(meta.foods) ? meta.foods : [];
+    setEditFoods(foodsFromMeta);
+    setEditIsFirst(!!meta?.isFirst);
+    setEditReaction(meta?.reaction ?? "");
+    setSelectedFoodGroup(null);
+    setEditImageUri(meta?.imageUri ?? null);
+
+    // Init selection from event
+    const initCategory = catalogItem?.category ?? evType?.category ?? null;
+    const initRootId = event.eventTypeId;
+    const initItemId = event.eventItemId ?? event.eventTypeId;
+    setEditSelCategory(initCategory);
+    setEditSelRootId(initRootId);
+    setEditSelItemId(initItemId);
+    setEditStep(catalogItem?.parentId ? "form" : "form");
+
     setEditing(true);
   };
 
+  // Reset values when item selection changes in edit mode (not on initial entry)
+  const prevEditItemId = useRef<string | undefined>(undefined);
+  if (editing && editSelItemId !== prevEditItemId.current && prevEditItemId.current !== undefined) {
+    prevEditItemId.current = editSelItemId as string | undefined;
+    const newItem = allItems?.find((i) => i.id === editSelItemId);
+    if (newItem) {
+      const defaults = (() => { try { return JSON.parse(newItem.defaultValues ?? "{}"); } catch { return {}; } })() as Record<string, number>;
+      setEditValues(Object.fromEntries(Object.entries(defaults).map(([k, v]) => [k, String(v)])));
+      setEditDisplayUnits({});
+    }
+  }
+  if (editing && prevEditItemId.current === undefined) prevEditItemId.current = editSelItemId as string | undefined;
+  if (!editing) prevEditItemId.current = undefined;
+
   const handleSaveEdit = async () => {
-    if (!event || !baby) return;
+    if (!event || !baby || !editSelRootId || !editSelItemId) return;
     try {
+      if (activeFeeding && activeFeeding.status === "active" && isMedical) {
+        await pauseFeeding.mutateAsync(activeFeeding);
+      }
+
       const numericValues: Record<string, number> = {};
       for (const [k, v] of Object.entries(editValues)) {
         if (v !== "") {
@@ -136,9 +238,28 @@ export default function EventDetailScreen() {
         delete newMeta.tags;
       }
 
+      if (editFoods.length > 0) {
+        newMeta.foods = editFoods;
+      } else {
+        delete newMeta.foods;
+      }
+      newMeta.isFirst = editIsFirst;
+      if (editReaction.trim()) {
+        newMeta.reaction = editReaction.trim();
+      } else {
+        delete newMeta.reaction;
+      }
+      if (editImageUri) {
+        newMeta.imageUri = editImageUri;
+      } else {
+        delete newMeta.imageUri;
+      }
+
       await updateEvent.mutateAsync({
         id: event.id,
         babyId: baby.id,
+        eventTypeId: editSelRootId ?? undefined,
+        eventItemId: editSelItemId ?? null,
         timestamp: editTimestamp,
         notes: editNotes || null,
         values: Object.keys(numericValues).length > 0 ? numericValues : undefined,
@@ -385,6 +506,14 @@ export default function EventDetailScreen() {
           </View>
         )}
 
+        {/* Photo display (view mode) */}
+        {!editing && meta?.imageUri && (
+          <View className="rounded-2xl p-5 gap-2" style={{ backgroundColor: c.card }}>
+            <Text className="font-black text-[15px]" style={{ color: c.textBody }}>📷 Foto</Text>
+            <Image source={{ uri: meta.imageUri }} style={{ width: "100%", height: 250, borderRadius: 12 }} resizeMode="cover" />
+          </View>
+        )}
+
         {/* Tags display (view mode) */}
         {!editing && meta?.tags && Array.isArray(meta.tags) && meta.tags.length > 0 && (
           <View className="rounded-2xl p-5 gap-2" style={{ backgroundColor: c.card }}>
@@ -461,41 +590,137 @@ export default function EventDetailScreen() {
           </View>
         )}
 
-        {/* Edit mode */}
-        {editing && (
+        {/* Edit mode — wizard */}
+        {editing && (!editStep || editStep === "category") && (
+          <View style={{ gap: 16 }}>
+            <Text style={{ color: c.accent, fontWeight: "800", fontSize: 14, textTransform: "uppercase", letterSpacing: 1 }}>
+              Seleccionar categoría
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {USER_CATEGORIES.map((catDef) => {
+                const count = catRoots[catDef.id]?.length ?? 0;
+                if (count === 0) return null;
+                return (
+                  <TouchableOpacity
+                    key={catDef.id}
+                    onPress={() => {
+                      setEditSelCategory(catDef.id);
+                      setEditStep("root");
+                    }}
+                    style={{
+                      flexDirection: "row", alignItems: "center", gap: 6,
+                      paddingHorizontal: 20, paddingVertical: 16,
+                      borderRadius: 99,
+                      backgroundColor: editSelCategory === catDef.id ? c.accent : c.elevated,
+                      minHeight: 52,
+                    }}
+                  >
+                    <Text style={{ fontSize: 22 }}>{getCategoryEmoji(catDef.id)}</Text>
+                    <Text style={{ color: editSelCategory === catDef.id ? c.textOnAccent : c.textBody, fontWeight: "700", fontSize: 15 }}>
+                      {getCategoryLabel(catDef.id)}
+                    </Text>
+                    <Text style={{ color: c.textDim, fontSize: 13, marginLeft: 4 }}>({count})</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {editing && (editStep === "root" || editStep === "child") && editSelCategory && (
+          <View style={{ gap: 16 }}>
+            {editStep === "root" && (
+              <TouchableOpacity onPress={() => { setEditStep("category"); setEditSelRootId(null); setEditSelItemId(null); }}>
+                <Text style={{ color: c.accent, fontWeight: "600", fontSize: 14 }}>← Categorías</Text>
+              </TouchableOpacity>
+            )}
+            {editStep === "child" && editSelRootItem && (
+              <TouchableOpacity onPress={() => { setEditStep("root"); setEditSelRootId(null); setEditSelItemId(null); }}>
+                <Text style={{ color: c.accent, fontWeight: "600", fontSize: 14 }}>← {itemLabel(editSelRootId!)}</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={{ color: c.accent, fontWeight: "800", fontSize: 14, textTransform: "uppercase", letterSpacing: 1 }}>
+              {editStep === "root"
+                ? `${getCategoryEmoji(editSelCategory)} ${getCategoryLabel(editSelCategory)}`
+                : `Ítems en ${itemLabel(editSelRootId!)}`}
+            </Text>
+
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {(editStep === "root"
+                ? (catRoots[editSelCategory] ?? [])
+                : childrenOf(editSelRootId!)
+              ).map((item) => {
+                const hasChildren = itemHasChildren(item.id);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    onPress={() => {
+                      if (hasChildren) {
+                        setEditSelRootId(item.id);
+                        setEditStep("child");
+                      } else {
+                        setEditSelRootId(item.id);
+                        setEditSelItemId(item.id);
+                        setEditStep("form");
+                      }
+                    }}
+                    style={{
+                      flexDirection: "row", alignItems: "center", gap: 6,
+                      paddingHorizontal: 16, paddingVertical: 14,
+                      borderRadius: 99,
+                      backgroundColor: c.elevated,
+                      minHeight: 48,
+                    }}
+                  >
+                    <Text style={{ fontSize: 20 }}>{item.emoji}</Text>
+                    <Text style={{ color: c.textBody, fontWeight: "700", fontSize: 14 }}>
+                      {item.name}
+                    </Text>
+                    {hasChildren && <Text style={{ color: c.textDim, fontSize: 12, marginLeft: 4 }}>▶</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {editing && editStep === "form" && editSelItem && editSelRootItem && (
           <View className="rounded-2xl p-5 gap-4" style={{ backgroundColor: c.card }}>
             <Text className="font-black text-[15px] text-center" style={{ color: c.accent }}>✏️ Editar evento</Text>
 
-            {/* Category + hierarchy (read-only) in edit mode */}
-            {categoryKey && (
-              <View style={{ alignItems: "center", gap: 6 }}>
-                <View style={{
-                  backgroundColor: getCategory(categoryKey).color + "20",
-                  borderRadius: 99, paddingHorizontal: 12, paddingVertical: 4,
-                }}>
-                  <Text style={{
-                    fontSize: 12, fontWeight: "800",
-                    color: getCategory(categoryKey).color,
-                  }}>
-                    {getCategory(categoryKey).emoji} {getCategory(categoryKey).label}
-                  </Text>
-                </View>
-                {hierarchyLabel && (
-                  <Text style={{ fontSize: 13, color: c.textBody, fontWeight: "600" }}>
-                    {hierarchyLabel}
+            {/* Selected item indicator — tap to change back to wizard */}
+            <TouchableOpacity onPress={() => setEditStep("category")}>
+              <View style={{
+                flexDirection: "row", alignItems: "center", gap: 8,
+                backgroundColor: c.accent,
+                paddingHorizontal: 16, paddingVertical: 10,
+                borderRadius: 99, alignSelf: "flex-start",
+              }}>
+                <Text style={{ fontSize: 16 }}>{editSelItem.emoji}</Text>
+                <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>
+                  {editSelItem.name}
+                </Text>
+                {editSelItem.id !== editSelRootId && (
+                  <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>
+                    ({editSelRootItem.emoji} {editSelRootItem.name})
                   </Text>
                 )}
+                <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 16 }}>✕</Text>
               </View>
-            )}
+            </TouchableOpacity>
 
             <View style={{ gap: 6 }}>
-              <Text className="font-bold text-xs" style={{ color: c.textMuted }}>Fecha y hora</Text>
+              <Text className="font-bold text-xs" style={{ color: c.textMuted }}>🕐 Fecha y hora</Text>
               <DateTimePicker value={editTimestamp} onChange={setEditTimestamp} />
             </View>
 
+            {/* Edit metrics */}
             {evMetrics.length > 0 && (
               <View style={{ gap: 12 }}>
-                <Text className="font-bold text-xs" style={{ color: c.textMuted }}>📐 Mediciones</Text>
+                <Text style={{ color: c.accent, fontWeight: "800", fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
+                  📐 Mediciones
+                </Text>
                 {evMetrics.map((m) => {
                   const u = getUnit(m.unitId);
                   const compatible = getUnitsForMetric(m);
@@ -521,7 +746,8 @@ export default function EventDetailScreen() {
                   return (
                     <View key={m.id} style={{ gap: 4 }}>
                       <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
-                        {m.name}
+                        {m.name}{" "}
+                        {m.unitId ? <Text style={{ color: c.textDim }}>({m.unitId})</Text> : null}
                       </Text>
                       <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
                         <TextInput
@@ -529,10 +755,10 @@ export default function EventDetailScreen() {
                           onChangeText={(v) => setEditValues((prev) => ({ ...prev, [m.id]: v }))}
                           placeholder="0"
                           placeholderTextColor={c.textDim}
-                          keyboardType="decimal-pad"
+                          keyboardType="numeric"
                           style={{
                             flex: 1,
-                            backgroundColor: c.surface,
+                            backgroundColor: c.elevated,
                             borderRadius: 12,
                             padding: 14,
                             color: c.textBody,
@@ -544,14 +770,16 @@ export default function EventDetailScreen() {
                           <TouchableOpacity
                             onPress={cycleUnit}
                             style={{
-                              backgroundColor: c.surface,
+                              backgroundColor: c.elevated,
                               borderRadius: 12,
-                              paddingVertical: 10,
-                              paddingHorizontal: 12,
+                              paddingHorizontal: 16,
+                              paddingVertical: 14,
+                              minHeight: 44,
+                              justifyContent: "center",
                             }}
                           >
-                            <Text style={{ color: c.accent, fontWeight: "700", fontSize: 13 }}>
-                              {displayUnit?.symbol || displayUnit?.name || m.unitId}
+                            <Text style={{ color: c.accent, fontWeight: "800", fontSize: 14 }}>
+                              {displayUnit?.symbol || displayUnitId}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -562,6 +790,138 @@ export default function EventDetailScreen() {
               </View>
             )}
 
+            {/* Edit foods */}
+            {editSelRootId === "food" && (
+              <View style={{ gap: 12 }}>
+                <Text style={{ color: c.accent, fontWeight: "800", fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
+                  🍽️ Alimentos
+                </Text>
+                {/* Group filter */}
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                  {Object.entries(FOOD_GROUPS).map(([key, label]) => {
+                    const active = selectedFoodGroup === key;
+                    return (
+                      <TouchableOpacity
+                        key={key}
+                        onPress={() => setSelectedFoodGroup(active ? null : key)}
+                        style={{
+                          paddingVertical: 6, paddingHorizontal: 12,
+                          borderRadius: 99,
+                          backgroundColor: active ? c.accent : c.elevated,
+                        }}
+                      >
+                        <Text style={{ color: active ? "#FFF" : c.textBody, fontWeight: "700", fontSize: 12 }}>
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {/* Food grid */}
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                  {(foodCatalog ?? [])
+                    .filter((f) => !selectedFoodGroup || f.group === selectedFoodGroup)
+                    .map((f) => {
+                      const selected = editFoods.some((ef) => ef.id === f.id);
+                      if (!f.id) return null;
+                      return (
+                        <TouchableOpacity
+                          key={f.id}
+                          onPress={() => {
+                            if (selected) {
+                              setEditFoods(editFoods.filter((ef) => ef.id !== f.id));
+                            } else {
+                              setEditFoods([...editFoods, { id: f.id, emoji: f.emoji, name: f.name }]);
+                            }
+                          }}
+                          style={{
+                            flexDirection: "row", alignItems: "center", gap: 4,
+                            paddingVertical: 6, paddingHorizontal: 10,
+                            borderRadius: 99,
+                            backgroundColor: selected ? c.accent : c.elevated,
+                          }}
+                        >
+                          <Text style={{ fontSize: 16 }}>{f.emoji ?? ""}</Text>
+                          <Text style={{ color: selected ? "#FFF" : c.textBody, fontWeight: "600", fontSize: 13 }}>
+                            {f.name}
+                          </Text>
+                          <Text style={{ color: selected ? "rgba(255,255,255,0.7)" : c.textDim, fontSize: 11 }}>
+                            {selected ? "✓" : "+"}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                </View>
+                {/* isFirst + Reaction */}
+                <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+                  <TouchableOpacity
+                    onPress={() => setEditIsFirst(!editIsFirst)}
+                    style={{
+                      flexDirection: "row", alignItems: "center", gap: 6,
+                      paddingVertical: 8, paddingHorizontal: 12,
+                      borderRadius: 99,
+                      backgroundColor: editIsFirst ? "#FFF3E0" : c.elevated,
+                    }}
+                  >
+                    <Text style={{ fontSize: 14 }}>🥇</Text>
+                    <Text style={{ color: editIsFirst ? "#F57C00" : c.textBody, fontWeight: "700", fontSize: 12 }}>
+                      Primera vez
+                    </Text>
+                  </TouchableOpacity>
+                  <TextInput
+                    value={editReaction}
+                    onChangeText={setEditReaction}
+                    placeholder="Reacción (ej. le gustó)"
+                    placeholderTextColor={c.textDim}
+                    style={{
+                      flex: 1, backgroundColor: c.elevated,
+                      borderRadius: 10, padding: 10,
+                      color: c.textBody, fontSize: 14,
+                    }}
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* Edit photo */}
+            <View style={{ gap: 6 }}>
+              <Text className="font-bold text-xs" style={{ color: c.textMuted }}>📷 Foto</Text>
+              {editImageUri ? (
+                <View style={{ alignItems: "flex-start", gap: 8 }}>
+                  <Image source={{ uri: editImageUri }} style={{ width: 120, height: 120, borderRadius: 12 }} resizeMode="cover" />
+                  <TouchableOpacity onPress={() => setEditImageUri(null)}>
+                    <Text style={{ color: c.danger, fontWeight: "700", fontSize: 13 }}>Eliminar foto</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert("Foto", "¿Cómo quieres agregar una foto?", [
+                      {
+                        text: "📷 Cámara",
+                        onPress: async () => { const uri = await takePhoto(); if (uri) setEditImageUri(uri); },
+                      },
+                      {
+                        text: "🖼️ Galería",
+                        onPress: async () => { const uri = await pickImage(); if (uri) setEditImageUri(uri); },
+                      },
+                      { text: "Cancelar", style: "cancel" },
+                    ]);
+                  }}
+                  style={{
+                    flexDirection: "row", alignItems: "center", gap: 6,
+                    paddingVertical: 10, paddingHorizontal: 14,
+                    borderRadius: 12,
+                    backgroundColor: c.elevated, alignSelf: "flex-start",
+                  }}
+                >
+                  <Text style={{ fontSize: 20 }}>📷</Text>
+                  <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 13 }}>Agregar foto</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Edit tags */}
             <View style={{ gap: 6 }}>
               <Text className="font-bold text-xs" style={{ color: c.textMuted }}>🏷️ Etiquetas</Text>
               <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
@@ -576,12 +936,9 @@ export default function EventDetailScreen() {
                     setEditTagInput("");
                   }}
                   style={{
-                    flex: 1,
-                    backgroundColor: c.surface,
-                    borderRadius: 10,
-                    padding: 10,
-                    color: c.textBody,
-                    fontSize: 14,
+                    flex: 1, backgroundColor: c.elevated,
+                    borderRadius: 10, padding: 10,
+                    color: c.textBody, fontSize: 14,
                   }}
                 />
                 <TouchableOpacity
@@ -608,7 +965,7 @@ export default function EventDetailScreen() {
                       onPress={() => setEditTags(editTags.filter((_, j) => j !== i))}
                       style={{
                         flexDirection: "row", alignItems: "center", gap: 4,
-                        backgroundColor: c.surface, borderRadius: 99,
+                        backgroundColor: c.elevated, borderRadius: 99,
                         paddingVertical: 4, paddingHorizontal: 10,
                       }}
                     >
@@ -620,6 +977,7 @@ export default function EventDetailScreen() {
               )}
             </View>
 
+            {/* Edit notes */}
             <View style={{ gap: 6 }}>
               <Text className="font-bold text-xs" style={{ color: c.textMuted }}>📝 Notas</Text>
               <TextInput
@@ -629,11 +987,26 @@ export default function EventDetailScreen() {
                 placeholderTextColor={c.textMuted}
                 multiline
                 className="rounded-xl p-3.5 text-[15px]"
-                style={{ backgroundColor: c.surface, color: c.textBody, minHeight: 60, textAlignVertical: "top" }}
+                style={{ backgroundColor: c.elevated, color: c.textBody, minHeight: 60, textAlignVertical: "top" }}
               />
             </View>
 
+            {/* Medical warning */}
+            {isMedical && (
+              <View style={{ backgroundColor: c.danger + "20", borderRadius: 12, padding: 12, borderLeftWidth: 4, borderLeftColor: c.danger }}>
+                <Text style={{ color: c.danger, fontWeight: "700", fontSize: 13 }}>
+                  ⚠️ Esto pausará la toma activa para registrar el evento médico
+                </Text>
+              </View>
+            )}
+
             <BigButton title="💾 Guardar Cambios" onPress={handleSaveEdit} variant="primary" />
+
+            <TouchableOpacity onPress={() => setEditStep("category")} style={{ minHeight: 48, justifyContent: "center" }}>
+              <Text style={{ color: c.textDim, textAlign: "center", fontWeight: "600", fontSize: 14 }}>
+                Cambiar tipo de evento
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
