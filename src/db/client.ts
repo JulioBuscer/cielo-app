@@ -270,6 +270,7 @@ export async function runMigrations() {
     `ALTER TABLE food_catalog ADD COLUMN warning TEXT`,
     `ALTER TABLE food_catalog ADD COLUMN warning_type TEXT`,
     `ALTER TABLE food_catalog ADD COLUMN secondary_groups TEXT`,
+    `ALTER TABLE food_catalog ADD COLUMN subgroup TEXT`,
     // migrate old group values → 5 groups
     `UPDATE food_catalog SET "group" = 'grain' WHERE "group" = 'cereal_tuber'`,
     `UPDATE food_catalog SET "group" = 'protein' WHERE "group" = 'legume'`,
@@ -279,8 +280,32 @@ export async function runMigrations() {
     `UPDATE food_catalog SET "group" = 'fat' WHERE "group" = 'healthy_fats'`,
     // set secondaryGroups for dual-group foods
     `UPDATE food_catalog SET secondary_groups = 'fat' WHERE id = 'coconut' AND "group" = 'fruit'`,
-    `UPDATE food_catalog SET secondary_groups = 'fruit' WHERE id = 'avocado' AND "group" = 'fat'`,
     `UPDATE food_catalog SET secondary_groups = 'fat' WHERE id = 'butter' AND "group" = 'protein'`,
+    // remove avocado from fruits (was dual-group, now only fat)
+    `UPDATE food_catalog SET secondary_groups = NULL WHERE id = 'avocado'`,
+    `UPDATE food_catalog SET "group" = 'fat' WHERE id = 'avocado' AND "group" != 'fat'`,
+    `DELETE FROM food_catalog WHERE id = 'avocado_oil'`,
+    // populate subgroup for existing seed foods
+    `UPDATE food_catalog SET subgroup = CASE id
+      WHEN 'amaranth' THEN 'cereal' WHEN 'rice_white' THEN 'cereal' WHEN 'rice_brown' THEN 'cereal'
+      WHEN 'oats' THEN 'cereal' WHEN 'barley' THEN 'cereal' WHEN 'rye' THEN 'cereal'
+      WHEN 'oat_flour' THEN 'cereal' WHEN 'corn_flour' THEN 'cereal' WHEN 'corn_grain' THEN 'cereal'
+      WHEN 'polenta' THEN 'cereal' WHEN 'bread_whole' THEN 'cereal' WHEN 'pasta_wheat' THEN 'cereal'
+      WHEN 'quinoa' THEN 'cereal' WHEN 'wheat_grain' THEN 'cereal'
+      WHEN 'sweet_potato' THEN 'tuber' WHEN 'potato' THEN 'tuber' WHEN 'plantain' THEN 'tuber' WHEN 'cassava' THEN 'tuber'
+      WHEN 'tuna' THEN 'animal' WHEN 'shrimp' THEN 'animal' WHEN 'pork' THEN 'animal'
+      WHEN 'beef' THEN 'animal' WHEN 'liver' THEN 'animal' WHEN 'egg' THEN 'animal'
+      WHEN 'turkey' THEN 'animal' WHEN 'white_fish' THEN 'animal' WHEN 'chicken' THEN 'animal' WHEN 'fatty_fish' THEN 'animal'
+      WHEN 'yogurt' THEN 'dairy' WHEN 'fresh_cheese' THEN 'dairy' WHEN 'jocoque' THEN 'dairy'
+      WHEN 'kefir' THEN 'dairy' WHEN 'butter' THEN 'dairy'
+      WHEN 'white_bean' THEN 'legume' WHEN 'peas' THEN 'legume' WHEN 'edamame' THEN 'legume'
+      WHEN 'green_bean' THEN 'legume' WHEN 'black_bean' THEN 'legume' WHEN 'chickpea' THEN 'legume'
+      WHEN 'broad_bean' THEN 'legume' WHEN 'lentil' THEN 'legume'
+      WHEN 'soy' THEN 'vegetable_protein' WHEN 'tofu' THEN 'vegetable_protein'
+      WHEN 'olive_oil' THEN 'oil' WHEN 'coconut_oil' THEN 'oil'
+      WHEN 'sesame' THEN 'seed' WHEN 'chia' THEN 'seed' WHEN 'flaxseed' THEN 'seed' WHEN 'sunflower_seed' THEN 'seed'
+      WHEN 'peanut_butter' THEN 'nut_butter' WHEN 'almond_butter' THEN 'nut_butter' WHEN 'walnut_butter' THEN 'nut_butter'
+    END WHERE subgroup IS NULL AND is_system = 1`,
     // event_presets
     `ALTER TABLE event_presets ADD COLUMN default_tags TEXT DEFAULT '[]'`,
   ]) {

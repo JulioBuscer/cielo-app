@@ -312,6 +312,7 @@ export const foodCatalog = sqliteTable('food_catalog', {
   name:           text('name').notNull(),
   emoji:          text('emoji'),
   group:          text('group', { enum: ['fruit', 'vegetable', 'grain', 'protein', 'fat'] }).notNull(),
+  subgroup:       text('subgroup', { enum: ['cereal', 'tuber', 'animal', 'dairy', 'legume', 'vegetable_protein', 'oil', 'seed', 'nut_butter'] }),
   property:       text('property', { enum: ['laxative', 'astringent', 'both', 'neutral'] }).default('neutral'),
   effect:         text('effect', { enum: ['laxative', 'astringent', 'regulator'] }),
   allergens:      text('allergens'),

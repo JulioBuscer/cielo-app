@@ -28,14 +28,17 @@ import {
 import { useCatalogItem, useCatalogItems } from "@/src/hooks/useCatalogItems";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
+import { FoodDetailModal } from "@/src/components/food/FoodDetailModal";
 import { getZoneColor, getZoneLabel, parseMetrics, getMetricZoneColor, getMetricZoneLabel } from "@/src/db/schema";
 import { useTheme } from "@/src/theme/useTheme";
 import { getUnit, getUnitsByDimension, getUnitsForMetric } from "@/src/units/registry";
 import { findBestUnit } from "@/src/units/helpers";
 import type { EventMetric } from "@/src/units/types";
 import { getCategory, getCategoryLabel, getCategoryEmoji, USER_CATEGORIES } from "@/src/utils/categories";
-import { useFoodCatalog, FOOD_GROUPS } from "@/src/hooks/useFoodLogs";
+import { useFoodCatalog, FOOD_GROUPS, SUBGROUPS, BADGE_FILTERS } from "@/src/hooks/useFoodLogs";
 import { useCamera } from "@/src/hooks/useCamera";
+
+const GROUP_KEYS = Object.keys(FOOD_GROUPS).sort();
 
 function formatDateTime(ts: Date | string | number | undefined | null): string {
   if (!ts) return "--";
@@ -74,8 +77,11 @@ export default function EventDetailScreen() {
   const [editReaction, setEditReaction] = useState("");
   const [editImageUri, setEditImageUri] = useState<string | null>(null);
   const [selectedFoodGroup, setSelectedFoodGroup] = useState<string | null>(null);
+  const [selectedFoodSubgroups, setSelectedFoodSubgroups] = useState<string[]>([]);
+  const [selectedFoodBadges, setSelectedFoodBadges] = useState<string[]>([]);
   const [collapsedFoodGroups, setCollapsedFoodGroups] = useState<Record<string, boolean>>({});
   const [foodSearch, setFoodSearch] = useState("");
+  const [detailFood, setDetailFood] = useState<any>(null);
   const { data: foodCatalog } = useFoodCatalog();
   const { takePhoto, pickImage } = useCamera();
   const { data: allItems } = useCatalogItems();
@@ -148,6 +154,17 @@ export default function EventDetailScreen() {
 
   const itemHasChildren = (id: string) => allItems?.some((i) => i.parentId === id) ?? false;
 
+  const toggleFoodSubgroup = (sg: string) => {
+    setSelectedFoodSubgroups((prev) =>
+      prev.includes(sg) ? prev.filter((x) => x !== sg) : [...prev, sg]
+    );
+  };
+  const toggleFoodBadge = (bf: string) => {
+    setSelectedFoodBadges((prev) =>
+      prev.includes(bf) ? prev.filter((x) => x !== bf) : [...prev, bf]
+    );
+  };
+
   const groupedFoods = useMemo(() => {
     const all = foodCatalog ?? [];
     const q = foodSearch.toLowerCase().trim();
@@ -155,11 +172,26 @@ export default function EventDetailScreen() {
     const groups: Record<string, any[]> = {};
     for (const f of visible) {
       if (q && !f.name.toLowerCase().includes(q) && !(f.emoji ?? "").includes(q)) continue;
+      if (selectedFoodGroup && f.group !== selectedFoodGroup) continue;
+      if (selectedFoodSubgroups.length > 0 && (!f.subgroup || !selectedFoodSubgroups.includes(f.subgroup))) continue;
+      if (selectedFoodBadges.length > 0 && !selectedFoodBadges.some((bf) => BADGE_FILTERS.find((b) => b.key === bf)?.test(f))) continue;
       const g = f.group || "other";
       if (!groups[g]) groups[g] = [];
       groups[g].push(f);
     }
     return groups;
+  }, [foodCatalog, foodSearch, selectedFoodGroup, selectedFoodSubgroups, selectedFoodBadges]);
+
+  const availableSubgroups = useMemo(() => {
+    const all = foodCatalog ?? [];
+    const q = foodSearch.toLowerCase().trim();
+    const visible = all.filter((f: any) => !f.hidden && (!selectedFoodGroup || f.group === selectedFoodGroup));
+    const sgs = new Set<string>();
+    for (const f of visible) {
+      if (q && !f.name.toLowerCase().includes(q) && !(f.emoji ?? "").includes(q)) continue;
+      if (f.subgroup) sgs.add(f.subgroup);
+    }
+    return [...sgs] as string[];
   }, [foodCatalog, foodSearch]);
 
   const toggleFoodGroup = (group: string) => {
@@ -298,7 +330,8 @@ export default function EventDetailScreen() {
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <Text className="text-base" style={{ color: c.textDim }}>Cargando...</Text>
         </View>
-      </SafeAreaView>
+      <FoodDetailModal food={detailFood} visible={!!detailFood} onClose={() => setDetailFood(null)} />
+    </SafeAreaView>
     );
   }
 
@@ -496,16 +529,18 @@ export default function EventDetailScreen() {
           <View className="rounded-2xl p-5 gap-2" style={{ backgroundColor: c.card }}>
             <Text className="font-black text-[15px]" style={{ color: c.textBody }}>🍽️ Alimentos</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-              {(meta.foods as { id: string; emoji: string | null; name: string }[]).map((f) => (
-                <View key={f.id} style={{
+              {(meta.foods as { id: string; emoji: string | null; name: string }[]).map((f) => {
+                const fullFood = foodCatalog?.find((item: any) => item.id === f.id);
+                return (
+                <TouchableOpacity key={f.id} onLongPress={() => fullFood && setDetailFood(fullFood)} style={{
                   backgroundColor: c.surface, borderRadius: 99,
                   paddingVertical: 4, paddingHorizontal: 10,
                 }}>
                   <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 13 }}>
                     {f.emoji ?? ""} {f.name}
                   </Text>
-                </View>
-              ))}
+                </TouchableOpacity>
+              )})}
               {meta.isFirst && (
                 <View style={{
                   backgroundColor: "#FFF3E0", borderRadius: 99,
@@ -812,11 +847,11 @@ export default function EventDetailScreen() {
 
             {/* Edit foods */}
             {editSelRootId === "food" && (
-              <View style={{ gap: 12 }}>
+              <View style={{ gap: 10 }}>
                 <Text style={{ color: c.accent, fontWeight: "800", fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
                   🍽️ Alimentos
                 </Text>
-                {/* Search */}
+                {/* Search + filters */}
                 <TextInput
                   value={foodSearch}
                   onChangeText={setFoodSearch}
@@ -828,6 +863,68 @@ export default function EventDetailScreen() {
                     borderWidth: 1, borderColor: c.border,
                   }}
                 />
+                <View style={{ gap: 4 }}>
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: c.textMuted, letterSpacing: 0.5 }}>GRUPO</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
+                    {GROUP_KEYS.map((k) => (
+                      <TouchableOpacity
+                        key={k}
+                        onPress={() => setSelectedFoodGroup(selectedFoodGroup === k ? null : k)}
+                        style={{
+                          paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
+                          backgroundColor: selectedFoodGroup === k ? c.accent : c.card,
+                        }}
+                      >
+                        <Text style={{
+                          fontSize: 12, fontWeight: "600",
+                          color: selectedFoodGroup === k ? c.textOnAccent : c.textBody,
+                        }}>{FOOD_GROUPS[k]}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+                {availableSubgroups.length > 0 && (
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ fontSize: 10, fontWeight: "700", color: c.textMuted, letterSpacing: 0.5 }}>SUBGRUPO</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
+                      {availableSubgroups.map((sg) => (
+                        <TouchableOpacity
+                          key={sg}
+                          onPress={() => toggleFoodSubgroup(sg)}
+                          style={{
+                            paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
+                            backgroundColor: selectedFoodSubgroups.includes(sg) ? c.accent : c.card,
+                          }}
+                        >
+                          <Text style={{
+                            fontSize: 12, fontWeight: "600",
+                            color: selectedFoodSubgroups.includes(sg) ? c.textOnAccent : c.textBody,
+                          }}>{SUBGROUPS[sg] ?? sg}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+                <View style={{ gap: 4 }}>
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: c.textMuted, letterSpacing: 0.5 }}>BADGE</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
+                    {BADGE_FILTERS.map((bf) => (
+                      <TouchableOpacity
+                        key={bf.key}
+                        onPress={() => toggleFoodBadge(bf.key)}
+                        style={{
+                          paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
+                          backgroundColor: selectedFoodBadges.includes(bf.key) ? c.accent : c.card,
+                        }}
+                      >
+                        <Text style={{
+                          fontSize: 12, fontWeight: "600",
+                          color: selectedFoodBadges.includes(bf.key) ? c.textOnAccent : c.textBody,
+                        }}>{bf.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
                 {/* Accordion groups */}
                 {Object.entries(groupedFoods).map(([group, foods]) => {
                   const isCollapsed = collapsedFoodGroups[group] ?? false;
@@ -852,7 +949,7 @@ export default function EventDetailScreen() {
                       </Text>
                     </TouchableOpacity>
                     {!isCollapsed && (
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, paddingLeft: 14 }}>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5, paddingLeft: 14 }}>
                       {foods.map((f: any) => {
                         const selected = editFoods.some((ef: any) => ef.id === f.id);
                         if (!f.id) return null;
@@ -866,25 +963,61 @@ export default function EventDetailScreen() {
                               setEditFoods([...editFoods, { id: f.id, emoji: f.emoji, name: f.name }]);
                             }
                           }}
+                          onLongPress={() => setDetailFood(f)}
                           style={{
-                            flexDirection: "row", alignItems: "center", gap: 4,
-                            paddingVertical: 6, paddingHorizontal: 10,
-                            borderRadius: 99,
+                            borderRadius: 10,
                             backgroundColor: selected ? c.accent : c.elevated,
+                            borderWidth: 1,
+                            borderColor: selected ? c.accent : c.border,
                           }}
                         >
-                          <Text style={{ fontSize: 16 }}>{f.emoji ?? ""}</Text>
-                          <Text style={{ color: selected ? "#FFF" : c.textBody, fontWeight: "600", fontSize: 13 }}>
-                            {f.name}
-                          </Text>
-                          {!selected && f.isAllergen && <Text style={{ fontSize: 12 }}>🚨</Text>}
-                          {!selected && f.warning && <Text style={{ fontSize: 12 }}>⚠️</Text>}
-                          {!selected && f.effect === "laxative" && <Text style={{ fontSize: 9, color: "#2E7D32" }}>🟢</Text>}
-                          {!selected && f.effect === "astringent" && <Text style={{ fontSize: 9, color: "#5D4037" }}>🟤</Text>}
-                          {!selected && f.effect === "regulator" && <Text style={{ fontSize: 9 }}>🔄</Text>}
-                          <Text style={{ color: selected ? "rgba(255,255,255,0.7)" : c.textDim, fontSize: 11 }}>
-                            {selected ? "✓" : "+"}
-                          </Text>
+                          {!selected && (f.isAllergen || f.warning || f.effect || f.subgroup) && (
+                            <View style={{
+                              alignSelf: "flex-start",
+                              flexDirection: "row", gap: 2,
+                              padding: 2,
+                              borderTopLeftRadius: 99, borderTopRightRadius: 99,
+                            }}>
+                              {f.isAllergen && (
+                                <View style={{ borderRadius: 99, paddingHorizontal: 2 }}>
+                                  <Text style={{ fontSize: 11 }}>🚨</Text>
+                                </View>
+                              )}
+                              {f.warning && (
+                                <View style={{ borderRadius: 99, paddingHorizontal: 2 }}>
+                                  <Text style={{ fontSize: 11 }}>⚠️</Text>
+                                </View>
+                              )}
+                              {f.subgroup && (
+                                <View style={{ borderRadius: 99, paddingHorizontal: 4, paddingVertical: 1 }}>
+                                  <Text style={{ fontSize: 9, color: c.textMuted }}>{SUBGROUPS[f.subgroup]?.split(" ")[0] ?? ""}</Text>
+                                </View>
+                              )}
+                              {f.effect === "laxative" && (
+                                <View style={{ backgroundColor: "#E8F5E9", borderRadius: 99, paddingHorizontal: 2 }}>
+                                  <Text style={{ fontSize: 11 }}>🟢</Text>
+                                </View>
+                              )}
+                              {f.effect === "astringent" && (
+                                <View style={{ backgroundColor: "#EFEBE9", borderRadius: 99, paddingHorizontal: 2 }}>
+                                  <Text style={{ fontSize: 11 }}>🟤</Text>
+                                </View>
+                              )}
+                              {f.effect === "regulator" && (
+                                <View style={{ backgroundColor: "#E3F2FD", borderRadius: 99, paddingHorizontal: 2 }}>
+                                  <Text style={{ fontSize: 11 }}>🔄</Text>
+                                </View>
+                              )}
+                            </View>
+                          )}
+                          <View style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
+                            <Text style={{
+                              fontSize: 13, textAlign: "left",
+                              color: selected ? c.textOnAccent : c.textBody,
+                            }}>
+                              {f.emoji ?? ""} {f.name}
+                            </Text>
+                          </View>
                         </TouchableOpacity>
                       )})}
                     </View>

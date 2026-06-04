@@ -7,7 +7,8 @@ import {
 import { Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
-import { useFoodCatalogAll, useUpdateFoodCatalog, useDeleteFoodCatalog } from "@/src/hooks/useFoodLogs";
+import { useFoodCatalogAll, useUpdateFoodCatalog, useDeleteFoodCatalog, SUBGROUPS } from "@/src/hooks/useFoodLogs";
+import { FoodDetailModal } from "@/src/components/food/FoodDetailModal";
 
 const GROUP_EMOJIS: Record<string, string> = {
   fruit: "🍎", vegetable: "🥕", grain: "🌾",
@@ -20,6 +21,8 @@ const GROUP_LABELS: Record<string, string> = {
 };
 
 const GROUP_KEYS = Object.keys(GROUP_LABELS);
+
+const SUBGROUP_KEYS = Object.keys(SUBGROUPS);
 
 const PROPERTY_LABELS: Record<string, string> = {
   laxative: "Laxante", astringent: "Astringente",
@@ -59,6 +62,8 @@ export default function FoodCatalogScreen() {
   const [editWarningType, setEditWarningType] = useState<string>("");
   const [editAllergens, setEditAllergens] = useState<string[]>([]);
   const [editSecondaryGroups, setEditSecondaryGroups] = useState<string>("");
+  const [editSubgroup, setEditSubgroup] = useState<string>("");
+  const [detailFood, setDetailFood] = useState<any>(null);
 
   function startEditing(f: any) {
     setEditingId(f.id);
@@ -74,6 +79,7 @@ export default function FoodCatalogScreen() {
     const raw: string = f.allergens ?? "";
     setEditAllergens(raw ? raw.split(",").map((a: string) => a.trim()).filter(Boolean) : []);
     setEditSecondaryGroups(f.secondaryGroups ?? "");
+    setEditSubgroup(f.subgroup ?? "");
   }
 
   function handleSave() {
@@ -91,6 +97,7 @@ export default function FoodCatalogScreen() {
       warning: editWarning || null,
       warningType: editWarningType || null,
       secondaryGroups: editSecondaryGroups || null,
+      subgroup: editSubgroup || null,
     });
     setEditingId(null);
   }
@@ -174,6 +181,7 @@ export default function FoodCatalogScreen() {
                 <TouchableOpacity
                   key={f.id}
                   onPress={() => startEditing(f)}
+                  onLongPress={() => setDetailFood(f)}
                   style={{
                     padding: 12, borderRadius: 12,
                     backgroundColor: c.elevated, borderWidth: 1, borderColor: editingId === f.id ? c.accent : c.border,
@@ -389,6 +397,39 @@ export default function FoodCatalogScreen() {
                         ) : null}
                       </View>
 
+                      <View style={{ gap: 4 }}>
+                        <Text style={{ fontSize: 11, fontWeight: "600", color: c.textMuted }}>Subgrupo</Text>
+                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
+                          <TouchableOpacity
+                            onPress={() => setEditSubgroup("")}
+                            style={{
+                              paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
+                              backgroundColor: !editSubgroup ? c.accent : c.card,
+                            }}
+                          >
+                            <Text style={{
+                              fontSize: 11, fontWeight: "700",
+                              color: !editSubgroup ? c.textOnAccent : c.textBody,
+                            }}>—</Text>
+                          </TouchableOpacity>
+                          {SUBGROUP_KEYS.map((k) => (
+                            <TouchableOpacity
+                              key={k}
+                              onPress={() => setEditSubgroup(k)}
+                              style={{
+                                paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
+                                backgroundColor: editSubgroup === k ? c.accent : c.card,
+                              }}
+                            >
+                              <Text style={{
+                                fontSize: 11, fontWeight: "700",
+                                color: editSubgroup === k ? c.textOnAccent : c.textBody,
+                              }}>{SUBGROUPS[k]}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+
                       <View style={{ flexDirection: "row", gap: 8 }}>
                         <TouchableOpacity onPress={handleSave}
                           style={{
@@ -471,6 +512,15 @@ export default function FoodCatalogScreen() {
                         }}>
                           {PROPERTY_LABELS[f.property ?? "neutral"]}
                         </Text>
+                        {f.subgroup ? (
+                          <Text style={{
+                            fontSize: 10, fontWeight: "600", color: c.textMuted,
+                            backgroundColor: c.card, paddingHorizontal: 6,
+                            paddingVertical: 2, borderRadius: 4,
+                          }}>
+                            {SUBGROUPS[f.subgroup] ?? f.subgroup}
+                          </Text>
+                        ) : null}
                         {f.secondaryGroups ? (
                           <Text style={{
                             fontSize: 10, fontWeight: "600", color: c.accent,
@@ -502,6 +552,7 @@ export default function FoodCatalogScreen() {
           );
         })}
       </ScrollView>
+      <FoodDetailModal food={detailFood} visible={!!detailFood} onClose={() => setDetailFood(null)} />
     </SafeAreaView>
   );
 }

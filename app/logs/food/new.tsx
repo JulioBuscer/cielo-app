@@ -11,11 +11,12 @@ import * as ImagePicker from "expo-image-picker";
 import { captureAndStore, deletePhoto } from "@/src/services/imageStorage";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import {
-  useFoodCatalog, FOOD_GROUPS, useCreateFoodCatalogItem, useSaveFoodLog,
+  useFoodCatalog, FOOD_GROUPS, SUBGROUPS, BADGE_FILTERS, useCreateFoodCatalogItem, useSaveFoodLog,
 } from "@/src/hooks/useFoodLogs";
 import { useSaveTimelineEvent } from "@/src/hooks/useTimeline";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
+import { FoodDetailModal } from "@/src/components/food/FoodDetailModal";
 
 const GROUP_KEYS = Object.keys(FOOD_GROUPS).sort();
 
@@ -197,6 +198,8 @@ export default function FoodLogNewScreen() {
   const c = theme.colors;
 
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [selectedSubgroups, setSelectedSubgroups] = useState<string[]>([]);
+  const [selectedBadgeFilters, setSelectedBadgeFilters] = useState<string[]>([]);
   const [selectedFoodIds, setSelectedFoodIds] = useState<string[]>([]);
   const [timestamp, setTimestamp] = useState(new Date());
   const [isFirst, setIsFirst] = useState(false);
@@ -207,9 +210,26 @@ export default function FoodLogNewScreen() {
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const searchRef = useRef<TextInput>(null);
+  const [detailFood, setDetailFood] = useState<any>(null);
+
+  useEffect(() => {
+    setTimeout(() => searchRef.current?.focus(), 300);
+  }, []);
 
   const toggleGroup = (group: string) => {
     setCollapsedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
+  };
+
+  const toggleSubgroup = (sg: string) => {
+    setSelectedSubgroups((prev) =>
+      prev.includes(sg) ? prev.filter((x) => x !== sg) : [...prev, sg]
+    );
+  };
+  const toggleBadgeFilter = (bf: string) => {
+    setSelectedBadgeFilters((prev) =>
+      prev.includes(bf) ? prev.filter((x) => x !== bf) : [...prev, bf]
+    );
   };
 
   const groupedFoods = useMemo(() => {
@@ -219,12 +239,27 @@ export default function FoodLogNewScreen() {
     const groups: Record<string, any[]> = {};
     for (const f of visible) {
       if (q && !f.name.toLowerCase().includes(q) && !(f.emoji ?? "").includes(q)) continue;
+      if (selectedGroup && f.group !== selectedGroup) continue;
+      if (selectedSubgroups.length > 0 && (!f.subgroup || !selectedSubgroups.includes(f.subgroup))) continue;
+      if (selectedBadgeFilters.length > 0 && !selectedBadgeFilters.some((bf) => BADGE_FILTERS.find((b) => b.key === bf)?.test(f))) continue;
       const g = f.group || "other";
       if (!groups[g]) groups[g] = [];
       groups[g].push(f);
     }
     return groups;
-  }, [catalog, searchQuery]);
+  }, [catalog, searchQuery, selectedGroup, selectedSubgroups, selectedBadgeFilters]);
+
+  const availableSubgroups = useMemo(() => {
+    const all = catalog ?? [];
+    const q = searchQuery.toLowerCase().trim();
+    const visible = all.filter((f: any) => !f.hidden && (!selectedGroup || f.group === selectedGroup));
+    const sgs = new Set<string>();
+    for (const f of visible) {
+      if (q && !f.name.toLowerCase().includes(q) && !(f.emoji ?? "").includes(q)) continue;
+      if (f.subgroup) sgs.add(f.subgroup);
+    }
+    return [...sgs] as string[];
+  }, [catalog, searchQuery, selectedGroup]);
 
   const toggleFood = (id: string) => {
     setSelectedFoodIds((prev) =>
@@ -308,7 +343,7 @@ export default function FoodLogNewScreen() {
         style={{ flex: 1 }}
       >
       <ScrollView
-        contentContainerStyle={{ padding: 20, gap: 24 }}
+        contentContainerStyle={{ padding: 16, gap: 12 }}
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
       >
@@ -318,19 +353,85 @@ export default function FoodLogNewScreen() {
 
         {/* Search */}
         <TextInput
+          ref={searchRef}
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="🔍 Buscar alimento…"
           placeholderTextColor={c.textDim}
           style={{
             backgroundColor: c.elevated, color: c.textBody,
-            padding: 12, borderRadius: 12, fontSize: 15,
+            padding: 10, borderRadius: 10, fontSize: 14,
             borderWidth: 1, borderColor: c.border,
           }}
         />
 
+        <View style={{ gap: 4 }}>
+          <Text style={{ fontSize: 10, fontWeight: "700", color: c.textMuted, letterSpacing: 0.5 }}>GRUPO</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
+            {GROUP_KEYS.map((k) => (
+              <TouchableOpacity
+                key={k}
+                onPress={() => setSelectedGroup(selectedGroup === k ? null : k)}
+                style={{
+                  paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
+                  backgroundColor: selectedGroup === k ? c.accent : c.card,
+                }}
+              >
+                <Text style={{
+                  fontSize: 12, fontWeight: "600",
+                  color: selectedGroup === k ? c.textOnAccent : c.textBody,
+                }}>{FOOD_GROUPS[k]}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {availableSubgroups.length > 0 && (
+          <View style={{ gap: 4 }}>
+            <Text style={{ fontSize: 10, fontWeight: "700", color: c.textMuted, letterSpacing: 0.5 }}>SUBGRUPO</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
+              {availableSubgroups.map((sg) => (
+                <TouchableOpacity
+                  key={sg}
+                  onPress={() => toggleSubgroup(sg)}
+                  style={{
+                    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
+                    backgroundColor: selectedSubgroups.includes(sg) ? c.accent : c.card,
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 12, fontWeight: "600",
+                    color: selectedSubgroups.includes(sg) ? c.textOnAccent : c.textBody,
+                  }}>{SUBGROUPS[sg] ?? sg}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={{ gap: 4 }}>
+          <Text style={{ fontSize: 10, fontWeight: "700", color: c.textMuted, letterSpacing: 0.5 }}>BADGE</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
+            {BADGE_FILTERS.map((bf) => (
+              <TouchableOpacity
+                key={bf.key}
+                onPress={() => toggleBadgeFilter(bf.key)}
+                style={{
+                  paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
+                  backgroundColor: selectedBadgeFilters.includes(bf.key) ? c.accent : c.card,
+                }}
+              >
+                <Text style={{
+                  fontSize: 12, fontWeight: "600",
+                  color: selectedBadgeFilters.includes(bf.key) ? c.textOnAccent : c.textBody,
+                }}>{bf.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         <View>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted }}>
               Alimento
             </Text>
@@ -345,12 +446,12 @@ export default function FoodLogNewScreen() {
             const isCollapsed = collapsedGroups[group] ?? false;
             const grpLabel = (FOOD_GROUPS as any)[group] ?? group;
             return (
-            <View key={group} style={{ marginBottom: 12 }}>
+            <View key={group} style={{ marginBottom: 8 }}>
               <TouchableOpacity
                 onPress={() => toggleGroup(group)}
                 style={{
                   flexDirection: "row", alignItems: "center", gap: 6,
-                  paddingVertical: 8, paddingHorizontal: 4,
+                  paddingVertical: 6, paddingHorizontal: 4,
                 }}
               >
                 <Text style={{ fontSize: 12, color: c.textMuted }}>
@@ -366,40 +467,68 @@ export default function FoodLogNewScreen() {
                 </Text>
               </TouchableOpacity>
               {!isCollapsed && (
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, paddingLeft: 16 }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5, paddingLeft: 16 }}>
                 {foods.map((f: any) => {
                   const selected = selectedFoodIds.includes(f.id);
                   return (
                   <TouchableOpacity
                     key={f.id}
                     onPress={() => toggleFood(f.id)}
+                    onLongPress={() => setDetailFood(f)}
                     style={{
-                      flexDirection: "row", alignItems: "center", gap: 6,
-                      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
+                      borderRadius: 10,
                       backgroundColor: selected ? c.accent : c.elevated,
                       borderWidth: 1,
                       borderColor: selected ? c.accent : c.border,
                     }}
                   >
-                    <View style={{
-                      width: 20, height: 20, borderRadius: 4, borderWidth: 2,
-                      borderColor: selected ? c.textOnAccent : c.textMuted,
-                      alignItems: "center", justifyContent: "center",
-                      backgroundColor: selected ? c.textOnAccent : "transparent",
-                    }}>
-                      {selected && <Text style={{ color: c.accent, fontSize: 12, fontWeight: "900" }}>✓</Text>}
+                    {!selected && (f.isAllergen || f.warning || f.effect || f.subgroup) && (
+                      <View style={{
+                        alignSelf: "flex-start",
+                        flexDirection: "row", gap: 2,
+                        padding: 2,
+                        borderTopLeftRadius: 99, borderTopRightRadius: 99,
+                      }}>
+                        {f.isAllergen && (
+                          <View style={{ borderRadius: 99, paddingHorizontal: 2 }}>
+                            <Text style={{ fontSize: 11 }}>🚨</Text>
+                          </View>
+                        )}
+                        {f.warning && (
+                          <View style={{ borderRadius: 99, paddingHorizontal: 2 }}>
+                            <Text style={{ fontSize: 11 }}>⚠️</Text>
+                          </View>
+                        )}
+                        {f.subgroup && (
+                          <View style={{ borderRadius: 99, paddingHorizontal: 4, paddingVertical: 1 }}>
+                            <Text style={{ fontSize: 9, color: c.textMuted }}>{SUBGROUPS[f.subgroup]?.split(" ")[0] ?? ""}</Text>
+                          </View>
+                        )}
+                        {f.effect === "laxative" && (
+                          <View style={{ backgroundColor: "#E8F5E9", borderRadius: 99, paddingHorizontal: 2 }}>
+                            <Text style={{ fontSize: 11 }}>🟢</Text>
+                          </View>
+                        )}
+                        {f.effect === "astringent" && (
+                          <View style={{ backgroundColor: "#EFEBE9", borderRadius: 99, paddingHorizontal: 2 }}>
+                            <Text style={{ fontSize: 11 }}>🟤</Text>
+                          </View>
+                        )}
+                        {f.effect === "regulator" && (
+                          <View style={{ backgroundColor: "#E3F2FD", borderRadius: 99, paddingHorizontal: 2 }}>
+                            <Text style={{ fontSize: 11 }}>🔄</Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
+                    <View style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
+                      <Text style={{
+                        fontSize: 13, textAlign: "left",
+                        color: selected ? c.textOnAccent : c.textBody,
+                      }}>
+                        {f.emoji ?? ""} {f.name}
+                      </Text>
                     </View>
-                    <Text style={{
-                      fontSize: 15,
-                      color: selected ? c.textOnAccent : c.textBody,
-                    }}>
-                      {f.emoji ?? ""} {f.name}
-                    </Text>
-                    {!selected && f.isAllergen && <Text style={{ fontSize: 13 }}>🚨</Text>}
-                    {!selected && f.warning && <Text style={{ fontSize: 13 }}>⚠️</Text>}
-                    {!selected && f.effect === "laxative" && <Text style={{ fontSize: 10, color: "#2E7D32" }}>🟢</Text>}
-                    {!selected && f.effect === "astringent" && <Text style={{ fontSize: 10, color: "#5D4037" }}>🟤</Text>}
-                    {!selected && f.effect === "regulator" && <Text style={{ fontSize: 10 }}>🔄</Text>}
                   </TouchableOpacity>
                 );
                 })}
@@ -414,17 +543,17 @@ export default function FoodLogNewScreen() {
 
         <TouchableOpacity
           onPress={() => setIsFirst(!isFirst)}
-          style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 44 }}
+          style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 44 }}
         >
           <View style={{
-            width: 24, height: 24, borderRadius: 4, borderWidth: 2,
+            width: 22, height: 22, borderRadius: 4, borderWidth: 2,
             borderColor: c.accent,
             backgroundColor: isFirst ? c.accent : "transparent",
             alignItems: "center", justifyContent: "center",
           }}>
-            {isFirst && <Text style={{ color: c.textOnAccent, fontSize: 14 }}>✓</Text>}
+            {isFirst && <Text style={{ color: c.textOnAccent, fontSize: 13 }}>✓</Text>}
           </View>
-          <Text style={{ fontSize: 15, color: c.textBody }}>🥇 Primera vez que prueba este alimento</Text>
+          <Text style={{ fontSize: 14, color: c.textBody }}>🥇 Primera vez que prueba este alimento</Text>
         </TouchableOpacity>
 
         <View style={{ gap: 8 }}>
@@ -514,6 +643,7 @@ export default function FoodLogNewScreen() {
           setShowQuickAdd(false);
         }}
       />
+      <FoodDetailModal food={detailFood} visible={!!detailFood} onClose={() => setDetailFood(null)} />
     </SafeAreaView>
   );
 }
