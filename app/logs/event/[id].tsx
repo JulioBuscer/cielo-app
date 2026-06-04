@@ -20,6 +20,7 @@ import {
 } from "@/src/hooks/useTimeline";
 import { useActiveProfile } from "@/src/hooks/useProfile";
 import { useActiveBaby } from "@/src/hooks/useBaby";
+import { useCatalogItem } from "@/src/hooks/useCatalogItems";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { getZoneColor, getZoneLabel, parseMetrics, getMetricZoneColor, getMetricZoneLabel } from "@/src/db/schema";
@@ -48,6 +49,7 @@ export default function EventDetailScreen() {
   const { data: baby } = useActiveBaby();
   const updateEvent = useUpdateTimelineEvent();
   const { data: diaperObs } = useDiaperObservations();
+  const { data: catalogItem } = useCatalogItem(event?.eventItemId ?? undefined);
 
   const [editing, setEditing] = useState(false);
   const [editTimestamp, setEditTimestamp] = useState<Date>(new Date());
@@ -60,13 +62,18 @@ export default function EventDetailScreen() {
   const evType = eventTypes?.find((t) => t.id === event?.eventTypeId);
   const isOwn = event?.profileId === profile?.id;
 
-  const evMetrics: EventMetric[] = evType?.metrics
-    ? (() => { try { const p = JSON.parse(evType.metrics); return Array.isArray(p) ? p : []; } catch { return []; } })()
-    : [];
+  const evMetrics: EventMetric[] = catalogItem?.metrics
+    ? (() => { try { const p = JSON.parse(catalogItem.metrics); return Array.isArray(p) ? p : []; } catch { return []; } })()
+    : evType?.metrics
+      ? (() => { try { const p = JSON.parse(evType.metrics); return Array.isArray(p) ? p : []; } catch { return []; } })()
+      : [];
 
   const meta = event?.metadata
     ? (() => { try { return JSON.parse(event.metadata); } catch { return null; } })()
     : null;
+
+  const resolvedEmoji = catalogItem?.emoji ?? evType?.emoji ?? meta?.presetEmoji ?? "📝";
+  const resolvedLabel = catalogItem?.name ?? evType?.label ?? meta?.presetName ?? event?.eventTypeId ?? "Evento";
 
   const handleStartEditing = () => {
     if (!event) return;
@@ -225,7 +232,7 @@ export default function EventDetailScreen() {
           <Text style={{ fontSize: 24 }}>←</Text>
         </TouchableOpacity>
         <Text className="flex-1 text-center text-lg font-black" style={{ color: c.textBody }}>
-          {evType?.emoji ?? "📝"} {evType?.label ?? "Evento"}
+          {resolvedEmoji} {resolvedLabel}
         </Text>
         <TouchableOpacity onPress={editing ? () => setEditing(false) : handleStartEditing}>
           <Text className="font-bold text-sm" style={{ color: c.accent }}>
@@ -244,7 +251,7 @@ export default function EventDetailScreen() {
         <View className="rounded-2xl p-5 gap-3" style={{ backgroundColor: c.card }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <Text className="font-black text-[22px]" style={{ color: c.textBody }}>
-              {evType?.emoji ?? "📝"}
+              {resolvedEmoji}
             </Text>
             <Text
               className="font-bold text-xs px-2.5 py-1 rounded-full"
@@ -268,7 +275,7 @@ export default function EventDetailScreen() {
               <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                 <Text className="font-semibold text-[13px]" style={{ color: c.textDim }}>Tipo</Text>
                 <Text className="font-bold text-sm" style={{ color: c.textBody }}>
-                  {evType?.emoji} {evType?.label ?? event.eventTypeId}
+                  {resolvedEmoji} {resolvedLabel}
                 </Text>
               </View>
             )}
@@ -296,6 +303,51 @@ export default function EventDetailScreen() {
                 </Text>
               </View>
             ))}
+          </View>
+        )}
+
+        {/* Preset metadata fallback (view mode) */}
+        {!editing && meta?.presetName && !catalogItem && (
+          <View className="rounded-2xl p-5 gap-1.5" style={{ backgroundColor: c.card }}>
+            <Text className="font-bold text-xs" style={{ color: c.textDim }}>📋 De plantilla</Text>
+            <Text className="font-medium text-sm" style={{ color: c.textBody }}>
+              {meta.presetEmoji ?? ""} {meta.presetName}
+            </Text>
+          </View>
+        )}
+
+        {/* Food display (view mode) */}
+        {!editing && meta?.foods && Array.isArray(meta.foods) && meta.foods.length > 0 && (
+          <View className="rounded-2xl p-5 gap-2" style={{ backgroundColor: c.card }}>
+            <Text className="font-black text-[15px]" style={{ color: c.textBody }}>🍽️ Alimentos</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+              {(meta.foods as { id: string; emoji: string | null; name: string }[]).map((f) => (
+                <View key={f.id} style={{
+                  backgroundColor: c.surface, borderRadius: 99,
+                  paddingVertical: 4, paddingHorizontal: 10,
+                }}>
+                  <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 13 }}>
+                    {f.emoji ?? ""} {f.name}
+                  </Text>
+                </View>
+              ))}
+              {meta.isFirst && (
+                <View style={{
+                  backgroundColor: "#FFF3E0", borderRadius: 99,
+                  paddingVertical: 4, paddingHorizontal: 10,
+                }}>
+                  <Text style={{ color: "#F57C00", fontWeight: "600", fontSize: 13 }}>🥇 Primera vez</Text>
+                </View>
+              )}
+              {meta.reaction && (
+                <View style={{
+                  backgroundColor: c.surface, borderRadius: 99,
+                  paddingVertical: 4, paddingHorizontal: 10,
+                }}>
+                  <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 13 }}>😋 {meta.reaction}</Text>
+                </View>
+              )}
+            </View>
           </View>
         )}
 
