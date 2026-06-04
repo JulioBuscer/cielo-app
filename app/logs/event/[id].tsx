@@ -28,6 +28,7 @@ import { useTheme } from "@/src/theme/useTheme";
 import { getUnit, getUnitsByDimension, getUnitsForMetric } from "@/src/units/registry";
 import { findBestUnit } from "@/src/units/helpers";
 import type { EventMetric } from "@/src/units/types";
+import { getCategory } from "@/src/utils/categories";
 
 function formatDateTime(ts: Date | string | number | undefined | null): string {
   if (!ts) return "--";
@@ -50,6 +51,9 @@ export default function EventDetailScreen() {
   const updateEvent = useUpdateTimelineEvent();
   const { data: diaperObs } = useDiaperObservations();
   const { data: catalogItem } = useCatalogItem(event?.eventItemId ?? undefined);
+  const { data: rootCatalogItem } = useCatalogItem(
+    catalogItem?.parentId ?? undefined
+  );
 
   const [editing, setEditing] = useState(false);
   const [editTimestamp, setEditTimestamp] = useState<Date>(new Date());
@@ -74,6 +78,10 @@ export default function EventDetailScreen() {
 
   const resolvedEmoji = catalogItem?.emoji ?? evType?.emoji ?? meta?.presetEmoji ?? "📝";
   const resolvedLabel = catalogItem?.name ?? evType?.label ?? meta?.presetName ?? event?.eventTypeId ?? "Evento";
+  const categoryKey = catalogItem?.category ?? evType?.category;
+  const hierarchyLabel = rootCatalogItem
+    ? `${rootCatalogItem.emoji} ${rootCatalogItem.name}  ›  ${resolvedEmoji} ${resolvedLabel}`
+    : null;
 
   const handleStartEditing = () => {
     if (!event) return;
@@ -264,6 +272,32 @@ export default function EventDetailScreen() {
             </Text>
           </View>
 
+          {/* Category badge */}
+          {categoryKey && (
+            <View style={{ flexDirection: "row" }}>
+              <View style={{
+                backgroundColor: getCategory(categoryKey).color + "20",
+                borderRadius: 99, paddingHorizontal: 10, paddingVertical: 3,
+              }}>
+                <Text style={{
+                  fontSize: 11, fontWeight: "800",
+                  color: getCategory(categoryKey).color,
+                }}>
+                  {getCategory(categoryKey).emoji} {getCategory(categoryKey).label}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Hierarchy breadcrumb */}
+          {hierarchyLabel && (
+            <View className="rounded-lg p-3" style={{ backgroundColor: c.surface }}>
+              <Text style={{ fontSize: 13, color: c.textBody, fontWeight: "600" }}>
+                {hierarchyLabel}
+              </Text>
+            </View>
+          )}
+
           <View className="rounded-xl p-3.5 gap-2" style={{ backgroundColor: c.surface }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
               <Text className="font-semibold text-[13px]" style={{ color: c.textDim }}>Fecha y hora</Text>
@@ -431,6 +465,28 @@ export default function EventDetailScreen() {
         {editing && (
           <View className="rounded-2xl p-5 gap-4" style={{ backgroundColor: c.card }}>
             <Text className="font-black text-[15px] text-center" style={{ color: c.accent }}>✏️ Editar evento</Text>
+
+            {/* Category + hierarchy (read-only) in edit mode */}
+            {categoryKey && (
+              <View style={{ alignItems: "center", gap: 6 }}>
+                <View style={{
+                  backgroundColor: getCategory(categoryKey).color + "20",
+                  borderRadius: 99, paddingHorizontal: 12, paddingVertical: 4,
+                }}>
+                  <Text style={{
+                    fontSize: 12, fontWeight: "800",
+                    color: getCategory(categoryKey).color,
+                  }}>
+                    {getCategory(categoryKey).emoji} {getCategory(categoryKey).label}
+                  </Text>
+                </View>
+                {hierarchyLabel && (
+                  <Text style={{ fontSize: 13, color: c.textBody, fontWeight: "600" }}>
+                    {hierarchyLabel}
+                  </Text>
+                )}
+              </View>
+            )}
 
             <View style={{ gap: 6 }}>
               <Text className="font-bold text-xs" style={{ color: c.textMuted }}>Fecha y hora</Text>
