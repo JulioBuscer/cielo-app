@@ -28,6 +28,7 @@ import type { CatalogItem } from "@/src/hooks/useCatalogItems";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { SaveAsPresetModal } from "@/src/components/ui/SaveAsPresetModal";
+import { ItemEditorModal } from "@/src/components/ui/ItemEditorModal";
 import { useTheme } from "@/src/theme/useTheme";
 import type { EventMetric } from "@/src/units/types";
 import { getUnit, getUnitsForMetric } from "@/src/units/registry";
@@ -105,6 +106,8 @@ export default function EventNewScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedRootId, setSelectedRootId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [editItem, setEditItem] = useState<CatalogItem | null>(null);
+  const [showEditItemModal, setShowEditItemModal] = useState(false);
   const [notes, setNotes] = useState(presetNotesVal ?? "");
   const [timestamp, setTimestamp] = useState(new Date());
   const [saving, setSaving] = useState(false);
@@ -404,6 +407,16 @@ export default function EventNewScreen() {
                         ▶
                       </Text>
                     )}
+                    <TouchableOpacity
+                      onPress={() => {
+                        setEditItem(item);
+                        setShowEditItemModal(true);
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{ padding: 4 }}
+                    >
+                      <Text style={{ color: c.textDim, fontSize: 14 }}>✎</Text>
+                    </TouchableOpacity>
                   </TouchableOpacity>
                 );
               })}
@@ -707,6 +720,13 @@ export default function EventNewScreen() {
           visible={showSavePreset}
           onClose={() => setShowSavePreset(false)}
           onSave={handleSaveAsPreset}
+        />
+
+        <ItemEditorModal
+          visible={showEditItemModal}
+          onClose={() => { setShowEditItemModal(false); setEditItem(null); }}
+          onSelect={() => { setShowEditItemModal(false); setEditItem(null); }}
+          item={editItem}
         />
 
         <View style={{ height: 40 }} />

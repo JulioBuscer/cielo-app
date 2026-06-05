@@ -93,6 +93,16 @@ export function useCreateCatalogItem() {
       isQuickAction?: boolean;
     }) => {
       const id = generateId();
+      // Must also insert into event_types for FK compatibility
+      await getDb().insert(eventTypes).values({
+        id,
+        emoji: input.emoji ?? '📌',
+        label: input.name,
+        category: input.category as any,
+        isSystem: false,
+        metrics: input.metrics ? JSON.stringify(input.metrics) : '[]',
+        createdAt: new Date(),
+      });
       await getDb().insert(catalogItems).values({
         id,
         category: input.category as any,

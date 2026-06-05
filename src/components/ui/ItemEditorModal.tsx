@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,13 +9,15 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useTheme } from "@/src/theme/useTheme";
-import { useCreateCatalogItem } from "@/src/hooks/useCatalogItems";
+import { useCreateCatalogItem, useUpdateCatalogItem, useDeleteCatalogItem } from "@/src/hooks/useCatalogItems";
 import { USER_CATEGORIES, getCategoryEmoji, getCategoryLabel } from "@/src/utils/categories";
 import { units, getUnit } from "@/src/units/registry";
 import type { EventMetric } from "@/src/units/types";
 import type { UnitDimension } from "@/src/units/types";
+import type { CatalogItem } from "@/src/db/schema";
 
 function generateMetricId() {
   return "m_" + Math.random().toString(36).substring(2, 8);
@@ -29,26 +31,55 @@ const DIMENSION_LABELS: Record<UnitDimension, string> = {
   dimensionless: "Sin dimensión",
 };
 
+function parseMetrics(json: string | null): EventMetric[] {
+  if (!json) return [];
+  try { const p = JSON.parse(json); return Array.isArray(p) ? p : []; } catch { return []; }
+}
+
 export function ItemEditorModal({
   visible,
   onClose,
   onSelect,
+  item,
 }: {
   visible: boolean;
   onClose: () => void;
   onSelect: (itemId: string) => void;
+  item?: CatalogItem | null;  // if provided, edit mode
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const create = useCreateCatalogItem();
+  const update = useUpdateCatalogItem();
+  const remove = useDeleteCatalogItem();
+
+  const isEdit = !!item;
 
   const [emoji, setEmoji] = useState("");
   const [name, setName] = useState("");
   const [category, setCategory] = useState("other");
   const [metrics, setMetrics] = useState<EventMetric[]>([]);
   const [showUnitPicker, setShowUnitPicker] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      if (item) {
+        setEmoji(item.emoji ?? "");
+        setName(item.name);
+        setCategory(item.category);
+        setMetrics(parseMetrics(item.metrics));
+      } else {
+        setEmoji("");
+        setName("");
+        setCategory("other");
+        setMetrics([]);
+      }
+    }
+  }, [visible, item]);
 
   const isFormValid = emoji.trim().length > 0 && name.trim().length > 0;
+  const isPending = create.isPending || update.isPending;
 
   const addMetric = useCallback(() => {
     setMetrics((prev) => [
@@ -57,7 +88,7 @@ export function ItemEditorModal({
     ]);
   }, []);
 
-  const removeMetric = useCallback((id: string) => {
+  const removeMetricCb = useCallback((id: string) => {
     setMetrics((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
@@ -66,25 +97,66 @@ export function ItemEditorModal({
   }, []);
 
   const handleSave = () => {
-    if (!isFormValid || create.isPending) return;
+    if (!isFormValid || isPending) return;
     const filteredMetrics = metrics.filter((m) => m.name.trim().length > 0);
-    create.mutate(
-      {
-        category,
-        name: name.trim(),
-        emoji: emoji.trim(),
-        metrics: filteredMetrics.length > 0 ? filteredMetrics : undefined,
-      },
-      {
-        onSuccess: (id) => {
-          setEmoji("");
-          setName("");
-          setCategory("other");
-          setMetrics([]);
-          onSelect(id);
-          onClose();
+
+    if (isEdit && item) {
+      update.mutate(
+        {
+          id: item.id,
+          emoji: emoji.trim(),
+          name: name.trim(),
+          metrics: filteredMetrics.length > 0 ? filteredMetrics : [],
         },
-      },
+        {
+          onSuccess: () => {
+            onSelect(item.id);
+            onClose();
+          },
+        },
+      );
+    } else {
+      create.mutate(
+        {
+          category,
+          name: name.trim(),
+          emoji: emoji.trim(),
+          metrics: filteredMetrics.length > 0 ? filteredMetrics : undefined,
+        },
+        {
+          onSuccess: (id) => {
+            onSelect(id);
+            onClose();
+          },
+        },
+      );
+    }
+  };
+
+  const handleDelete = () => {
+    if (!item) return;
+    Alert.alert(
+      "Eliminar item",
+      `¿Eliminar "${item.name}" y todas sus plantillas?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            setDeleting(true);
+            // Get child ids too
+            const { getDb } = await import('@/src/db/client');
+            const { catalogItems } = await import('@/src/db/schema');
+            const { eq } = await import('drizzle-orm');
+            const children = await getDb().select().from(catalogItems).where(eq(catalogItems.parentId, item.id));
+            const ids = [item.id, ...children.map((c: CatalogItem) => c.id)];
+            await remove.mutateAsync(ids);
+            setDeleting(false);
+            onClose();
+          },
+        },
+      ],
     );
   };
 
@@ -106,7 +178,7 @@ export function ItemEditorModal({
             {/* Header */}
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
               <Text style={{ fontWeight: "900", fontSize: 18, color: c.textBody }}>
-                Nuevo Item
+                {isEdit ? "Editar Item" : "Nuevo Item"}
               </Text>
               <TouchableOpacity onPress={onClose}>
                 <Text style={{ fontSize: 24, color: c.textDim }}>×</Text>
@@ -140,7 +212,7 @@ export function ItemEditorModal({
                   onChangeText={setName}
                   placeholder="Ej. Cólico"
                   placeholderTextColor={c.textDim}
-                  autoFocus
+                  autoFocus={!isEdit}
                   style={{
                     backgroundColor: c.card, borderRadius: 12, padding: 12,
                     fontSize: 15, color: c.textBody, minHeight: 48,
@@ -149,33 +221,35 @@ export function ItemEditorModal({
               </View>
             </View>
 
-            {/* Category */}
-            <View>
-              <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 11, textTransform: "uppercase", marginBottom: 8 }}>
-                Categoría
-              </Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {USER_CATEGORIES.map((catDef) => (
-                  <TouchableOpacity
-                    key={catDef.id}
-                    onPress={() => setCategory(catDef.id)}
-                    style={{
-                      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99,
-                      borderWidth: 1.5,
-                      backgroundColor: category === catDef.id ? c.accent + "20" : c.card,
-                      borderColor: category === catDef.id ? c.accent : "transparent",
-                    }}
-                  >
-                    <Text style={{
-                      fontSize: 12, fontWeight: "800",
-                      color: category === catDef.id ? c.accent : c.textMuted,
-                    }}>
-                      {getCategoryEmoji(catDef.id)} {getCategoryLabel(catDef.id)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            {/* Category (only in create mode) */}
+            {!isEdit && (
+              <View>
+                <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 11, textTransform: "uppercase", marginBottom: 8 }}>
+                  Categoría
+                </Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                  {USER_CATEGORIES.map((catDef) => (
+                    <TouchableOpacity
+                      key={catDef.id}
+                      onPress={() => setCategory(catDef.id)}
+                      style={{
+                        paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99,
+                        borderWidth: 1.5,
+                        backgroundColor: category === catDef.id ? c.accent + "20" : c.card,
+                        borderColor: category === catDef.id ? c.accent : "transparent",
+                      }}
+                    >
+                      <Text style={{
+                        fontSize: 12, fontWeight: "800",
+                        color: category === catDef.id ? c.accent : c.textMuted,
+                      }}>
+                        {getCategoryEmoji(catDef.id)} {getCategoryLabel(catDef.id)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-            </View>
+            )}
 
             {/* Metrics */}
             <View>
@@ -218,7 +292,7 @@ export function ItemEditorModal({
                         padding: 8, fontSize: 13, color: c.textBody, minHeight: 36,
                       }}
                     />
-                    <TouchableOpacity onPress={() => removeMetric(metric.id)} style={{ minHeight: 36, justifyContent: "center" }}>
+                    <TouchableOpacity onPress={() => removeMetricCb(metric.id)} style={{ minHeight: 36, justifyContent: "center" }}>
                       <Text style={{ color: c.textDim, fontSize: 16 }}>✕</Text>
                     </TouchableOpacity>
                   </View>
@@ -339,6 +413,23 @@ export function ItemEditorModal({
               ))}
             </View>
 
+            {/* Delete button (edit mode only) */}
+            {isEdit && (
+              <TouchableOpacity
+                onPress={handleDelete}
+                disabled={deleting}
+                style={{ alignItems: "center", paddingVertical: 8, minHeight: 44 }}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#FF5C5C" />
+                ) : (
+                  <Text style={{ color: "#FF5C5C", fontWeight: "600", fontSize: 13 }}>
+                    Eliminar item y plantillas
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+
             {/* Actions */}
             <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
               <TouchableOpacity
@@ -354,18 +445,18 @@ export function ItemEditorModal({
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSave}
-                disabled={!isFormValid || create.isPending}
+                disabled={!isFormValid || isPending}
                 style={{
                   flex: 1, paddingVertical: 14, borderRadius: 12,
                   backgroundColor: isFormValid ? c.accent : c.textDim + "40",
                   alignItems: "center", minHeight: 48,
                 }}
               >
-                {create.isPending ? (
+                {isPending ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <Text style={{ color: isFormValid ? "#FFF" : c.textMuted, fontWeight: "800", fontSize: 15 }}>
-                    Guardar
+                    {isEdit ? "Guardar cambios" : "Guardar"}
                   </Text>
                 )}
               </TouchableOpacity>
