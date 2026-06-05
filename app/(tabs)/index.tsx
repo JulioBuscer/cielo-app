@@ -46,7 +46,7 @@ import {
   SleepSessionBubble,
   DateSeparator,
 } from "@/src/components/ui/TimelineBubbles";
-import { InlineEventTypeModal } from "@/src/components/ui/CatalogModals";
+import { ItemEditorModal } from "@/src/components/ui/ItemEditorModal";
 import { useTheme } from "@/src/theme/useTheme";
 import { useQuickActionItems, useQuickSaveCatalogItem, useCatalogItems } from "@/src/hooks/useCatalogItems";
 import type { CatalogItem } from "@/src/hooks/useCatalogItems";
@@ -938,7 +938,7 @@ export default function HomeScreen() {
           setShowNewEventTypeModal(true);
         }}
       />
-      <InlineEventTypeModal
+      <ItemEditorModal
         visible={showNewEventTypeModal}
         onClose={() => setShowNewEventTypeModal(false)}
         onSelect={(id: string) => {
