@@ -21,10 +21,11 @@ import {
 import {
   useSaveTimelineEvent,
 } from "@/src/hooks/useTimeline";
-import { useCatalogItems, useQuickSaveCatalogItem } from "@/src/hooks/useCatalogItems";
+import { useCatalogItems, useQuickSaveCatalogItem, useCreateCatalogItem } from "@/src/hooks/useCatalogItems";
 import type { CatalogItem } from "@/src/hooks/useCatalogItems";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
+import { SaveAsPresetModal } from "@/src/components/ui/SaveAsPresetModal";
 import { useTheme } from "@/src/theme/useTheme";
 import type { EventMetric } from "@/src/units/types";
 import { getUnit, getUnitsForMetric } from "@/src/units/registry";
@@ -61,6 +62,31 @@ export default function EventNewScreen() {
   const pauseFeeding = usePauseFeeding();
   const saveEvent = useSaveTimelineEvent();
   const quickSave = useQuickSaveCatalogItem();
+  const createPreset = useCreateCatalogItem();
+
+  const [showSavePreset, setShowSavePreset] = useState(false);
+
+  const handleSaveAsPreset = async (name: string, emoji: string, isQuickAction: boolean) => {
+    if (!selectedItem || !selectedRootId) return;
+    const numericValues: Record<string, number> = {};
+    for (const [k, v] of Object.entries(values)) {
+      if (v !== "") {
+        const num = parseFloat(v);
+        if (!isNaN(num)) numericValues[k] = num;
+      }
+    }
+    await createPreset.mutateAsync({
+      category: selectedItem.category as any,
+      parentId: selectedRootId,
+      name,
+      emoji,
+      defaultValues: Object.keys(numericValues).length > 0 ? numericValues : undefined,
+      defaultUnitOverrides: Object.keys(displayUnits).length > 0 ? displayUnits : undefined,
+      defaultNotes: notes.trim() || undefined,
+      defaultTags: tags.length > 0 ? tags : undefined,
+      isQuickAction,
+    });
+  };
 
   const handleQuickSave = async (item: CatalogItem) => {
     if (!baby) return;
@@ -656,6 +682,22 @@ export default function EventNewScreen() {
               </View>
             )}
 
+            {/* Guardar como plantilla — solo para items root */}
+            {selectedItem.parentId === null && (
+              <TouchableOpacity
+                onPress={() => setShowSavePreset(true)}
+                style={{
+                  flexDirection: "row", alignItems: "center", justifyContent: "center",
+                  gap: 6, paddingVertical: 12, minHeight: 48,
+                }}
+              >
+                <Text style={{ fontSize: 16 }}>📋</Text>
+                <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 13 }}>
+                  Guardar como plantilla
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <BigButton
               title={saving ? "Guardando..." : "💾 Guardar Evento"}
               onPress={handleSave}
@@ -670,6 +712,12 @@ export default function EventNewScreen() {
             </TouchableOpacity>
           </>
         )}
+
+        <SaveAsPresetModal
+          visible={showSavePreset}
+          onClose={() => setShowSavePreset(false)}
+          onSave={handleSaveAsPreset}
+        />
 
         <View style={{ height: 40 }} />
       </ScrollView>
