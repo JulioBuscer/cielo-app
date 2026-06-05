@@ -51,7 +51,7 @@ import { useTheme } from "@/src/theme/useTheme";
 import { useQuickActionItems, useQuickSaveCatalogItem, useCatalogItems } from "@/src/hooks/useCatalogItems";
 import type { CatalogItem } from "@/src/hooks/useCatalogItems";
 import { DiaperSheet } from "@/src/components/diaper/DiaperSheet";
-import { HealthSheet } from "@/src/components/health/HealthSheet";
+import { TemperatureSheet } from "@/src/components/health/TemperatureSheet";
 import { FoodSheet } from "@/src/components/food/FoodSheet";
 import { getCategory, getCategoryLabel } from "@/src/utils/categories";
 
@@ -122,9 +122,23 @@ function EventPickerModal({
 }) {
   const { theme } = useTheme();
   const { data: types } = useEventTypes();
-  const available = (types ?? []).filter((t) => t.id !== "diaper");
   const c = theme.colors;
+
+  const byCategory = useMemo(() => {
+    const map = new Map<string, typeof types>();
+    for (const t of types ?? []) {
+      if (t.id === "diaper") continue;
+      const cat = t.category;
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat)!.push(t);
+    }
+    return map;
+  }, [types]);
+
+  const categoryOrder = ["health", "feeding", "growth", "other"];
+
   if (!visible) return null;
+
   return (
     <View
       style={{
@@ -145,25 +159,39 @@ function EventPickerModal({
         <Text style={{ fontWeight: "900", fontSize: 17, color: c.textBody, marginBottom: 12 }}>
           📝 Registrar Evento
         </Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {available.map((t) => (
-            <TouchableOpacity
-              key={t.id}
-              onPress={() => onSelect(t.id)}
-              style={{ backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 48 }}
-            >
-              <Text style={{ fontSize: 20 }}>{t.emoji}</Text>
-              <Text style={{ fontWeight: "900", fontSize: 14, color: c.textBody }}>{t.label}</Text>
-            </TouchableOpacity>
-          ))}
+        <ScrollView style={{ maxHeight: 400 }}>
+          {categoryOrder.map((catId) => {
+            const items = byCategory.get(catId);
+            if (!items?.length) return null;
+            const cat = getCategory(catId);
+            return (
+              <View key={catId} style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 13, fontWeight: "800", color: cat.color, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+                  {cat.emoji} {cat.label}
+                </Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                  {items.map((t) => (
+                    <TouchableOpacity
+                      key={t.id}
+                      onPress={() => onSelect(t.id)}
+                      style={{ backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 48 }}
+                    >
+                      <Text style={{ fontSize: 20 }}>{t.emoji}</Text>
+                      <Text style={{ fontWeight: "900", fontSize: 14, color: c.textBody }}>{t.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            );
+          })}
           <TouchableOpacity
             onPress={onNewEvent}
-            style={{ backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 48, borderWidth: 1, borderColor: "transparent", borderStyle: "dashed" }}
+            style={{ backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 48, borderWidth: 1, borderColor: c.textDim + "40", borderStyle: "dashed" }}
           >
             <Text style={{ fontSize: 20 }}>➕</Text>
-            <Text style={{ fontWeight: "900", fontSize: 13, color: c.textMuted }}>Nuevo</Text>
+            <Text style={{ fontWeight: "900", fontSize: 13, color: c.textMuted }}>Nuevo tipo de evento</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
         <TouchableOpacity
           onPress={onClose}
           style={{ marginTop: 14, alignItems: "center", paddingVertical: 14, minHeight: 48 }}
@@ -227,7 +255,7 @@ export default function HomeScreen() {
   const [sleepLoading, setSleepLoading] = useState(false);
   const [note, setNote] = useState("");
   const [showDiaperSheet, setShowDiaperSheet] = useState(false);
-  const [showHealthSheet, setShowHealthSheet] = useState(false);
+  const [showTemperatureSheet, setShowTemperatureSheet] = useState(false);
   const [showFoodSheet, setShowFoodSheet] = useState(false);
   const flatRef = useRef<FlatList>(null);
 
@@ -451,7 +479,7 @@ export default function HomeScreen() {
   const handleEventSelect = (typeId: string) => {
     setShowEventPicker(false);
     if (typeId === "diaper") setShowDiaperSheet(true);
-    else if (typeId === "temperature" || typeId === "medication") setShowHealthSheet(true);
+    else if (typeId === "temperature") setShowTemperatureSheet(true);
     else
       router.push({
         pathname: "/logs/event/new",
@@ -817,9 +845,9 @@ export default function HomeScreen() {
               />
               <QuickBtn
                 emoji="🌡️"
-                label="Salud"
+                label="Temp."
                 bgColor="#F97316"
-                onPress={() => setShowHealthSheet(true)}
+                onPress={() => setShowTemperatureSheet(true)}
                 disabled={!!loadingType}
               />
               <QuickBtn
@@ -921,9 +949,9 @@ export default function HomeScreen() {
         visible={showDiaperSheet}
         onClose={() => setShowDiaperSheet(false)}
       />
-      <HealthSheet
-        visible={showHealthSheet}
-        onClose={() => setShowHealthSheet(false)}
+      <TemperatureSheet
+        visible={showTemperatureSheet}
+        onClose={() => setShowTemperatureSheet(false)}
       />
       <FoodSheet
         visible={showFoodSheet}

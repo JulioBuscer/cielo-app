@@ -491,8 +491,7 @@ export default function EventNewScreen() {
                   return (
                     <View key={m.id} style={{ gap: 4 }}>
                       <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
-                        {m.name}{" "}
-                        {m.unitId ? <Text style={{ color: c.textDim }}>({m.unitId})</Text> : null}
+                        {m.name}
                       </Text>
                       <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
                         <TextInput
