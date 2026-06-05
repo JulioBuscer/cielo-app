@@ -705,23 +705,124 @@ export default function CatalogsScreen() {
                     />
                   </View>
 
-                  {/* Metrics JSON editor */}
+                  {/* Interactive Metrics Editor */}
                   <View style={{ gap: 4 }}>
-                    <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>Métricas (JSON)</Text>
-                    <TextInput
-                      value={ifMetricsJson}
-                      onChangeText={setIfMetricsJson}
-                      placeholder='[{"id":"dose","name":"Dosis","unitId":"milliliter","scaleMin":0,"scaleMax":100}]'
-                      placeholderTextColor={c.textDim}
-                      multiline
-                      style={{
-                        backgroundColor: c.surface,
-                        borderRadius: 12, padding: 12,
-                        color: c.textBody, fontSize: 12,
-                        fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
-                        minHeight: 60, textAlignVertical: "top",
-                      }}
-                    />
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                      <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12, textTransform: "uppercase" }}>
+                        Métricas
+                      </Text>
+                      <TouchableOpacity onPress={() => {
+                        const newM = { id: "m_" + Math.random().toString(36).substring(2, 8), name: "", unitId: "count", scaleMin: 0, scaleMax: 100 };
+                        setIfMetricsJson(JSON.stringify([...editingMetrics, newM]));
+                      }} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <Text style={{ color: c.accent, fontWeight: "700", fontSize: 13 }}>
+                          + Añadir
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {editingMetrics.length === 0 && (
+                      <Text style={{ color: c.textDim, fontSize: 12, fontStyle: "italic" }}>
+                        Sin métricas. Los eventos serán solo nota.
+                      </Text>
+                    )}
+
+                    {editingMetrics.map((m, idx) => {
+                      const u = getUnit(m.unitId);
+                      const compatible = getUnitsForMetric(m);
+                      return (
+                        <View key={m.id} style={{
+                          backgroundColor: c.surface, borderRadius: 12, padding: 12,
+                          marginBottom: 8, gap: 8,
+                        }}>
+                          {/* Header: name + remove */}
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                            <Text style={{ color: c.textDim, fontSize: 11, fontWeight: "700" }}>#{idx + 1}</Text>
+                            <TextInput
+                              value={m.name}
+                              onChangeText={(v) => {
+                                const copy = [...editingMetrics];
+                                copy[idx] = { ...copy[idx], name: v };
+                                setIfMetricsJson(JSON.stringify(copy));
+                              }}
+                              placeholder="Nombre de la métrica"
+                              placeholderTextColor={c.textDim}
+                              style={{
+                                flex: 1, backgroundColor: c.card, borderRadius: 8,
+                                padding: 8, fontSize: 13, color: c.textBody, minHeight: 36,
+                              }}
+                            />
+                            <TouchableOpacity onPress={() => {
+                              setIfMetricsJson(JSON.stringify(editingMetrics.filter((_, i) => i !== idx)));
+                            }} style={{ minHeight: 36, justifyContent: "center" }}>
+                              <Text style={{ color: c.textDim, fontSize: 16 }}>✕</Text>
+                            </TouchableOpacity>
+                          </View>
+
+                          {/* Unit selector: show compatible units */}
+                          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                            <Text style={{ color: c.textMuted, fontSize: 11, fontWeight: "600" }}>Unidad:</Text>
+                            {compatible.map((unit) => (
+                              <TouchableOpacity
+                                key={unit.id}
+                                onPress={() => {
+                                  const copy = [...editingMetrics];
+                                  copy[idx] = { ...copy[idx], unitId: unit.id };
+                                  setIfMetricsJson(JSON.stringify(copy));
+                                }}
+                                style={{
+                                  paddingHorizontal: 10, paddingVertical: 6, borderRadius: 99,
+                                  backgroundColor: m.unitId === unit.id ? c.accent : c.card,
+                                }}
+                              >
+                                <Text style={{
+                                  fontSize: 11, fontWeight: "700",
+                                  color: m.unitId === unit.id ? "#FFF" : c.textMuted,
+                                }}>
+                                  {unit.symbol || unit.name}
+                                </Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+
+                          {/* Scale min/max */}
+                          <View style={{ flexDirection: "row", gap: 8 }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: c.textMuted, fontSize: 10, fontWeight: "600", marginBottom: 2 }}>Mín</Text>
+                              <TextInput
+                                value={m.scaleMin?.toString() ?? "0"}
+                                onChangeText={(v) => {
+                                  const copy = [...editingMetrics];
+                                  copy[idx] = { ...copy[idx], scaleMin: parseFloat(v) || 0 };
+                                  setIfMetricsJson(JSON.stringify(copy));
+                                }}
+                                keyboardType="decimal-pad"
+                                style={{
+                                  backgroundColor: c.card, borderRadius: 8, padding: 8,
+                                  fontSize: 13, color: c.textBody, minHeight: 36,
+                                }}
+                              />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: c.textMuted, fontSize: 10, fontWeight: "600", marginBottom: 2 }}>Máx</Text>
+                              <TextInput
+                                value={m.scaleMax?.toString() ?? "100"}
+                                onChangeText={(v) => {
+                                  const copy = [...editingMetrics];
+                                  copy[idx] = { ...copy[idx], scaleMax: parseFloat(v) || 0 };
+                                  setIfMetricsJson(JSON.stringify(copy));
+                                }}
+                                keyboardType="decimal-pad"
+                                style={{
+                                  backgroundColor: c.card, borderRadius: 8, padding: 8,
+                                  fontSize: 13, color: c.textBody, minHeight: 36,
+                                }}
+                              />
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })}
                   </View>
 
                   {editingMetrics.length > 0 && (
