@@ -21,7 +21,8 @@ import {
 import {
   useSaveTimelineEvent,
 } from "@/src/hooks/useTimeline";
-import { useCatalogItems } from "@/src/hooks/useCatalogItems";
+import { useCatalogItems, useQuickSaveCatalogItem } from "@/src/hooks/useCatalogItems";
+import type { CatalogItem } from "@/src/hooks/useCatalogItems";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { useTheme } from "@/src/theme/useTheme";
@@ -59,6 +60,17 @@ export default function EventNewScreen() {
   const { data: activeFeeding } = useActiveFeedingSession(baby?.id);
   const pauseFeeding = usePauseFeeding();
   const saveEvent = useSaveTimelineEvent();
+  const quickSave = useQuickSaveCatalogItem();
+
+  const handleQuickSave = async (item: CatalogItem) => {
+    if (!baby) return;
+    try {
+      await quickSave.mutateAsync({ babyId: baby.id, item, timestamp });
+      router.back();
+    } catch {
+      Alert.alert("Error", "No se pudo guardar");
+    }
+  };
 
   const [step, setStep] = useState<Step>("category");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -149,15 +161,20 @@ export default function EventNewScreen() {
       if (item) {
         setSelectedCategory(item.category);
         if (item.parentId) {
-          // It's a child item
+          // It's a child item — go to form directly
           const root = allItems.find((i) => i.id === item.parentId);
           if (root) setSelectedRootId(root.id);
           setSelectedItemId(item.id);
+          setStep("form");
         } else {
           setSelectedRootId(item.id);
-          setSelectedItemId(item.id);
+          if (itemHasChildren(item.id)) {
+            setStep("child");
+          } else {
+            setSelectedItemId(item.id);
+            setStep("form");
+          }
         }
-        setStep("form");
       }
     }
   }, [preselect, allItems]);
@@ -307,32 +324,19 @@ export default function EventNewScreen() {
           </View>
         )}
 
-        {/* Step 2: Pick root item (and optionally child) */}
-        {(step === "root" || step === "child") && selectedCategory && (
+        {/* Step 2: Pick root item */}
+        {step === "root" && selectedCategory && (
           <View style={{ gap: 16 }}>
-            {/* Back to categories */}
-            {step === "root" && (
-              <TouchableOpacity onPress={resetSelection} style={{ alignSelf: "flex-start" }}>
-                <Text style={{ color: c.accent, fontWeight: "600", fontSize: 14 }}>← Categorías</Text>
-              </TouchableOpacity>
-            )}
-            {step === "child" && selectedRootItem && (
-              <TouchableOpacity onPress={() => { setStep("root"); setSelectedRootId(null); }} style={{ alignSelf: "flex-start" }}>
-                <Text style={{ color: c.accent, fontWeight: "600", fontSize: 14 }}>← {itemLabel(selectedRootId!)}</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity onPress={resetSelection} style={{ alignSelf: "flex-start" }}>
+              <Text style={{ color: c.accent, fontWeight: "600", fontSize: 14 }}>← Categorías</Text>
+            </TouchableOpacity>
 
             <Text style={{ color: c.accent, fontWeight: "800", fontSize: 14, textTransform: "uppercase", letterSpacing: 1 }}>
-              {step === "root"
-                ? `${getCategoryEmoji(selectedCategory)} ${getCategoryLabel(selectedCategory)}`
-                : `Ítems en ${itemLabel(selectedRootId!)}`}
+              {getCategoryEmoji(selectedCategory)} {getCategoryLabel(selectedCategory)}
             </Text>
 
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {(step === "root"
-                ? (catRoots[selectedCategory] ?? [])
-                : childrenOf(selectedRootId!)
-              ).map((item) => {
+              {(catRoots[selectedCategory] ?? []).map((item) => {
                 const hasChildren = itemHasChildren(item.id);
                 return (
                   <TouchableOpacity
@@ -365,6 +369,107 @@ export default function EventNewScreen() {
                     {hasChildren && (
                       <Text style={{ color: c.textDim, fontSize: 12, marginLeft: 4 }}>
                         ▶
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Step 2b: Pick plantilla (child item under a root) */}
+        {step === "child" && selectedRootItem && (
+          <View style={{ gap: 16 }}>
+            <TouchableOpacity onPress={() => { setStep("root"); setSelectedRootId(null); }} style={{ alignSelf: "flex-start" }}>
+              <Text style={{ color: c.accent, fontWeight: "600", fontSize: 14 }}>← {itemLabel(selectedRootId!)}</Text>
+            </TouchableOpacity>
+
+            <Text style={{ color: c.accent, fontWeight: "800", fontSize: 14, textTransform: "uppercase", letterSpacing: 1 }}>
+              {selectedRootItem.emoji} {selectedRootItem.name} — Plantillas
+            </Text>
+            <Text style={{ color: c.textDim, fontSize: 12 }}>
+              Tap para guardar directo · Mantén presionado para editar
+            </Text>
+
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {/* Option: no plantilla → empty form */}
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedItemId(selectedRootItem.id);
+                  setStep("form");
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  borderRadius: 99,
+                  backgroundColor: c.elevated,
+                  borderWidth: 1,
+                  borderColor: c.textDim + "40",
+                  borderStyle: "dashed",
+                  minHeight: 48,
+                }}
+              >
+                <Text style={{ fontSize: 18 }}>➕</Text>
+                <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
+                  Sin plantilla
+                </Text>
+              </TouchableOpacity>
+
+              {/* Plantillas */}
+              {childrenOf(selectedRootItem.id).map((item) => {
+                const hasDefaults = item.defaultValues && item.defaultValues !== "{}";
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    onPress={() => {
+                      if (hasDefaults) {
+                        handleQuickSave(item);
+                      } else {
+                        setSelectedItemId(item.id);
+                        setStep("form");
+                      }
+                    }}
+                    onLongPress={() => {
+                      setSelectedItemId(item.id);
+                      setSelectedRootId(item.parentId!);
+                      // Preset values from plantilla
+                      try {
+                        const dv = JSON.parse(item.defaultValues ?? "{}");
+                        setValues(Object.fromEntries(Object.entries(dv).map(([k, v]) => [k, String(v)])));
+                      } catch {}
+                      try {
+                        const du = JSON.parse(item.defaultUnitOverrides ?? "{}");
+                        setDisplayUnits(du);
+                      } catch {}
+                      setNotes(item.defaultNotes ?? "");
+                      try {
+                        const dt = JSON.parse(item.defaultTags ?? "[]");
+                        setTags(dt);
+                      } catch {}
+                      setStep("form");
+                    }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      borderRadius: 99,
+                      backgroundColor: hasDefaults ? c.accent + "18" : c.elevated,
+                      minHeight: 48,
+                    }}
+                  >
+                    <Text style={{ fontSize: 18 }}>{item.emoji}</Text>
+                    <Text style={{ color: c.textBody, fontWeight: "700", fontSize: 13 }}>
+                      {item.name}
+                    </Text>
+                    {hasDefaults && (
+                      <Text style={{ color: c.accent, fontSize: 11, fontWeight: "600" }}>
+                        🚀
                       </Text>
                     )}
                   </TouchableOpacity>
