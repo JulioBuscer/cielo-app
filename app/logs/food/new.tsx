@@ -16,7 +16,9 @@ import {
 import { useSaveTimelineEvent } from "@/src/hooks/useTimeline";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
+import { useDebounce } from "@/src/hooks/useDebounce";
 import { FoodDetailModal } from "@/src/components/food/FoodDetailModal";
+import { FoodItemChip } from "@/src/components/food/FoodItemChip";
 
 const GROUP_KEYS = Object.keys(FOOD_GROUPS).sort();
 
@@ -210,6 +212,7 @@ export default function FoodLogNewScreen() {
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 250);
   const searchRef = useRef<TextInput>(null);
   const [detailFood, setDetailFood] = useState<any>(null);
 
@@ -221,20 +224,21 @@ export default function FoodLogNewScreen() {
     setCollapsedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
   };
 
-  const toggleSubgroup = (sg: string) => {
+  const toggleSubgroup = useCallback((sg: string) => {
     setSelectedSubgroups((prev) =>
       prev.includes(sg) ? prev.filter((x) => x !== sg) : [...prev, sg]
     );
-  };
-  const toggleBadgeFilter = (bf: string) => {
+  }, []);
+
+  const toggleBadgeFilter = useCallback((bf: string) => {
     setSelectedBadgeFilters((prev) =>
       prev.includes(bf) ? prev.filter((x) => x !== bf) : [...prev, bf]
     );
-  };
+  }, []);
 
   const groupedFoods = useMemo(() => {
     const all = catalog ?? [];
-    const q = searchQuery.toLowerCase().trim();
+    const q = debouncedSearch.toLowerCase().trim();
     const visible = all.filter((f: any) => !f.hidden);
     const groups: Record<string, any[]> = {};
     for (const f of visible) {
@@ -247,11 +251,11 @@ export default function FoodLogNewScreen() {
       groups[g].push(f);
     }
     return groups;
-  }, [catalog, searchQuery, selectedGroup, selectedSubgroups, selectedBadgeFilters]);
+  }, [catalog, debouncedSearch, selectedGroup, selectedSubgroups, selectedBadgeFilters]);
 
   const availableSubgroups = useMemo(() => {
     const all = catalog ?? [];
-    const q = searchQuery.toLowerCase().trim();
+    const q = debouncedSearch.toLowerCase().trim();
     const visible = all.filter((f: any) => !f.hidden && (!selectedGroup || f.group === selectedGroup));
     const sgs = new Set<string>();
     for (const f of visible) {
@@ -259,13 +263,13 @@ export default function FoodLogNewScreen() {
       if (f.subgroup) sgs.add(f.subgroup);
     }
     return [...sgs] as string[];
-  }, [catalog, searchQuery, selectedGroup]);
+  }, [catalog, debouncedSearch, selectedGroup]);
 
-  const toggleFood = (id: string) => {
+  const toggleFood = useCallback((id: string) => {
     setSelectedFoodIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
-  };
+  }, []);
 
   async function handleSave() {
     if (!baby || selectedFoodIds.length === 0) {
@@ -274,8 +278,8 @@ export default function FoodLogNewScreen() {
     }
     setSaving(true);
     try {
-      for (const foodId of selectedFoodIds) {
-        await saveFoodLog.mutateAsync({
+      await Promise.all(selectedFoodIds.map((foodId) =>
+        saveFoodLog.mutateAsync({
           babyId: baby.id,
           foodId,
           timestamp,
@@ -283,8 +287,8 @@ export default function FoodLogNewScreen() {
           reaction,
           photoUri: photoUris.length > 0 ? photoUris[0] : undefined,
           notes,
-        });
-      }
+        })
+      ));
       const foods = catalog?.filter((f) => selectedFoodIds.includes(f.id)) ?? [];
       await saveEvent.mutateAsync({
         babyId: baby.id,
@@ -468,70 +472,17 @@ export default function FoodLogNewScreen() {
               </TouchableOpacity>
               {!isCollapsed && (
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5, paddingLeft: 16 }}>
-                {foods.map((f: any) => {
-                  const selected = selectedFoodIds.includes(f.id);
-                  return (
-                  <TouchableOpacity
+                {foods.map((f: any) => (
+                  <FoodItemChip
                     key={f.id}
+                    food={f}
+                    selected={selectedFoodIds.includes(f.id)}
                     onPress={() => toggleFood(f.id)}
                     onLongPress={() => setDetailFood(f)}
-                    style={{
-                      borderRadius: 10,
-                      backgroundColor: selected ? c.accent : c.elevated,
-                      borderWidth: 1,
-                      borderColor: selected ? c.accent : c.border,
-                    }}
-                  >
-                    {!selected && (f.isAllergen || f.warning || f.effect || f.subgroup) && (
-                      <View style={{
-                        alignSelf: "flex-start",
-                        flexDirection: "row", gap: 2,
-                        padding: 2,
-                        borderTopLeftRadius: 99, borderTopRightRadius: 99,
-                      }}>
-                        {f.isAllergen && (
-                          <View style={{ borderRadius: 99, paddingHorizontal: 2 }}>
-                            <Text style={{ fontSize: 11 }}>🚨</Text>
-                          </View>
-                        )}
-                        {f.warning && (
-                          <View style={{ borderRadius: 99, paddingHorizontal: 2 }}>
-                            <Text style={{ fontSize: 11 }}>⚠️</Text>
-                          </View>
-                        )}
-                        {f.subgroup && (
-                          <View style={{ borderRadius: 99, paddingHorizontal: 4, paddingVertical: 1 }}>
-                            <Text style={{ fontSize: 9, color: c.textMuted }}>{SUBGROUPS[f.subgroup]?.split(" ")[0] ?? ""}</Text>
-                          </View>
-                        )}
-                        {f.effect === "laxative" && (
-                          <View style={{ backgroundColor: "#E8F5E9", borderRadius: 99, paddingHorizontal: 2 }}>
-                            <Text style={{ fontSize: 11 }}>🟢</Text>
-                          </View>
-                        )}
-                        {f.effect === "astringent" && (
-                          <View style={{ backgroundColor: "#EFEBE9", borderRadius: 99, paddingHorizontal: 2 }}>
-                            <Text style={{ fontSize: 11 }}>🟤</Text>
-                          </View>
-                        )}
-                        {f.effect === "regulator" && (
-                          <View style={{ backgroundColor: "#E3F2FD", borderRadius: 99, paddingHorizontal: 2 }}>
-                            <Text style={{ fontSize: 11 }}>🔄</Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-                    <View style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
-                      <Text style={{
-                        fontSize: 13, textAlign: "left",
-                        color: selected ? c.textOnAccent : c.textBody,
-                      }}>
-                        {f.emoji ?? ""} {f.name}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-                })}
+                    colors={c}
+                    subgroups={SUBGROUPS}
+                  />
+                ))}
               </View>
               )}
             </View>

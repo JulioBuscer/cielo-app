@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useTheme } from "@/src/theme/useTheme";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { FoodDetailModal } from "@/src/components/food/FoodDetailModal";
+import { FoodItemChip } from "@/src/components/food/FoodItemChip";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import {
   useFoodCatalog,
@@ -24,6 +25,7 @@ import {
 } from "@/src/hooks/useFoodLogs";
 import { useSaveTimelineEvent } from "@/src/hooks/useTimeline";
 import { useCamera } from "@/src/hooks/useCamera";
+import { useDebounce } from "@/src/hooks/useDebounce";
 
 const GROUP_KEYS = Object.keys(FOOD_GROUPS).sort();
 
@@ -55,43 +57,53 @@ export function FoodSheet({
   const [showDetails, setShowDetails] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 250);
   const searchRef = useRef<TextInput>(null);
 
-  const groupFiltered = catalog?.filter(
-    (f) => !selectedGroup || f.group === selectedGroup || (f.secondaryGroups && f.secondaryGroups.split(",").includes(selectedGroup))
-  ) ?? [];
+  const groupFiltered = useMemo(() =>
+    catalog?.filter(
+      (f) => !selectedGroup || f.group === selectedGroup || (f.secondaryGroups && f.secondaryGroups.split(",").includes(selectedGroup))
+    ) ?? []
+  , [catalog, selectedGroup]);
 
-  const badgeFiltered = selectedBadgeFilters.length > 0
-    ? groupFiltered.filter((f) => selectedBadgeFilters.some((bf) => BADGE_FILTERS.find((b) => b.key === bf)?.test(f)))
-    : groupFiltered;
+  const badgeFiltered = useMemo(() =>
+    selectedBadgeFilters.length > 0
+      ? groupFiltered.filter((f) => selectedBadgeFilters.some((bf) => BADGE_FILTERS.find((b) => b.key === bf)?.test(f)))
+      : groupFiltered
+  , [groupFiltered, selectedBadgeFilters]);
 
-  const filtered = (selectedSubgroups.length > 0
-    ? badgeFiltered.filter((f) => f.subgroup && selectedSubgroups.includes(f.subgroup))
-    : badgeFiltered)
-    .filter((f) => {
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase().trim();
-      return f.name.toLowerCase().includes(q) || (f.emoji ?? "").includes(q);
-    });
+  const filtered = useMemo(() =>
+    (selectedSubgroups.length > 0
+      ? badgeFiltered.filter((f) => f.subgroup && selectedSubgroups.includes(f.subgroup))
+      : badgeFiltered)
+      .filter((f) => {
+        if (!debouncedSearch.trim()) return true;
+        const q = debouncedSearch.toLowerCase().trim();
+        return f.name.toLowerCase().includes(q) || (f.emoji ?? "").includes(q);
+      })
+  , [badgeFiltered, selectedSubgroups, debouncedSearch]);
 
-  const availableSubgroups = [...new Set(groupFiltered.map((f) => f.subgroup).filter(Boolean))] as string[];
+  const availableSubgroups = useMemo(() =>
+    [...new Set(groupFiltered.map((f) => f.subgroup).filter(Boolean))] as string[]
+  , [groupFiltered]);
 
-  const toggleSubgroup = (sg: string) => {
+  const toggleSubgroup = useCallback((sg: string) => {
     setSelectedSubgroups((prev) =>
       prev.includes(sg) ? prev.filter((x) => x !== sg) : [...prev, sg]
     );
-  };
-  const toggleBadgeFilter = (bf: string) => {
+  }, []);
+
+  const toggleBadgeFilter = useCallback((bf: string) => {
     setSelectedBadgeFilters((prev) =>
       prev.includes(bf) ? prev.filter((x) => x !== bf) : [...prev, bf]
     );
-  };
+  }, []);
 
-  const toggleFood = (id: string) => {
+  const toggleFood = useCallback((id: string) => {
     setSelectedFoodIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
-  };
+  }, []);
 
   useEffect(() => {
     if (visible) {
@@ -118,8 +130,8 @@ export function FoodSheet({
     }
     setSaving(true);
     try {
-      for (const foodId of selectedFoodIds) {
-        await saveFoodLog.mutateAsync({
+      await Promise.all(selectedFoodIds.map((foodId) =>
+        saveFoodLog.mutateAsync({
           babyId: baby.id,
           foodId,
           timestamp,
@@ -127,8 +139,8 @@ export function FoodSheet({
           reaction: reaction.trim() || undefined,
           photoUri: imageUri ?? undefined,
           notes: notes.trim() || undefined,
-        });
-      }
+        })
+      ));
       const foods = catalog?.filter((f) => selectedFoodIds.includes(f.id)) ?? [];
       await saveEvent.mutateAsync({
         babyId: baby.id,
@@ -273,78 +285,17 @@ export function FoodSheet({
             </View>
 
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-              {filtered.map((f) => {
-                const selected = selectedFoodIds.includes(f.id);
-                return (
-                  <TouchableOpacity
-                    key={f.id}
-                    onPress={() => toggleFood(f.id)}
-                    onLongPress={() => setDetailFood(f)}
-                    style={{
-                      backgroundColor: "transparent",
-                    }}
-                  >
-                    <View style={{
-                      paddingHorizontal: 10, paddingVertical: 6,
-                      backgroundColor: selected ? c.accent : c.card,
-                      borderRadius: 10,
-                      borderBottomLeftRadius: 0,
-                      borderWidth: selected ? 1 : 0,
-                      borderColor: selected ? c.accent : c.border,
-                    }}>
-                      <Text style={{
-                        fontSize: 13, textAlign: "left",
-                        color: selected ? c.textOnAccent : c.textBody,
-                      }}>
-                        {f.emoji ?? ""} {f.name}
-                      </Text>
-                    </View>
-
-                    {!selected && (f.isAllergen || f.warning || f.effect || f.subgroup) && (
-                      <View style={{
-                        alignSelf: "flex-start",
-                        flexDirection: "row",
-                        gap: 0,
-                        padding: 2,
-                        backgroundColor: c.card,
-                        borderBottomLeftRadius: 10,
-                        borderBottomRightRadius: 10,
-                      }}>
-                        {f.isAllergen && (
-                          <View style={{ borderRadius: 99, paddingHorizontal: 2 }}>
-                            <Text style={{ fontSize: 11 }}>🚨</Text>
-                          </View>
-                        )}
-                        {f.warning && (
-                          <View style={{ borderRadius: 99, paddingHorizontal: 2 }}>
-                            <Text style={{ fontSize: 11 }}>⚠️</Text>
-                          </View>
-                        )}
-                        {f.subgroup && (
-                          <View style={{ borderRadius: 99, paddingHorizontal: 4, paddingVertical: 1 }}>
-                            <Text style={{ fontSize: 9, color: c.textMuted }}>{SUBGROUPS[f.subgroup]?.split(" ")[0] ?? ""}</Text>
-                          </View>
-                        )}
-                        {f.effect === "laxative" && (
-                          <View style={{ backgroundColor: "#E8F5E9", borderRadius: 99, paddingHorizontal: 2 }}>
-                            <Text style={{ fontSize: 11 }}>🟢</Text>
-                          </View>
-                        )}
-                        {f.effect === "astringent" && (
-                          <View style={{ backgroundColor: "#EFEBE9", borderRadius: 99, paddingHorizontal: 2 }}>
-                            <Text style={{ fontSize: 11 }}>🟤</Text>
-                          </View>
-                        )}
-                        {f.effect === "regulator" && (
-                          <View style={{ backgroundColor: "#E3F2FD", borderRadius: 99, paddingHorizontal: 2 }}>
-                            <Text style={{ fontSize: 11 }}>🔄</Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
+              {filtered.map((f) => (
+                <FoodItemChip
+                  key={f.id}
+                  food={f}
+                  selected={selectedFoodIds.includes(f.id)}
+                  onPress={() => toggleFood(f.id)}
+                  onLongPress={() => setDetailFood(f)}
+                  colors={c}
+                  subgroups={SUBGROUPS}
+                />
+              ))}
             </View>
 
             <TouchableOpacity

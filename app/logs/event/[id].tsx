@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -37,6 +37,8 @@ import type { EventMetric } from "@/src/units/types";
 import { getCategory, getCategoryLabel, getCategoryEmoji, USER_CATEGORIES } from "@/src/utils/categories";
 import { useFoodCatalog, FOOD_GROUPS, SUBGROUPS, BADGE_FILTERS } from "@/src/hooks/useFoodLogs";
 import { useCamera } from "@/src/hooks/useCamera";
+import { useDebounce } from "@/src/hooks/useDebounce";
+import { FoodItemChip } from "@/src/components/food/FoodItemChip";
 
 const GROUP_KEYS = Object.keys(FOOD_GROUPS).sort();
 
@@ -81,6 +83,7 @@ export default function EventDetailScreen() {
   const [selectedFoodBadges, setSelectedFoodBadges] = useState<string[]>([]);
   const [collapsedFoodGroups, setCollapsedFoodGroups] = useState<Record<string, boolean>>({});
   const [foodSearch, setFoodSearch] = useState("");
+  const debouncedSearch = useDebounce(foodSearch, 250);
   const [detailFood, setDetailFood] = useState<any>(null);
   const { data: foodCatalog } = useFoodCatalog();
   const { takePhoto, pickImage } = useCamera();
@@ -154,20 +157,21 @@ export default function EventDetailScreen() {
 
   const itemHasChildren = (id: string) => allItems?.some((i) => i.parentId === id) ?? false;
 
-  const toggleFoodSubgroup = (sg: string) => {
+  const toggleFoodSubgroup = useCallback((sg: string) => {
     setSelectedFoodSubgroups((prev) =>
       prev.includes(sg) ? prev.filter((x) => x !== sg) : [...prev, sg]
     );
-  };
-  const toggleFoodBadge = (bf: string) => {
+  }, []);
+
+  const toggleFoodBadge = useCallback((bf: string) => {
     setSelectedFoodBadges((prev) =>
       prev.includes(bf) ? prev.filter((x) => x !== bf) : [...prev, bf]
     );
-  };
+  }, []);
 
   const groupedFoods = useMemo(() => {
     const all = foodCatalog ?? [];
-    const q = foodSearch.toLowerCase().trim();
+    const q = debouncedSearch.toLowerCase().trim();
     const visible = all.filter((f: any) => !f.hidden);
     const groups: Record<string, any[]> = {};
     for (const f of visible) {
@@ -180,11 +184,11 @@ export default function EventDetailScreen() {
       groups[g].push(f);
     }
     return groups;
-  }, [foodCatalog, foodSearch, selectedFoodGroup, selectedFoodSubgroups, selectedFoodBadges]);
+  }, [foodCatalog, debouncedSearch, selectedFoodGroup, selectedFoodSubgroups, selectedFoodBadges]);
 
   const availableSubgroups = useMemo(() => {
     const all = foodCatalog ?? [];
-    const q = foodSearch.toLowerCase().trim();
+    const q = debouncedSearch.toLowerCase().trim();
     const visible = all.filter((f: any) => !f.hidden && (!selectedFoodGroup || f.group === selectedFoodGroup));
     const sgs = new Set<string>();
     for (const f of visible) {
@@ -192,11 +196,19 @@ export default function EventDetailScreen() {
       if (f.subgroup) sgs.add(f.subgroup);
     }
     return [...sgs] as string[];
-  }, [foodCatalog, foodSearch]);
+  }, [foodCatalog, debouncedSearch]);
 
-  const toggleFoodGroup = (group: string) => {
+  const toggleFoodGroup = useCallback((group: string) => {
     setCollapsedFoodGroups((prev) => ({ ...prev, [group]: !prev[group] }));
-  };
+  }, []);
+
+  const toggleEditFood = useCallback((f: any) => {
+    setEditFoods((prev) => {
+      const exists = prev.some((ef) => ef.id === f.id);
+      if (exists) return prev.filter((ef) => ef.id !== f.id);
+      return [...prev, { id: f.id, emoji: f.emoji, name: f.name }];
+    });
+  }, []);
 
   const childrenOf = (parentId: string) =>
     allItems?.filter((i) => i.parentId === parentId) ?? [];
@@ -951,74 +963,17 @@ export default function EventDetailScreen() {
                     {!isCollapsed && (
                     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5, paddingLeft: 14 }}>
                       {foods.map((f: any) => {
-                        const selected = editFoods.some((ef: any) => ef.id === f.id);
                         if (!f.id) return null;
                         return (
-                        <TouchableOpacity
+                        <FoodItemChip
                           key={f.id}
-                          onPress={() => {
-                            if (selected) {
-                              setEditFoods(editFoods.filter((ef: any) => ef.id !== f.id));
-                            } else {
-                              setEditFoods([...editFoods, { id: f.id, emoji: f.emoji, name: f.name }]);
-                            }
-                          }}
+                          food={f}
+                          selected={editFoods.some((ef: any) => ef.id === f.id)}
+                          onPress={() => toggleEditFood(f)}
                           onLongPress={() => setDetailFood(f)}
-                          style={{
-                            borderRadius: 10,
-                            backgroundColor: selected ? c.accent : c.elevated,
-                            borderWidth: 1,
-                            borderColor: selected ? c.accent : c.border,
-                          }}
-                        >
-                          {!selected && (f.isAllergen || f.warning || f.effect || f.subgroup) && (
-                            <View style={{
-                              alignSelf: "flex-start",
-                              flexDirection: "row", gap: 2,
-                              padding: 2,
-                              borderTopLeftRadius: 99, borderTopRightRadius: 99,
-                            }}>
-                              {f.isAllergen && (
-                                <View style={{ borderRadius: 99, paddingHorizontal: 2 }}>
-                                  <Text style={{ fontSize: 11 }}>🚨</Text>
-                                </View>
-                              )}
-                              {f.warning && (
-                                <View style={{ borderRadius: 99, paddingHorizontal: 2 }}>
-                                  <Text style={{ fontSize: 11 }}>⚠️</Text>
-                                </View>
-                              )}
-                              {f.subgroup && (
-                                <View style={{ borderRadius: 99, paddingHorizontal: 4, paddingVertical: 1 }}>
-                                  <Text style={{ fontSize: 9, color: c.textMuted }}>{SUBGROUPS[f.subgroup]?.split(" ")[0] ?? ""}</Text>
-                                </View>
-                              )}
-                              {f.effect === "laxative" && (
-                                <View style={{ backgroundColor: "#E8F5E9", borderRadius: 99, paddingHorizontal: 2 }}>
-                                  <Text style={{ fontSize: 11 }}>🟢</Text>
-                                </View>
-                              )}
-                              {f.effect === "astringent" && (
-                                <View style={{ backgroundColor: "#EFEBE9", borderRadius: 99, paddingHorizontal: 2 }}>
-                                  <Text style={{ fontSize: 11 }}>🟤</Text>
-                                </View>
-                              )}
-                              {f.effect === "regulator" && (
-                                <View style={{ backgroundColor: "#E3F2FD", borderRadius: 99, paddingHorizontal: 2 }}>
-                                  <Text style={{ fontSize: 11 }}>🔄</Text>
-                                </View>
-                              )}
-                            </View>
-                          )}
-                          <View style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
-                            <Text style={{
-                              fontSize: 13, textAlign: "left",
-                              color: selected ? c.textOnAccent : c.textBody,
-                            }}>
-                              {f.emoji ?? ""} {f.name}
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
+                          colors={c}
+                          subgroups={SUBGROUPS}
+                        />
                       )})}
                     </View>
                     )}

@@ -14,6 +14,8 @@ export function useFoodCatalog() {
       .from(foodCatalog)
       .where(eq(foodCatalog.hidden, false as any))
       .orderBy(foodCatalog.name),
+    staleTime: Infinity,
+    gcTime: Infinity,
   });
 }
 
