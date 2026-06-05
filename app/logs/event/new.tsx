@@ -22,6 +22,8 @@ import {
   useSaveTimelineEvent,
 } from "@/src/hooks/useTimeline";
 import { useCatalogItems, useQuickSaveCatalogItem, useCreateCatalogItem } from "@/src/hooks/useCatalogItems";
+import { useTags, useSaveTags } from "@/src/hooks/useTags";
+import { TagInput } from "@/src/components/ui/TagInput";
 import type { CatalogItem } from "@/src/hooks/useCatalogItems";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
@@ -63,6 +65,7 @@ export default function EventNewScreen() {
   const saveEvent = useSaveTimelineEvent();
   const quickSave = useQuickSaveCatalogItem();
   const createPreset = useCreateCatalogItem();
+  const saveTags = useSaveTags();
 
   const [showSavePreset, setShowSavePreset] = useState(false);
 
@@ -249,6 +252,10 @@ export default function EventNewScreen() {
           ...(presetName && { presetName, presetEmoji }),
         } : undefined,
       });
+
+      if (tags.length > 0 && baby?.id) {
+        saveTags.mutateAsync({ babyId: baby.id, tagNames: tags }).catch(() => {});
+      }
 
       router.back();
     } catch (e) {
@@ -566,29 +573,12 @@ export default function EventNewScreen() {
               />
             </View>
 
-            {tags.length > 0 && (
-              <View style={{ gap: 6 }}>
-                <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 13 }}>
-                  🏷️ Etiquetas
-                </Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                  {tags.map((t, i) => (
-                    <TouchableOpacity
-                      key={i}
-                      onPress={() => setTags(tags.filter((_, j) => j !== i))}
-                      style={{
-                        flexDirection: "row", alignItems: "center", gap: 4,
-                        backgroundColor: c.elevated, borderRadius: 99,
-                        paddingVertical: 4, paddingHorizontal: 10,
-                      }}
-                    >
-                      <Text style={{ color: c.textBody, fontWeight: "600", fontSize: 13 }}>{t}</Text>
-                      <Text style={{ color: c.textDim, fontSize: 11 }}>✕</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <Text style={{ color: c.textDim, fontSize: 11 }}>Toca para eliminar</Text>
-              </View>
+            {baby?.id && (
+              <TagInput
+                babyId={baby.id}
+                tags={tags}
+                onTagsChange={setTags}
+              />
             )}
 
             {/* Metrics */}

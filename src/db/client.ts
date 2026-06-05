@@ -157,6 +157,13 @@ export async function runMigrations() {
       type TEXT NOT NULL,
       timestamp INTEGER NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS tags (
+      id TEXT PRIMARY KEY NOT NULL,
+      baby_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      usage_count INTEGER DEFAULT 1,
+      created_at INTEGER NOT NULL
+    )`,
     `CREATE TABLE IF NOT EXISTS growth_logs (
       id TEXT PRIMARY KEY NOT NULL,
       baby_id TEXT NOT NULL REFERENCES babies(id),

@@ -41,6 +41,17 @@ export const eventTypes = sqliteTable('event_types', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
+// ─── ETIQUETAS REUTILIZABLES (autocompletado) ──────────────────────────────────
+export const tags = sqliteTable('tags', {
+  id:          text('id').primaryKey(),
+  babyId:      text('baby_id').notNull(),
+  name:        text('name').notNull(),
+  usageCount:  integer('usage_count').default(1),
+  createdAt:   integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+export type Tag = typeof tags.$inferSelect;
+
 // ─── CATÁLOGO DE OBSERVACIONES DE PAÑAL (default + custom) ────────────────────
 export const diaperObservations = sqliteTable('diaper_observations', {
   id:        text('id').primaryKey(),
