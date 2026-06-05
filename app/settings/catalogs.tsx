@@ -33,9 +33,10 @@ import {
 } from "@/src/hooks/useCatalogItems";
 
 import { useTheme } from "@/src/theme/useTheme";
-import type { DiaperObservation, ObservationMetric } from "@/src/db/schema";
+import type { DiaperObservation, ObservationMetric, CatalogItem } from "@/src/db/schema";
 import type { EventMetric } from "@/src/units/types";
 import { getUnit, getUnitsForMetric } from "@/src/units/registry";
+import { ItemEditorModal } from "@/src/components/ui/ItemEditorModal";
 import { ZoneEditor } from "@/src/components/catalogs/ZoneEditor";
 import { EventMetricsEditor } from "@/src/components/catalogs/EventMetricsEditor";
 import { ObservationForm } from "@/src/components/catalogs/ObservationForm";
@@ -62,6 +63,9 @@ export default function CatalogsScreen() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editingObs, setEditingObs] = useState<DiaperObservation | null>(null);
   const [showNewObsForm, setShowNewObsForm] = useState(false);
+  const [showItemEditor, setShowItemEditor] = useState(false);
+  const [editingItem, setEditingItem] = useState<CatalogItem | null>(null);
+  const [newChildParentId, setNewChildParentId] = useState<string | null>(null);
   const toggleExpanded = (id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -438,6 +442,19 @@ export default function CatalogsScreen() {
           >
             {activeTab === "catalog" && !itemForm && (
               <View style={{ gap: 16 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ color: c.textMuted, fontWeight: "600", fontSize: 12 }}>
+                    {allItems?.length ?? 0} items
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => { setEditingItem(null); setShowItemEditor(true); }}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4 }}
+                  >
+                    <Text style={{ color: c.accent, fontWeight: "700", fontSize: 13 }}>
+                      + Nuevo Item Raíz
+                    </Text>
+                  </TouchableOpacity>
+                </View>
                 {USER_CATEGORIES.map((catDef) => {
                   const catRootItems = rootItems.filter((i) => i.category === catDef.id);
                   if (catRootItems.length === 0) return null;
@@ -464,7 +481,6 @@ export default function CatalogsScreen() {
                       <View style={{ gap: 4 }}>
                         {catRootItems.map((root) => {
                           const children = childrenOf(root.id);
-                          const isContainer = children.length > 0;
                           const isOpen = expanded.has(root.id);
                           const rootMetrics: EventMetric[] = (() => {
                             try { return JSON.parse(root.metrics ?? "[]"); } catch { return []; }
@@ -481,61 +497,58 @@ export default function CatalogsScreen() {
                                   borderBottomColor: c.surface,
                                 }}
                               >
-                                {isContainer ? (
-                                  <TouchableOpacity
-                                    onPress={() => toggleExpanded(root.id)}
-                                    style={{ paddingRight: 8 }}
-                                  >
-                                    <Text style={{ color: c.textMuted, fontSize: 12 }}>
-                                      {isOpen ? "▼" : "▶"}
-                                    </Text>
-                                  </TouchableOpacity>
-                                ) : (
-                                  <View style={{ width: 20 }} />
-                                )}
+                                <TouchableOpacity
+                                  onPress={() => toggleExpanded(root.id)}
+                                  style={{ paddingRight: 8 }}
+                                >
+                                  <Text style={{ color: c.textMuted, fontSize: 12 }}>
+                                    {isOpen ? "▼" : "▶"}
+                                  </Text>
+                                </TouchableOpacity>
                                 <Text style={{ fontSize: 22, marginRight: 8 }}>{root.emoji}</Text>
                                 <View style={{ flex: 1 }}>
                                   <Text style={{ fontSize: 15, fontWeight: "800", color: c.textBody }}>
                                     {root.name}
                                   </Text>
-                                  {!isContainer && rootMetrics.length > 0 && (
+                                  {rootMetrics.length > 0 && (
                                     <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: "600" }}>
                                       ⚙️ {rootMetrics.length} métrica{rootMetrics.length > 1 ? "s" : ""}
                                     </Text>
                                   )}
                                 </View>
-                                {!isContainer && (
-                                  <>
-                                    {/* Quick action toggle */}
-                                    <TouchableOpacity
-                                      onPress={() => updateItem.mutate({ id: root.id, isQuickAction: !root.isQuickAction })}
-                                      style={{
-                                        paddingHorizontal: 8, paddingVertical: 4,
-                                        borderRadius: 8,
-                                        backgroundColor: root.isQuickAction ? c.accent : c.surface,
-                                        marginRight: 6,
-                                      }}
-                                    >
-                                      <Text style={{ fontSize: 12, color: root.isQuickAction ? "#FFF" : c.textMuted }}>
-                                        ⚡
-                                      </Text>
-                                    </TouchableOpacity>
-                                    {/* Edit */}
-                                    <TouchableOpacity onPress={() => openItemForm(root)}>
-                                      <Text style={{ color: c.accent, fontSize: 16, paddingHorizontal: 6 }}>✏️</Text>
-                                    </TouchableOpacity>
-                                    {!root.isSystem && (
-                                      <TouchableOpacity onPress={() => handleDeleteItem(root.id)}>
-                                        <Text style={{ color: c.danger, fontSize: 16, paddingHorizontal: 6 }}>🗑️</Text>
-                                      </TouchableOpacity>
-                                    )}
-                                  </>
+                                {/* Quick action toggle */}
+                                <TouchableOpacity
+                                  onPress={() => updateItem.mutate({ id: root.id, isQuickAction: !root.isQuickAction })}
+                                  style={{
+                                    paddingHorizontal: 8, paddingVertical: 4,
+                                    borderRadius: 8,
+                                    backgroundColor: root.isQuickAction ? c.accent : c.surface,
+                                    marginRight: 6,
+                                  }}
+                                >
+                                  <Text style={{ fontSize: 12, color: root.isQuickAction ? "#FFF" : c.textMuted }}>
+                                    ⚡
+                                  </Text>
+                                </TouchableOpacity>
+                                {/* Edit */}
+                                <TouchableOpacity onPress={() => { setEditingItem(root); setShowItemEditor(true); }}>
+                                  <Text style={{ color: c.accent, fontSize: 16, paddingHorizontal: 6 }}>✏️</Text>
+                                </TouchableOpacity>
+                                {!root.isSystem && (
+                                  <TouchableOpacity onPress={() => handleDeleteItem(root.id)}>
+                                    <Text style={{ color: c.danger, fontSize: 16, paddingHorizontal: 6 }}>🗑️</Text>
+                                  </TouchableOpacity>
                                 )}
                               </View>
 
-                              {/* Children (for container items) */}
-                              {isContainer && isOpen && (
+                              {/* Children (expanded section) */}
+                              {isOpen && (
                                 <View style={{ paddingLeft: 28, paddingTop: 4, gap: 4 }}>
+                                  {children.length === 0 && (
+                                    <Text style={{ color: c.textDim, fontSize: 12, fontStyle: "italic", paddingVertical: 8 }}>
+                                      Sin plantillas aún
+                                    </Text>
+                                  )}
                                   {children.map((child) => {
                                     const childMetrics: EventMetric[] = (() => {
                                       try { return JSON.parse(child.metrics ?? "[]"); } catch { return []; }
@@ -575,7 +588,7 @@ export default function CatalogsScreen() {
                                             ⚡
                                           </Text>
                                         </TouchableOpacity>
-                                        <TouchableOpacity onPress={() => openItemForm(child)}>
+                                        <TouchableOpacity onPress={() => { setEditingItem(child); setShowItemEditor(true); }}>
                                           <Text style={{ color: c.accent, fontSize: 16, paddingHorizontal: 6 }}>✏️</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity onPress={() => handleDeleteItem(child.id)}>
@@ -585,21 +598,23 @@ export default function CatalogsScreen() {
                                     );
                                   })}
                                   {/* [+ New child] button */}
-                                  {isContainer && isOpen && (
-                                    <TouchableOpacity
-                                      onPress={() => openItemForm(undefined, root.id, root.category)}
-                                      style={{
-                                        flexDirection: "row",
-                                        alignItems: "center",
-                                        paddingVertical: 8,
-                                        gap: 6,
-                                      }}
-                                    >
-                                      <Text style={{ color: c.accent, fontWeight: "700", fontSize: 13 }}>
-                                        + Nuevo
-                                      </Text>
-                                    </TouchableOpacity>
-                                  )}
+                                  <TouchableOpacity
+                                    onPress={() => {
+                                      setEditingItem(null);
+                                      // Use the inline form with parentId set
+                                      openItemForm(undefined, root.id, root.category);
+                                    }}
+                                    style={{
+                                      flexDirection: "row",
+                                      alignItems: "center",
+                                      paddingVertical: 8,
+                                      gap: 6,
+                                    }}
+                                  >
+                                    <Text style={{ color: c.accent, fontWeight: "700", fontSize: 13 }}>
+                                      + Nuevo
+                                    </Text>
+                                  </TouchableOpacity>
                                 </View>
                               )}
                             </View>
@@ -1026,6 +1041,14 @@ export default function CatalogsScreen() {
 
           </ScrollView>
         )}
+
+        <ItemEditorModal
+          visible={showItemEditor}
+          onClose={() => { setShowItemEditor(false); setEditingItem(null); }}
+          onSelect={() => { setShowItemEditor(false); setEditingItem(null); }}
+          item={editingItem}
+        />
+
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
