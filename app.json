@@ -14,14 +14,18 @@
       "backgroundColor": "#0A0A0F"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Usar cámara para escanear QR de sincronización entre dispositivos"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#0A0A0F"
       },
-      "package": "com.buscer.cieloapp"
+      "package": "com.buscer.cieloapp",
+      "permissions": ["android.permission.CAMERA", "android.permission.INTERNET"]
     },
     "newArchEnabled": true,
     "web": {
@@ -44,6 +48,9 @@
         "ios": {
           "newArchEnabled": true
         }
+      }],
+      ["expo-camera", {
+        "cameraPermission": "Usar cámara para escanear QR de sincronización"
       }]
     ],
     "extra": {

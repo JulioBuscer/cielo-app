@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -92,12 +92,15 @@ export default function EventNewScreen() {
     });
   };
 
+  const quickSaveRef = useRef(false);
   const handleQuickSave = async (item: CatalogItem) => {
-    if (!baby) return;
+    if (!baby || quickSaveRef.current) return;
+    quickSaveRef.current = true;
     try {
       await quickSave.mutateAsync({ babyId: baby.id, item, timestamp });
       router.back();
     } catch {
+      quickSaveRef.current = false;
       Alert.alert("Error", "No se pudo guardar");
     }
   };
@@ -197,6 +200,22 @@ export default function EventNewScreen() {
           const root = allItems.find((i) => i.id === item.parentId);
           if (root) setSelectedRootId(root.id);
           setSelectedItemId(item.id);
+          // Populate form defaults from the catalog item
+          try {
+            const dv = JSON.parse(item.defaultValues ?? '{}');
+            if (Object.keys(dv).length > 0) {
+              setValues(Object.fromEntries(Object.entries(dv).map(([k, v]) => [k, String(v)])));
+            }
+          } catch {}
+          try {
+            const duo = JSON.parse(item.defaultUnitOverrides ?? '{}');
+            if (Object.keys(duo).length > 0) setDisplayUnits(duo);
+          } catch {}
+          if (item.defaultNotes) setNotes(item.defaultNotes);
+          try {
+            const dt = JSON.parse(item.defaultTags ?? '[]');
+            if (dt.length > 0) setTags(dt);
+          } catch {}
           setStep("form");
         } else {
           setSelectedRootId(item.id);
@@ -471,6 +490,7 @@ export default function EventNewScreen() {
                 return (
                   <TouchableOpacity
                     key={item.id}
+                    disabled={quickSave.isPending}
                     onPress={() => {
                       if (hasDefaults) {
                         handleQuickSave(item);

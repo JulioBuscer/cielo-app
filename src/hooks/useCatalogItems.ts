@@ -93,32 +93,40 @@ export function useCreateCatalogItem() {
       isQuickAction?: boolean;
     }) => {
       const id = generateId();
-      // Must also insert into event_types for FK compatibility
-      await getDb().insert(eventTypes).values({
-        id,
-        emoji: input.emoji ?? '📌',
-        label: input.name,
-        category: input.category as any,
-        isSystem: false,
-        metrics: input.metrics ? JSON.stringify(input.metrics) : '[]',
-        createdAt: new Date(),
-      });
-      await getDb().insert(catalogItems).values({
-        id,
-        category: input.category as any,
-        parentId: input.parentId ?? null,
-        name: input.name,
-        emoji: input.emoji ?? '📌',
-        metrics: input.metrics ? JSON.stringify(input.metrics) : '[]',
-        defaultValues: input.defaultValues ? JSON.stringify(input.defaultValues) : '{}',
-        defaultUnitOverrides: input.defaultUnitOverrides ? JSON.stringify(input.defaultUnitOverrides) : '{}',
-        defaultNotes: input.defaultNotes ?? null,
-        defaultTags: input.defaultTags ? JSON.stringify(input.defaultTags) : '[]',
-        isSystem: false,
-        isQuickAction: input.isQuickAction ?? false,
-        sortOrder: 0,
-        createdAt: new Date(),
-      });
+      // Also insert into event_types for FK compatibility
+      try {
+        await getDb().insert(eventTypes).values({
+          id,
+          emoji: input.emoji ?? '📌',
+          label: input.name,
+          category: input.category as any,
+          isSystem: false,
+          createdAt: new Date(),
+        });
+      } catch (e) {
+        console.warn('[CatalogItems] event_types insert failed (non-fatal):', e);
+      }
+      try {
+        await getDb().insert(catalogItems).values({
+          id,
+          category: input.category as any,
+          parentId: input.parentId ?? null,
+          name: input.name,
+          emoji: input.emoji ?? '📌',
+          metrics: input.metrics ? JSON.stringify(input.metrics) : '[]',
+          defaultValues: input.defaultValues ? JSON.stringify(input.defaultValues) : '{}',
+          defaultUnitOverrides: input.defaultUnitOverrides ? JSON.stringify(input.defaultUnitOverrides) : '{}',
+          defaultNotes: input.defaultNotes ?? null,
+          defaultTags: input.defaultTags ? JSON.stringify(input.defaultTags) : '[]',
+          isSystem: false,
+          isQuickAction: input.isQuickAction ?? false,
+          sortOrder: 0,
+          createdAt: new Date(),
+        });
+      } catch (e) {
+        console.error('[CatalogItems] catalog_items insert failed (fatal):', e);
+        throw e;
+      }
       return id;
     },
     onSuccess: () => {
@@ -153,6 +161,17 @@ export function useUpdateCatalogItem() {
       if (input.defaultTags !== undefined) update.defaultTags = JSON.stringify(input.defaultTags);
       if (input.isQuickAction !== undefined) update.isQuickAction = input.isQuickAction;
       await getDb().update(catalogItems).set(update).where(eq(catalogItems.id, input.id));
+      // Sync name/emoji to event_types if they changed
+      if (input.name !== undefined || input.emoji !== undefined) {
+        try {
+          const evUpdate: Record<string, any> = {};
+          if (input.name !== undefined) evUpdate.label = input.name;
+          if (input.emoji !== undefined) evUpdate.emoji = input.emoji;
+          await getDb().update(eventTypes).set(evUpdate).where(eq(eventTypes.id, input.id));
+        } catch (e) {
+          console.warn('[CatalogItems] event_types update failed (non-fatal):', e);
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['catalog_items'] });
@@ -179,6 +198,10 @@ export function useDeleteCatalogItem() {
   });
 }
 
+// Lazy-load helpers cached once
+let _insertTimelineEvent: ((input: any) => Promise<void>) | null = null;
+let _getProfileId: (() => Promise<string>) | null = null;
+
 export function useQuickSaveCatalogItem() {
   const qc = useQueryClient();
   return useMutation({
@@ -188,15 +211,21 @@ export function useQuickSaveCatalogItem() {
       timestamp?: Date;
       notes?: string;
     }) => {
-      const { insertTimelineEvent } = await import('./useTimeline');
-      const { getProfileId } = await import('@/src/utils/storage');
-      const profileId = await getProfileId();
+      if (!_insertTimelineEvent) {
+        const mod = await import('./useTimeline');
+        _insertTimelineEvent = mod.insertTimelineEvent;
+      }
+      if (!_getProfileId) {
+        const mod = await import('@/src/utils/storage');
+        _getProfileId = mod.getProfileId;
+      }
+      const profileId = await _getProfileId();
       let values: Record<string, number> = {};
       try { values = JSON.parse(input.item.defaultValues ?? '{}'); } catch {}
       let tags: string[] = [];
       try { tags = JSON.parse(input.item.defaultTags ?? '[]'); } catch {}
       const eventTypeId = input.item.parentId ?? input.item.id;
-      await insertTimelineEvent({
+      await _insertTimelineEvent({
         babyId: input.babyId,
         profileId,
         eventTypeId,

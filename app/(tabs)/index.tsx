@@ -487,13 +487,16 @@ export default function HomeScreen() {
       });
   };
 
-  const handleItemTap = async (item: CatalogItem) => {
-    if (!baby) return;
-    await quickSaveItem.mutateAsync({
-      babyId: baby.id,
-      item,
-      timestamp: new Date(),
-    });
+  const savingTapRef = useRef(false);
+  const handleItemTap = (item: CatalogItem) => {
+    if (!baby || savingTapRef.current) return;
+    savingTapRef.current = true;
+    quickSaveItem.mutate(
+      { babyId: baby.id, item, timestamp: new Date() },
+      {
+        onSettled: () => { savingTapRef.current = false; },
+      },
+    );
   };
 
   const handleItemLongPress = (item: CatalogItem) => {
@@ -865,7 +868,7 @@ export default function HomeScreen() {
                   bgColor={c.accentStrong}
                   onPress={() => handleItemTap(p)}
                   onLongPress={() => handleItemLongPress(p)}
-                  disabled={!!loadingType}
+                  disabled={!!loadingType || quickSaveItem.isPending}
                   size={52}
                 />
               ))}
@@ -874,7 +877,7 @@ export default function HomeScreen() {
                 label={(quickItems?.length ?? 0) > 2 ? `+${(quickItems?.length ?? 0) - 2}` : "Más"}
                 bgColor={c.accentStrong}
                 onPress={() => setShowEventPicker(true)}
-                disabled={!!loadingType}
+                disabled={!!loadingType || quickSaveItem.isPending}
               />
             </View>
 
