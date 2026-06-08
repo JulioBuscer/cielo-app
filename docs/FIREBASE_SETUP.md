@@ -108,6 +108,11 @@ Agrega el plugin de `expo-build-properties` con la dependencia de Firebase si no
 npx expo install @react-native-firebase/app @react-native-firebase/database
 ```
 
+> Si `npx expo install` falla con un error de pnpm (`SyntaxError: Unexpected token`), usa `pnpm add` directamente:
+> ```bash
+> pnpm add @react-native-firebase/app @react-native-firebase/database
+> ```
+
 ## 6. Verificar la instalación
 
 Crea un archivo `src/firebase.ts` de prueba:

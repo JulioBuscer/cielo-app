@@ -25,7 +25,10 @@
         "backgroundColor": "#0A0A0F"
       },
       "package": "com.buscer.cieloapp",
-      "permissions": ["android.permission.CAMERA", "android.permission.INTERNET"]
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.INTERNET"
+      ]
     },
     "newArchEnabled": true,
     "web": {
@@ -33,25 +36,39 @@
     },
     "plugins": [
       "expo-router",
-      ["expo-sqlite", {
-        "useLibSQL": false,
-        "withSQLiteVecExtension": false
-      }],
-      "@react-native-community/datetimepicker",
-      ["expo-build-properties", {
-        "android": {
-          "abiFilters": ["arm64-v8a", "armeabi-v7a"],
-          "enableProguardInReleaseBuilds": true,
-          "enableShrinkResourcesInReleaseBuilds": true,
-          "newArchEnabled": true
-        },
-        "ios": {
-          "newArchEnabled": true
+      [
+        "expo-sqlite",
+        {
+          "useLibSQL": false,
+          "withSQLiteVecExtension": false
         }
-      }],
-      ["expo-camera", {
-        "cameraPermission": "Usar cámara para escanear QR de sincronización"
-      }]
+      ],
+      "@react-native-community/datetimepicker",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "abiFilters": [
+              "arm64-v8a",
+              "armeabi-v7a"
+            ],
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "newArchEnabled": true,
+            "googleServicesFile": "./google-services.json"
+          },
+          "ios": {
+            "newArchEnabled": true,
+            "googleServicesFile": "./GoogleService-Info.plist"
+          }
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Usar cámara para escanear QR de sincronización"
+        }
+      ]
     ],
     "extra": {
       "router": {
