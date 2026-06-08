@@ -38,24 +38,25 @@
 
 ## Roadmap
 
-### Fase 1 — Infraestructura (esta sesión)
-- [ ] Instalar dependencias: `react-native-webrtc`, `expo-crypto`, `expo-camera`
-- [ ] Configurar `app.json` (plugin cámara + permisos)
-- [ ] `src/sync/types.ts` — Tipos compartidos
-- [ ] `src/sync/crypto.ts` — `generateKey()`, `encryptPayload()`, `decryptPayload()`
-- [ ] `src/sync/signaling.ts` — TCP signaling server + client
-- [ ] `src/sync/webrtc.ts` — WebRTC peer connection + data channel
-- [ ] `src/sync/merge.ts` — Merge de datos en DB local
-- [ ] `src/sync/hooks.ts` — `useSyncHost()`, `useSyncJoin()`
-- [ ] `app/settings/sync.tsx` — Pantalla completa de sincronización
-- [ ] `app/settings/index.tsx` — Agregar item "🔄 Sincronizar"
+### Fase 1 — Infraestructura ✅
+- [x] Instalar dependencias: `react-native-webrtc`, `expo-crypto`, `expo-camera`
+- [x] Configurar `app.json` (plugin cámara + permisos)
+- [x] `src/sync/types.ts` — Tipos compartidos
+- [x] `src/sync/crypto.ts` — `generateKey()`, `encryptPayload()`, `decryptPayload()`
+- [x] `src/sync/signaling.ts` — TCP signaling server + client
+- [x] `src/sync/webrtc.ts` — WebRTC peer connection + data channel
+- [x] `src/sync/merge.ts` — Merge de datos en DB local
+- [x] `src/sync/hooks.ts` — `useSyncHost()`, `useSyncJoin()`
+- [x] `app/settings/sync.tsx` — Pantalla completa de sincronización
+- [x] `app/settings/index.tsx` — Agregar item "🔄 Sincronizar"
 
 ### Fase 2 — Refinamiento UX
-- [ ] Indicador de progreso en tiempo real
-- [ ] Log de pasos (conectando, intercambiando SDP, sincronizando...)
-- [ ] Animación de QR con cuenta regresiva
-- [ ] Preview de cámara con guía visual para escaneo
-- [ ] Botón para copiar IP:puerto manual (fallback si no hay cámara)
+- [x] Indicador de progreso en tiempo real (ActivityIndicator + STEP_LABELS)
+- [x] Log de pasos (conectando, intercambiando SDP, sincronizando...)
+- [x] Animación de QR con cuenta regresiva (120s, color rojo <30s)
+- [x] Preview de cámara con guía visual para escaneo
+- [x] Botón para copiar IP:puerto manual (fallback si no hay cámara)
+- [x] Entrada manual de IP/puerto/clave para invitado sin cámara
 
 ### Fase 3 — Post-MVP
 - [ ] Reconexión automática con pares conocidos
