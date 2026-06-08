@@ -58,12 +58,18 @@
 - [x] Botón para copiar IP:puerto manual (fallback si no hay cámara)
 - [x] Entrada manual de IP/puerto/clave para invitado sin cámara
 
-### Fase 3 — Post-MVP
-- [ ] Reconexión automática con pares conocidos
-- [ ] Background sync periódico
-- [ ] Relay ligero vía Firebase RTDB (solo señalización, datos siempre E2E)
-- [ ] Historial de sincronización con conflictos visibles
-- [ ] Sincronización de bebés/perfiles
+### Fase 3 — Post-MVP (orden priorizado)
+
+**Independientes de Firebase (se pueden hacer ya):**
+- [ ] Historial de sincronización con conflictos visibles — tabla `sync_history` + UI de conflictos
+- [ ] Sincronización de bebés/perfiles — agregar `profiles` a las tablas sincronizadas
+
+**Requieren Firebase RTDB (después de setup):**
+- [ ] Relay ligero vía Firebase RTDB — reemplazar TCP signaling por Firebase (solo señalización, datos E2E)
+- [ ] Reconexión automática con pares conocidos — detectar pares vía Firebase Presence
+- [ ] Background sync periódico — sincronizar en segundo plano cuando hay cambios
+
+> **Nota:** Firebase RTDB solo se usa para señalización (intercambio de SDP + ICE candidates). Los datos reales viajan P2P cifrados por WebRTC DataChannel. Ver `docs/FIREBASE_SETUP.md` para guía de configuración.
 
 ---
 
