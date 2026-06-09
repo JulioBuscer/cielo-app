@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getDb } from '@/src/db/client';
 import { babies } from '@/src/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 import { setBabyId, setOnboardingDone, getBabyId } from '@/src/utils/storage';
 import { onMutationError } from '@/src/utils/mutationError';
 import { writeOutbox } from '@/src/sync/outbox';
 import { signalPeers } from '@/src/sync/hooks';
+import { getCachedDeviceId } from '@/src/sync/device';
 import type { Baby } from '@/src/db/schema';
 
 export function useCreateBaby() {
@@ -40,7 +41,10 @@ export function useCreateBaby() {
       await setOnboardingDone();
       return id;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['baby'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['baby'] });
+      qc.invalidateQueries({ queryKey: ['babies'] });
+    },
     onError: onMutationError("[useCreateBaby]"),
   });
 }
@@ -57,6 +61,23 @@ export function useActiveBaby() {
   });
 }
 
+export function useBabies() {
+  return useQuery({
+    queryKey: ['babies'],
+    queryFn: () => getDb().select().from(babies).orderBy(desc(babies.createdAt)),
+  });
+}
+
+export function useSetActiveBaby() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await setBabyId(id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['baby'] }),
+  });
+}
+
 export function useUpdateBaby() {
   const qc = useQueryClient();
   return useMutation({
@@ -69,6 +90,22 @@ export function useUpdateBaby() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['baby'] }),
     onError: onMutationError("[useUpdateBaby]"),
+  });
+}
+
+export function useDeleteBaby() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await getDb().delete(babies).where(eq(babies.id, id));
+      await writeOutbox('babies', id, 'delete', { id });
+      await signalPeers();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['baby'] });
+      qc.invalidateQueries({ queryKey: ['babies'] });
+    },
+    onError: onMutationError("[useDeleteBaby]"),
   });
 }
 

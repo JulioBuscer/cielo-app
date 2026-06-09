@@ -68,7 +68,7 @@ export default function PerfilScreen() {
         </Text>
 
         <TouchableOpacity
-          onPress={() => router.push("/baby/profile")}
+          onPress={() => router.push("/baby")}
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -136,6 +136,18 @@ export default function PerfilScreen() {
               label="Catálogos"
               subtitle="Tipos de evento, escalas y observaciones"
               onPress={() => router.push("/settings/catalogs")}
+            />
+            <MenuLink
+              emoji="🔄"
+              label="Sincronizar"
+              subtitle="Conectar con otro dispositivo"
+              onPress={() => router.push("/settings/sync")}
+            />
+            <MenuLink
+              emoji="⚙️"
+              label="Ajustes"
+              subtitle="Sincronización, historial y más"
+              onPress={() => router.push("/settings")}
             />
             <MenuLink
               emoji="👤"
