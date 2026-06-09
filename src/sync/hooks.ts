@@ -379,9 +379,11 @@ export function useSync() {
 // Call this after saving data locally to notify paired devices to sync.
 
 export async function signalPeers() {
-  const deviceId = await getOrCreateDeviceId();
-  const { signalAllPeers } = await import('./presence');
-  await signalAllPeers(deviceId);
+  try {
+    const deviceId = await getOrCreateDeviceId();
+    const { signalAllPeers } = await import('./presence');
+    await signalAllPeers(deviceId);
+  } catch {} // Firebase no disponible — silencioso
 }
 
 // ─── BACKGROUND SYNC ───────────────────────────────────────────────────────────

@@ -3,9 +3,18 @@ import { randomUUID } from 'expo-crypto';
 const DB_PATH = 'sessions';
 
 let _db: any = null;
+let _dbError = false;
 async function getDb() {
-  if (!_db) _db = (await import('@react-native-firebase/database')).default();
-  return _db;
+  if (_db) return _db;
+  if (_dbError) throw new Error('Firebase no disponible');
+  try {
+    const mod = await import('@react-native-firebase/database');
+    _db = typeof mod === 'function' ? mod : mod.default;
+    return _db;
+  } catch (e) {
+    _dbError = true;
+    throw e;
+  }
 }
 
 export type FirebaseSessionData = {
@@ -50,7 +59,7 @@ export function listenHostSdp(
       if (sdp) callback(sdp);
     }, onError);
     unsubs.push(() => ref.off('value', listener));
-  });
+  }).catch(() => {});
   return () => unsubs.forEach((fn) => fn());
 }
 
@@ -67,7 +76,7 @@ export function listenJoinSdp(
       if (sdp) callback(sdp);
     }, onError);
     unsubs.push(() => ref.off('value', listener));
-  });
+  }).catch(() => {});
   return () => unsubs.forEach((fn) => fn());
 }
 
@@ -87,6 +96,6 @@ export function listenSessionStatus(
       if (status) callback(status);
     });
     unsubs.push(() => ref.off('value', listener));
-  });
+  }).catch(() => {});
   return () => unsubs.forEach((fn) => fn());
 }

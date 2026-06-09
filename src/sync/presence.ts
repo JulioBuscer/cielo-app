@@ -6,9 +6,18 @@ const PAIRED_STORAGE = '@sync/paired_devices';
 const PRESENCE_TTL = 60000;
 
 let _db: any = null;
+let _dbError = false;
 async function getDb() {
-  if (!_db) _db = (await import('@react-native-firebase/database')).default();
-  return _db;
+  if (_db) return _db;
+  if (_dbError) throw new Error('Firebase no disponible');
+  try {
+    const mod = await import('@react-native-firebase/database');
+    _db = typeof mod === 'function' ? mod : mod.default;
+    return _db;
+  } catch (e) {
+    _dbError = true;
+    throw e;
+  }
 }
 
 export interface PairedDevice {
@@ -73,7 +82,7 @@ export function listenKnownPeers(
       });
       unsubs.push(() => ref.off('value', listener));
     });
-  });
+  }).catch(() => {});
 
   return () => unsubs.forEach((fn) => fn());
 }
@@ -110,6 +119,6 @@ export function listenSyncSignals(
       }
     });
     unsubs.push(() => ref.off('child_added', listener));
-  });
+  }).catch(() => {});
   return () => unsubs.forEach((fn) => fn());
 }
