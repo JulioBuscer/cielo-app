@@ -31,9 +31,20 @@ echo $ANDROID_HOME                     # debe apuntar al SDK
 Si `ANDROID_HOME` no está definido, agrega esto a tu `~/.bashrc` o `~/.zshrc`:
 
 ```bash
-export ANDROID_HOME=$HOME/Android/Sdk
-export PATH=$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin
+export ANDROID_HOME=/usr/lib/android-sdk
+export PATH=$PATH:$ANDROID_HOME/platform-tools
 ```
+
+Luego recarga la terminal:
+```bash
+source ~/.bashrc     # o source ~/.zshrc
+```
+
+**Alternativa** — crear `android/local.properties` (sin depender de variables de entorno):
+```bash
+echo "sdk.dir=/usr/lib/android-sdk" > android/local.properties
+```
+Este archivo está ignorado por git (`.gitignore`).
 
 ### Build paso a paso
 

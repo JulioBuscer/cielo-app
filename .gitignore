@@ -39,6 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+android/local.properties
 
 # Cielo App — archivos sensibles
 .env
