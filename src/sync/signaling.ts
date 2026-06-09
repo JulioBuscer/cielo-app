@@ -29,7 +29,7 @@ export async function connectToSignalingServer(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const client = TcpSocket.createConnection(
-      { host: offer.host, port: offer.port },
+      { host: offer.host ?? '0.0.0.0', port: offer.port ?? 0 },
       () => {
         client.write(JSON.stringify({ type: 'hello' }) + '\n');
       },

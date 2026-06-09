@@ -8,17 +8,17 @@
 - **DataChannel** para transferencia de datos binarios
 - Funciona en redes distintas (WiFi, datos móviles, redes diferentes)
 
-### Señalización: QR + TCP signaling temporal
-- Sin servidor de señalización permanente
-- **Anfitrión**: inicia servidor TCP temporal en puerto aleatorio, muestra QR con IP:puerto
-- **Invitado**: escanea QR, se conecta al TCP signaling server
-- Intercambio de SDP (offer/answer) + ICE candidates por TCP
-- Una vez establecido WebRTC, se cierra el TCP signaling server
+### Señalización: QR + Firebase RTDB (actual) / TCP (legacy)
+- **Firebase RTDB** como relay de señalización (predeterminado desde v2)
+- **Host**: crea sesión en Firebase, publica SDP offer, espera SDP answer
+- **Join**: escucha sesión en Firebase, lee SDP offer, publica SDP answer
+- Una vez establecido WebRTC, se limpia la sesión en Firebase
+- **TCP signaling** (v1, legacy): funciona como fallback en red local sin Firebase
 
-### Cifrado: E2E con AES-256-GCM
+### Cifrado: E2E con tweetnacl (XSalsa20-Poly1305)
 - Clave pre-compartida generada por el anfitrión
-- Se transfiere al invitado dentro del QR (cifrado en tránsito por el canal local)
-- `expo-crypto`: `encryptAsync` / `decryptAsync` con AES-256-GCM
+- Se transfiere al invitado dentro del QR
+- `tweetnacl secretbox` para cifrar/descifrar payloads
 - Cada mensaje en WebRTC DataChannel va cifrado con esta clave
 
 ### Almacenamiento de sync state
@@ -63,10 +63,10 @@
 
 **Independientes de Firebase (se pueden hacer ya):**
 - [x] Historial de sincronización con conflictos visibles — tabla `sync_history`, detección en merge, UI en `app/settings/sync-history.tsx`
-- [ ] Sincronización de bebés/perfiles — agregar `profiles` a las tablas sincronizadas
+- [x] Sincronización de bebés/perfiles — agregar `profiles` y `babies` a las tablas sincronizadas en `merge.ts`
 
 **Requieren Firebase RTDB (después de setup):**
-- [ ] Relay ligero vía Firebase RTDB — reemplazar TCP signaling por Firebase (solo señalización, datos E2E)
+- [x] Relay ligero vía Firebase RTDB — reemplazar TCP signaling por Firebase (solo señalización, datos E2E)
 - [ ] Reconexión automática con pares conocidos — detectar pares vía Firebase Presence
 - [ ] Background sync periódico — sincronizar en segundo plano cuando hay cambios
 
@@ -76,7 +76,7 @@
 
 ## Protocolo
 
-### QR Payload (`SyncOffer`)
+### QR Payload (`SyncOffer`) — v1 (TCP legacy)
 ```json
 {
   "v": 1,
@@ -87,14 +87,25 @@
 }
 ```
 
-### TCP Signaling (temporal)
+### QR Payload (`SyncOffer`) — v2 (Firebase RTDB)
+```json
+{
+  "v": 2,
+  "key": "a2V5...==",
+  "device": "uuid-del-host",
+  "sessionId": "uuid-de-sesion-firebase"
+}
 ```
-1. Cliente conecta → envía saludo
-2. Host envía su SDP offer
-3. Cliente responde con SDP answer
-4. Host confirma → ambos cierran TCP
-5. WebRTC DataChannel establecido
-6. Intercambio de datos cifrados over WebRTC
+
+### Firebase Signaling
+```
+1. Host crea sesión en Firebase RTDB (/sessions/{sessionId})
+2. Host genera SDP offer, lo publica en hostSdp
+3. Join escucha hostSdp, genera SDP answer, lo publica en joinSdp
+4. Host recibe joinSdp, completa handshake WebRTC
+5. Sesión Firebase se limpia (status → 'done')
+6. WebRTC DataChannel establecido
+7. Intercambio de datos cifrados over WebRTC
 ```
 
 ### Sync Payload (over WebRTC DataChannel)
@@ -124,10 +135,11 @@
 src/sync/
 ├── types.ts        # SyncOffer, SyncPayload, SyncMessage
 ├── crypto.ts       # generateKey, encryptPayload, decryptPayload
-├── signaling.ts    # TCPSignalingServer, TCPSignalingClient
+├── firebase.ts     # Firebase RTDB helpers (createSession, listenSdp, cleanup)
+├── signaling.ts    # TCPSignalingServer, TCPSignalingClient (legacy, v1)
 ├── webrtc.ts       # createPeerConnection, setupDataChannel
-├── merge.ts        # mergeSyncPayload (INSERT OR REPLACE, detecta conflictos)
-├── hooks.ts        # useSync (persiste sync_history, expone conflictCount)
+├── merge.ts        # mergeSyncPayload (timelineEvents, catalogItems, tags, profiles, babies)
+├── hooks.ts        # useSync (Firebase signaling, persist sync_history, conflictCount)
 
 app/settings/
 ├── sync-history.tsx# SyncHistoryScreen (lista de sesiones pasadas + conflictos)

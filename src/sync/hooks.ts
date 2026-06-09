@@ -1,10 +1,18 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { randomUUID } from 'expo-crypto';
 import type { SyncOffer, SyncPayload, SyncMessage, SyncStep, SyncRole } from './types';
-import { generateKey, encryptPayload, decryptPayload } from './crypto';
-import { startSignalingServer, connectToSignalingServer } from './signaling';
+import { generateKey } from './crypto';
+import {
+  createSession,
+  writeHostSdp,
+  writeJoinSdp,
+  updateSessionStatus,
+  listenJoinSdp,
+  listenHostSdp,
+  cleanupSession,
+} from './firebase';
 import {
   createPeerConnection,
   createDataChannel,
@@ -13,14 +21,12 @@ import {
   setRemoteAnswer,
   setupChannelListeners,
   sendSyncMessage,
-  getLocalIp,
 } from './webrtc';
 import { gatherLocalPayload, mergeSyncPayload, type MergeResult } from './merge';
 import { syncHistory } from '@/src/db/schema';
 import { getDb } from '@/src/db/client';
 import { generateId } from '@/src/utils/id';
 
-const KEY_STORAGE = '@sync/key';
 const DEVICE_STORAGE = '@sync/device_id';
 const LAST_SYNC_STORAGE = '@sync/last_sync_ats';
 
@@ -62,14 +68,21 @@ export function useSync() {
   const [error, setError] = useState<string | null>(null);
 
   const channelRef = useRef<any>(null);
-  const serverRef = useRef<{ port: number; stop: () => void } | null>(null);
+  const pcRef = useRef<any>(null);
   const stepRef = useRef<SyncStep>('idle');
-  const sessionIdRef = useRef(randomUUID());
-  const roleRef = useRef<SyncRole>(null);
+  const sessionIdRef = useRef<string>('');
+  const cleanupRef = useRef<Array<() => void>>([]);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   const addLog = useCallback((msg: string) => {
     setLog((prev) => [...prev, msg]);
   }, []);
+
+  function runCleanup() {
+    cleanupRef.current.forEach((fn) => fn());
+    cleanupRef.current = [];
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  }
 
   async function saveHistoryEntry(
     direction: 'sent' | 'received',
@@ -127,27 +140,35 @@ export function useSync() {
   }, [addLog]);
 
   const reset = useCallback(() => {
+    runCleanup();
     setStep('idle');
     stepRef.current = 'idle';
     setRole(null);
-    roleRef.current = null;
     setOffer(null);
     setLog([]);
     setMergedCount(0);
     setConflictCount(0);
     setError(null);
     channelRef.current = null;
-    sessionIdRef.current = randomUUID();
-    if (serverRef.current) {
-      serverRef.current.stop();
-      serverRef.current = null;
-    }
+    pcRef.current = null;
+    sessionIdRef.current = '';
   }, []);
+
+  async function doSendLocalData(channel: any) {
+    const _deviceId = await getOrCreateDeviceId();
+    addLog('Recopilando datos...');
+    try {
+      const payload = await gatherLocalPayload(await getLastSyncAts(), _deviceId);
+      addLog(`Enviando ${payload.timelineEvents.length} eventos, ${payload.catalogItems.length} items...`);
+      sendSyncMessage(channel, { type: 'sync_response', payload });
+    } catch (err: any) {
+      addLog(`Error al enviar: ${err.message}`);
+    }
+  }
 
   const startHost = useCallback(async () => {
     reset();
     setRole('host');
-    roleRef.current = 'host';
     cachedKey = null;
     const key = ensureKey();
     const deviceId = await getOrCreateDeviceId();
@@ -157,23 +178,25 @@ export function useSync() {
     addLog('Generando clave de cifrado...');
 
     try {
-      addLog('Iniciando servidor TCP...');
-      const server = await startSignalingServer();
-      serverRef.current = server;
+      addLog('Creando sesión en Firebase...');
+      const sessionId = await createSession();
+      sessionIdRef.current = sessionId;
 
-      const localIp = await getLocalIp();
       const syncOffer: SyncOffer = {
-        v: 1, host: localIp, port: server.port, key, device: deviceId,
+        v: 2,
+        key,
+        device: deviceId,
+        sessionId,
       };
       setOffer(syncOffer);
-      addLog(`Servidor listo en puerto ${server.port}`);
+      addLog('Sesión creada');
 
       setStep('waiting_qr');
       stepRef.current = 'waiting_qr';
       addLog('Esperando escaneo del QR...');
 
-      // Start WebRTC peer
       const pc = createPeerConnection();
+      pcRef.current = pc;
       const dc = createDataChannel(pc);
       channelRef.current = dc;
 
@@ -189,6 +212,31 @@ export function useSync() {
       const sdpOffer = await createOfferSdp(pc);
       addLog('Oferta WebRTC generada');
 
+      addLog('Publicando SDP en Firebase...');
+      await writeHostSdp(sessionId, sdpOffer);
+
+      setStep('signaling');
+      stepRef.current = 'signaling';
+      addLog('Esperando respuesta...');
+
+      const unsub = listenJoinSdp(sessionId, async (joinSdp) => {
+        addLog('Respuesta recibida');
+        runCleanup();
+        try {
+          await setRemoteAnswer(pc, joinSdp);
+          addLog('Conexión WebRTC establecida');
+          await updateSessionStatus(sessionId, 'paired');
+        } catch (err: any) {
+          addLog(`Error al conectar: ${err.message}`);
+        }
+      }, (err) => {
+        addLog(`Error de Firebase: ${err.message}`);
+      });
+      cleanupRef.current.push(unsub);
+      cleanupRef.current.push(() => {
+        cleanupSession(sessionId).catch(() => {});
+      });
+
     } catch (err: any) {
       setStep('error');
       stepRef.current = 'error';
@@ -200,25 +248,27 @@ export function useSync() {
   const startJoin = useCallback(async (scannedOffer: SyncOffer) => {
     reset();
     setRole('join');
-    roleRef.current = 'join';
     cachedKey = scannedOffer.key;
     const key = scannedOffer.key;
     const deviceId = await getOrCreateDeviceId();
+    sessionIdRef.current = scannedOffer.sessionId ?? '';
     setOffer(scannedOffer);
+
+    if (!scannedOffer.sessionId) {
+      setStep('error');
+      stepRef.current = 'error';
+      setError('Oferta inválida: sin sessionId');
+      addLog('Error: sesión no encontrada en el QR');
+      return;
+    }
 
     setStep('signaling');
     stepRef.current = 'signaling';
-    addLog('Conectando al servidor...');
+    addLog('Esperando SDP del anfitrión...');
 
     try {
-      await connectToSignalingServer(scannedOffer);
-      addLog('Conectado al servidor');
-
-      // Create peer connection and answer
       const pc = createPeerConnection();
-
-      // Create a local offer first, then answer with remote
-      // For simplicity, both sides create offers and we use the host's
+      pcRef.current = pc;
       const dc = createDataChannel(pc);
       channelRef.current = dc;
 
@@ -231,14 +281,25 @@ export function useSync() {
         doSendLocalData(dc);
       });
 
-      // Get local SDP to send to host
-      const localSdp = await createOfferSdp(pc);
-      addLog('SDP generado, conectando...');
-
-      // For now, we establish the WebRTC connection directly
-      // In production, exchange SDP via signaling
-      setStep('syncing');
-      stepRef.current = 'syncing';
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Tiempo de espera agotado esperando SDP del anfitrión')), 60000);
+        const unsub = listenHostSdp(scannedOffer.sessionId!, async (hostSdp) => {
+          clearTimeout(timeout);
+          addLog('SDP del anfitrión recibido');
+          try {
+            const answerSdp = await createAnswerSdp(pc, hostSdp);
+            addLog('Respuesta SDP generada');
+            await writeJoinSdp(scannedOffer.sessionId!, answerSdp);
+            addLog('Respuesta publicada en Firebase');
+            setStep('connecting_webrtc');
+            stepRef.current = 'connecting_webrtc';
+            resolve();
+          } catch (err: any) {
+            reject(err);
+          }
+        }, (err) => reject(err));
+        cleanupRef.current.push(unsub);
+      });
 
     } catch (err: any) {
       setStep('error');
@@ -248,57 +309,5 @@ export function useSync() {
     }
   }, [addLog, reset, handleRemotePayload]);
 
-  async function doSendLocalData(channel: any) {
-    const _deviceId = await getOrCreateDeviceId();
-    addLog('Recopilando datos...');
-    try {
-      const payload = await gatherLocalPayload(await getLastSyncAts(), _deviceId);
-      addLog(`Enviando ${payload.timelineEvents.length} eventos, ${payload.catalogItems.length} items...`);
-      sendSyncMessage(channel, { type: 'sync_response', payload });
-    } catch (err: any) {
-      addLog(`Error al enviar: ${err.message}`);
-    }
-  }
-
   return { step, role, offer, log, mergedCount, conflictCount, error, startHost, startJoin, reset };
-}
-
-function waitForRemoteConnect(
-  port: number,
-  sdpOffer: string,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const TcpSocket = require('react-native-tcp-socket').default;
-    const timeout = setTimeout(() => {
-      reject(new Error('Tiempo de espera agotado'));
-    }, 120000);
-
-    const server = TcpSocket.createServer((client: any) => {
-      clearTimeout(timeout);
-      let buffer = '';
-
-      client.on('data', (chunk: string) => {
-        buffer += chunk;
-        if (buffer.includes('\n')) {
-          client.write(sdpOffer + '\n');
-        }
-      });
-
-      client.on('error', () => {});
-    });
-
-    server.on('error', (err: Error) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
-
-    server.listen({ port, host: '0.0.0.0' }, () => {
-      setTimeout(() => resolve(), 500);
-    });
-
-    // Cleanup if already resolved
-    setTimeout(() => {
-      try { server.close(); } catch {}
-    }, 130000);
-  });
 }

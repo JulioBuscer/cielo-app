@@ -1,9 +1,10 @@
 export interface SyncOffer {
   v: number;
-  host: string;
-  port: number;
+  host?: string;
+  port?: number;
   key: string;
   device: string;
+  sessionId?: string;
 }
 
 export interface SyncPayload {
@@ -12,6 +13,8 @@ export interface SyncPayload {
   timelineEvents: any[];
   catalogItems: any[];
   tags: any[];
+  profiles?: any[];
+  babies?: any[];
 }
 
 export type SyncMessageType = 'sync_request' | 'sync_response' | 'sync_ack' | 'sync_error';

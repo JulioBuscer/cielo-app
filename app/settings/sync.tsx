@@ -68,9 +68,11 @@ export default function SyncScreen() {
     }
   }, [mode, sync.offer, sync.step]);
 
-  const handleCopyIp = useCallback(async () => {
+  const handleCopyOffer = useCallback(async () => {
     if (!sync.offer) return;
-    const text = `${sync.offer.host}:${sync.offer.port}`;
+    const text = sync.offer.v === 2
+      ? JSON.stringify({ sessionId: sync.offer.sessionId, key: sync.offer.key })
+      : `${sync.offer.host}:${sync.offer.port}`;
     await Clipboard.setStringAsync(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -95,7 +97,17 @@ export default function SyncScreen() {
 
     try {
       const offer: SyncOffer = JSON.parse(data);
-      if (!offer.host || !offer.port || !offer.key) {
+      if (offer.v === 1 && (!offer.host || !offer.port)) {
+        Alert.alert('Error', 'Código QR inválido');
+        setScanned(false);
+        return;
+      }
+      if (offer.v === 2 && !offer.sessionId) {
+        Alert.alert('Error', 'Código QR inválido');
+        setScanned(false);
+        return;
+      }
+      if (!offer.key) {
         Alert.alert('Error', 'Código QR inválido');
         setScanned(false);
         return;
@@ -249,7 +261,7 @@ export default function SyncScreen() {
           )}
 
           {/* Manual connection info */}
-          {sync.offer && (
+          {sync.offer && sync.offer.v === 1 && (
             <View style={{
               backgroundColor: c.card,
               borderRadius: 16,
@@ -261,7 +273,7 @@ export default function SyncScreen() {
                 O conecta manualmente
               </Text>
               <TouchableOpacity
-                onPress={handleCopyIp}
+                onPress={handleCopyOffer}
                 style={{
                   backgroundColor: c.elevated,
                   borderRadius: 12,
@@ -566,17 +578,27 @@ function ManualEntryView({
   onBack: () => void;
 }) {
   const c = theme.colors;
+  const [mode, setMode] = useState<'tcp' | 'firebase'>('firebase');
   const [host, setHost] = useState('');
   const [port, setPort] = useState('');
+  const [sessionId, setSessionId] = useState('');
   const [key, setKey] = useState('');
 
   const handleConnect = () => {
-    const portNum = parseInt(port, 10);
-    if (!host || !portNum || !key) {
-      Alert.alert('Error', 'Completa todos los campos');
-      return;
+    if (mode === 'tcp') {
+      const portNum = parseInt(port, 10);
+      if (!host || !portNum || !key) {
+        Alert.alert('Error', 'Completa todos los campos');
+        return;
+      }
+      onConnect({ v: 1, host, port: portNum, key, device: '' });
+    } else {
+      if (!sessionId || !key) {
+        Alert.alert('Error', 'Completa todos los campos');
+        return;
+      }
+      onConnect({ v: 2, key, device: '', sessionId });
     }
-    onConnect({ v: 1, host, port: portNum, key, device: '' });
   };
 
   const inputStyle = {
@@ -595,42 +617,100 @@ function ManualEntryView({
         Ingresa los datos del anfitrión
       </Text>
 
+      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 4 }}>
+        <TouchableOpacity
+          onPress={() => setMode('firebase')}
+          style={{
+            flex: 1, paddingVertical: 10, borderRadius: 10,
+            backgroundColor: mode === 'firebase' ? c.accentStrong : c.card,
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: mode === 'firebase' ? '#FFF' : c.textBody, fontWeight: '700', fontSize: 13 }}>
+            Firebase
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setMode('tcp')}
+          style={{
+            flex: 1, paddingVertical: 10, borderRadius: 10,
+            backgroundColor: mode === 'tcp' ? c.accentStrong : c.card,
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: mode === 'tcp' ? '#FFF' : c.textBody, fontWeight: '700', fontSize: 13 }}>
+            IP directa
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={{ gap: 10 }}>
-        <View>
-          <Text style={{ color: c.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>IP</Text>
-          <TextInput
-            style={inputStyle}
-            value={host}
-            onChangeText={setHost}
-            placeholder="192.168.1.5"
-            placeholderTextColor={c.textMuted}
-            keyboardType="decimal-pad"
-            autoCapitalize="none"
-          />
-        </View>
-        <View>
-          <Text style={{ color: c.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>Puerto</Text>
-          <TextInput
-            style={inputStyle}
-            value={port}
-            onChangeText={setPort}
-            placeholder="8443"
-            placeholderTextColor={c.textMuted}
-            keyboardType="number-pad"
-          />
-        </View>
-        <View>
-          <Text style={{ color: c.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>Clave</Text>
-          <TextInput
-            style={inputStyle}
-            value={key}
-            onChangeText={setKey}
-            placeholder="base64..."
-            placeholderTextColor={c.textMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-        </View>
+        {mode === 'firebase' ? (
+          <>
+            <View>
+              <Text style={{ color: c.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>ID de sesión</Text>
+              <TextInput
+                style={inputStyle}
+                value={sessionId}
+                onChangeText={setSessionId}
+                placeholder="uuid-de-sesion"
+                placeholderTextColor={c.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            <View>
+              <Text style={{ color: c.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>Clave</Text>
+              <TextInput
+                style={inputStyle}
+                value={key}
+                onChangeText={setKey}
+                placeholder="base64..."
+                placeholderTextColor={c.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+          </>
+        ) : (
+          <>
+            <View>
+              <Text style={{ color: c.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>IP</Text>
+              <TextInput
+                style={inputStyle}
+                value={host}
+                onChangeText={setHost}
+                placeholder="192.168.1.5"
+                placeholderTextColor={c.textMuted}
+                keyboardType="decimal-pad"
+                autoCapitalize="none"
+              />
+            </View>
+            <View>
+              <Text style={{ color: c.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>Puerto</Text>
+              <TextInput
+                style={inputStyle}
+                value={port}
+                onChangeText={setPort}
+                placeholder="8443"
+                placeholderTextColor={c.textMuted}
+                keyboardType="number-pad"
+              />
+            </View>
+            <View>
+              <Text style={{ color: c.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>Clave</Text>
+              <TextInput
+                style={inputStyle}
+                value={key}
+                onChangeText={setKey}
+                placeholder="base64..."
+                placeholderTextColor={c.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+          </>
+        )}
       </View>
 
       <TouchableOpacity
