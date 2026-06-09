@@ -33,6 +33,7 @@
 - Conflicto: gana el de mayor `created_at`
 - Se sincera con `INSERT OR REPLACE` en transacción SQLite
 - Tablas sincronizadas: `timeline_events`, `catalog_items`, `tags`
+- Cada sesión se registra en `sync_history` (tabla SQLite) con conteo de merges/conflictos
 
 ---
 
@@ -61,7 +62,7 @@
 ### Fase 3 — Post-MVP (orden priorizado)
 
 **Independientes de Firebase (se pueden hacer ya):**
-- [ ] Historial de sincronización con conflictos visibles — tabla `sync_history` + UI de conflictos
+- [x] Historial de sincronización con conflictos visibles — tabla `sync_history`, detección en merge, UI en `app/settings/sync-history.tsx`
 - [ ] Sincronización de bebés/perfiles — agregar `profiles` a las tablas sincronizadas
 
 **Requieren Firebase RTDB (después de setup):**
@@ -125,12 +126,13 @@ src/sync/
 ├── crypto.ts       # generateKey, encryptPayload, decryptPayload
 ├── signaling.ts    # TCPSignalingServer, TCPSignalingClient
 ├── webrtc.ts       # createPeerConnection, setupDataChannel
-├── merge.ts        # mergeSyncPayload (INSERT OR REPLACE)
-├── hooks.ts        # useSyncHost, useSyncJoin
+├── merge.ts        # mergeSyncPayload (INSERT OR REPLACE, detecta conflictos)
+├── hooks.ts        # useSync (persiste sync_history, expone conflictCount)
 
 app/settings/
+├── sync-history.tsx# SyncHistoryScreen (lista de sesiones pasadas + conflictos)
 ├── sync.tsx        # SyncScreen (Host / Join / QR / progreso)
-├── index.tsx       # + item "🔄 Sincronizar" en SETTINGS_ITEMS
+├── index.tsx       # + items "🔄 Sincronizar" y "📋 Historial de Sync"
 ```
 
 ---

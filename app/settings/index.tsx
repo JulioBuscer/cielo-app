@@ -9,6 +9,7 @@ import { resetDiaperConfigs } from '@/src/utils/storage';
 const SETTINGS_ITEMS: { emoji: string; label: string; desc: string; route: string }[] = [
   { emoji: "📝", label: "Catálogos", desc: "Eventos, pipí, popó, observaciones", route: "/settings/catalogs" },
   { emoji: "🔄", label: "Sincronizar", desc: "Conectar con otro dispositivo", route: "/settings/sync" },
+  { emoji: "📋", label: "Historial de Sync", desc: "Sesiones pasadas y conflictos", route: "/settings/sync-history" },
   { emoji: "🎨", label: "Tema", desc: "Personalizar colores de la app", route: "/settings/theme" },
   { emoji: "👤", label: "Perfil del bebé", desc: "Nombre, avatar, datos", route: "/baby/profile" },
 ];

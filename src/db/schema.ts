@@ -297,6 +297,21 @@ export const eventPresets = sqliteTable('event_presets', {
 
 export type EventPreset = typeof eventPresets.$inferSelect;
 
+// ─── HISTORIAL DE SINCRONIZACIÓN ───────────────────────────────────────────────
+export const syncHistory = sqliteTable('sync_history', {
+  id: text('id').primaryKey(),
+  sessionId: text('session_id').notNull(),
+  direction: text('direction', { enum: ['sent', 'received'] }).notNull(),
+  peerDeviceId: text('peer_device_id').notNull(),
+  status: text('status', { enum: ['success', 'conflict', 'error'] }).notNull(),
+  recordsSynced: integer('records_synced').default(0),
+  recordsConflicted: integer('records_conflicted').default(0),
+  errorMessage: text('error_message'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+export type SyncHistory = typeof syncHistory.$inferSelect;
+
 // ─── CATÁLOGO UNIFICADO (reemplaza event_types + event_presets) ──────────
 export const catalogItems = sqliteTable('catalog_items', {
   id:                  text('id').primaryKey(),

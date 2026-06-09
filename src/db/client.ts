@@ -222,6 +222,17 @@ export async function runMigrations() {
       is_quick_action INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS sync_history (
+      id TEXT PRIMARY KEY NOT NULL,
+      session_id TEXT NOT NULL,
+      direction TEXT NOT NULL,
+      peer_device_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      records_synced INTEGER DEFAULT 0,
+      records_conflicted INTEGER DEFAULT 0,
+      error_message TEXT,
+      created_at INTEGER NOT NULL
+    )`,
     `CREATE TABLE IF NOT EXISTS catalog_items (
       id TEXT PRIMARY KEY NOT NULL,
       category TEXT NOT NULL,

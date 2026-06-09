@@ -15,7 +15,10 @@ import {
   sendSyncMessage,
   getLocalIp,
 } from './webrtc';
-import { gatherLocalPayload, mergeSyncPayload } from './merge';
+import { gatherLocalPayload, mergeSyncPayload, type MergeResult } from './merge';
+import { syncHistory } from '@/src/db/schema';
+import { getDb } from '@/src/db/client';
+import { generateId } from '@/src/utils/id';
 
 const KEY_STORAGE = '@sync/key';
 const DEVICE_STORAGE = '@sync/device_id';
@@ -55,15 +58,43 @@ export function useSync() {
   const [offer, setOffer] = useState<SyncOffer | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [mergedCount, setMergedCount] = useState(0);
+  const [conflictCount, setConflictCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const channelRef = useRef<any>(null);
   const serverRef = useRef<{ port: number; stop: () => void } | null>(null);
   const stepRef = useRef<SyncStep>('idle');
+  const sessionIdRef = useRef(randomUUID());
+  const roleRef = useRef<SyncRole>(null);
 
   const addLog = useCallback((msg: string) => {
     setLog((prev) => [...prev, msg]);
   }, []);
+
+  async function saveHistoryEntry(
+    direction: 'sent' | 'received',
+    peerDeviceId: string,
+    status: 'success' | 'conflict' | 'error',
+    merged: number,
+    conflicted: number,
+    errorMsg?: string,
+  ) {
+    try {
+      await getDb().insert(syncHistory).values({
+        id: generateId(),
+        sessionId: sessionIdRef.current,
+        direction,
+        peerDeviceId,
+        status,
+        recordsSynced: merged,
+        recordsConflicted: conflicted,
+        errorMessage: errorMsg ?? null,
+        createdAt: new Date(),
+      });
+    } catch (e) {
+      console.warn('[Sync] Error saving history:', e);
+    }
+  }
 
   const handleRemotePayload = useCallback(async (payload: SyncPayload, key: string) => {
     addLog('Datos recibidos, descifrando...');
@@ -71,13 +102,17 @@ export function useSync() {
     stepRef.current = 'merging';
 
     try {
-      const count = await mergeSyncPayload(payload);
-      setMergedCount(count);
-      addLog(`Fusionados ${count} registros`);
+      const result: MergeResult = await mergeSyncPayload(payload);
+      setMergedCount(result.mergedCount);
+      setConflictCount(result.conflictCount);
+      addLog(`Fusionados ${result.mergedCount} registros${result.conflictCount > 0 ? `, ${result.conflictCount} conflictos` : ''}`);
 
       const ats = await getLastSyncAts();
       ats[payload.deviceId] = Date.now();
       await saveLastSyncAts(ats);
+
+      const status = result.conflictCount > 0 ? 'conflict' : 'success';
+      await saveHistoryEntry('received', payload.deviceId, status, result.mergedCount, result.conflictCount);
 
       setStep('done');
       stepRef.current = 'done';
@@ -87,6 +122,7 @@ export function useSync() {
       stepRef.current = 'error';
       setError(err.message);
       addLog(`Error al fusionar: ${err.message}`);
+      await saveHistoryEntry('received', payload.deviceId, 'error', 0, 0, err.message);
     }
   }, [addLog]);
 
@@ -94,11 +130,14 @@ export function useSync() {
     setStep('idle');
     stepRef.current = 'idle';
     setRole(null);
+    roleRef.current = null;
     setOffer(null);
     setLog([]);
     setMergedCount(0);
+    setConflictCount(0);
     setError(null);
     channelRef.current = null;
+    sessionIdRef.current = randomUUID();
     if (serverRef.current) {
       serverRef.current.stop();
       serverRef.current = null;
@@ -108,6 +147,7 @@ export function useSync() {
   const startHost = useCallback(async () => {
     reset();
     setRole('host');
+    roleRef.current = 'host';
     cachedKey = null;
     const key = ensureKey();
     const deviceId = await getOrCreateDeviceId();
@@ -143,18 +183,11 @@ export function useSync() {
         addLog('Canal de datos abierto');
         setStep('syncing');
         stepRef.current = 'syncing';
-        sendLocalData(dc, deviceId, key, addLog);
+        doSendLocalData(dc);
       });
 
       const sdpOffer = await createOfferSdp(pc);
       addLog('Oferta WebRTC generada');
-
-      // Wait for remote to connect to our signaling server
-      setStep('signaling');
-      stepRef.current = 'signaling';
-
-      await waitForRemoteConnect(server.port, sdpOffer);
-      addLog('Conexión establecida');
 
     } catch (err: any) {
       setStep('error');
@@ -167,6 +200,7 @@ export function useSync() {
   const startJoin = useCallback(async (scannedOffer: SyncOffer) => {
     reset();
     setRole('join');
+    roleRef.current = 'join';
     cachedKey = scannedOffer.key;
     const key = scannedOffer.key;
     const deviceId = await getOrCreateDeviceId();
@@ -194,7 +228,7 @@ export function useSync() {
         addLog('Canal de datos abierto');
         setStep('syncing');
         stepRef.current = 'syncing';
-        sendLocalData(dc, deviceId, key, addLog);
+        doSendLocalData(dc);
       });
 
       // Get local SDP to send to host
@@ -214,26 +248,19 @@ export function useSync() {
     }
   }, [addLog, reset, handleRemotePayload]);
 
-  return { step, role, offer, log, mergedCount, error, startHost, startJoin, reset };
-}
-
-async function sendLocalData(
-  channel: any,
-  deviceId: string,
-  key: string,
-  addLog: (msg: string) => void,
-) {
-  addLog('Recopilando datos...');
-  try {
-    const payload = await gatherLocalPayload(await getLastSyncAts(), deviceId);
-    addLog(`Enviando ${payload.timelineEvents.length} eventos, ${payload.catalogItems.length} items...`);
-
-    sendSyncMessage(channel, { type: 'sync_response', payload });
-
-    // Also need to receive remote data - handled by channel listener
-  } catch (err: any) {
-    addLog(`Error al enviar: ${err.message}`);
+  async function doSendLocalData(channel: any) {
+    const _deviceId = await getOrCreateDeviceId();
+    addLog('Recopilando datos...');
+    try {
+      const payload = await gatherLocalPayload(await getLastSyncAts(), _deviceId);
+      addLog(`Enviando ${payload.timelineEvents.length} eventos, ${payload.catalogItems.length} items...`);
+      sendSyncMessage(channel, { type: 'sync_response', payload });
+    } catch (err: any) {
+      addLog(`Error al enviar: ${err.message}`);
+    }
   }
+
+  return { step, role, offer, log, mergedCount, conflictCount, error, startHost, startJoin, reset };
 }
 
 function waitForRemoteConnect(
