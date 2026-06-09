@@ -38,3 +38,10 @@ export type SyncStep =
   | 'error';
 
 export type SyncRole = 'host' | 'join' | null;
+
+export interface PairedDevice {
+  deviceId: string;
+  name: string;
+  lastConnectedAt: number;
+  sessionCount: number;
+}

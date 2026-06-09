@@ -23,10 +23,12 @@
 
 ### Almacenamiento de sync state
 - AsyncStorage:
-  - `@sync/key` — clave AES compartida (base64)
-  - `@sync/paired_device` — ID del dispositivo emparejado
+  - `@sync/device_id` — UUID de este dispositivo
   - `@sync/last_sync_ats` — mapa de `{ deviceId: lastTimestampMs }`
-- No se requiere tabla SQLite adicional
+  - `@sync/paired_devices` — lista de `{ deviceId, name, lastConnectedAt, sessionCount }`
+- Firebase RTDB:
+  - `/presence/{deviceId}` — `{ sessionId, lastSeen }` con `onDisconnect` cleanup
+  - `/sessions/{sessionId}` — SDP exchange (se limpia tras handshake)
 
 ### Merge: last-write-wins
 - Cada registro tiene `created_at` (timestamp UNIX ms)
@@ -67,8 +69,8 @@
 
 **Requieren Firebase RTDB (después de setup):**
 - [x] Relay ligero vía Firebase RTDB — reemplazar TCP signaling por Firebase (solo señalización, datos E2E)
-- [ ] Reconexión automática con pares conocidos — detectar pares vía Firebase Presence
-- [ ] Background sync periódico — sincronizar en segundo plano cuando hay cambios
+- [x] Reconexión automática con pares conocidos — detectar pares vía Firebase Presence, quick-connect en UI
+- [x] Background sync periódico — sincronizar al volver a foreground + intervalo configurable (default 5 min)
 
 > **Nota:** Firebase RTDB solo se usa para señalización (intercambio de SDP + ICE candidates). Los datos reales viajan P2P cifrados por WebRTC DataChannel. Ver `docs/FIREBASE_SETUP.md` para guía de configuración.
 
@@ -133,17 +135,18 @@
 
 ```
 src/sync/
-├── types.ts        # SyncOffer, SyncPayload, SyncMessage
+├── types.ts        # SyncOffer, SyncPayload, SyncMessage, PairedDevice
 ├── crypto.ts       # generateKey, encryptPayload, decryptPayload
 ├── firebase.ts     # Firebase RTDB helpers (createSession, listenSdp, cleanup)
+├── presence.ts     # Firebase Presence announce, listenKnownPeers, PairedDevice storage
 ├── signaling.ts    # TCPSignalingServer, TCPSignalingClient (legacy, v1)
 ├── webrtc.ts       # createPeerConnection, setupDataChannel
 ├── merge.ts        # mergeSyncPayload (timelineEvents, catalogItems, tags, profiles, babies)
-├── hooks.ts        # useSync (Firebase signaling, persist sync_history, conflictCount)
+├── hooks.ts        # useSync (Firebase signaling, presence, paired devices, background sync)
 
 app/settings/
 ├── sync-history.tsx# SyncHistoryScreen (lista de sesiones pasadas + conflictos)
-├── sync.tsx        # SyncScreen (Host / Join / QR / progreso)
+├── sync.tsx        # SyncScreen (Host / Join / QR / quick-connect peers / paired devices)
 ├── index.tsx       # + items "🔄 Sincronizar" y "📋 Historial de Sync"
 ```
 

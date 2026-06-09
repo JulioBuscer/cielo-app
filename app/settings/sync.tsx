@@ -17,8 +17,6 @@ import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '@/src/theme/useTheme';
 import { useSync } from '@/src/sync/hooks';
 import type { SyncOffer, SyncStep } from '@/src/sync/types';
-import { getRandomBytes } from 'expo-crypto';
-import { encodeBase64 } from 'tweetnacl-util';
 import QRCode from 'react-native-qrcode-svg';
 
 const STEP_LABELS: Record<SyncStep, string> = {
@@ -167,11 +165,57 @@ export default function SyncScreen() {
       </View>
 
       {mode === 'menu' && (
-        <View style={{ flex: 1, backgroundColor: c.surface, padding: 24, gap: 20, justifyContent: 'center' }}>
+        <ScrollView style={{ flex: 1, backgroundColor: c.surface }} contentContainerStyle={{ padding: 24, gap: 20 }}>
           <Text style={{ color: c.textBody, fontSize: 15, fontWeight: '600', textAlign: 'center', lineHeight: 22 }}>
             Sincroniza los datos de {`{babyName}`} entre dispositivos.{'\n'}
             El cifrado es punto a punto — nadie más puede leer los datos.
           </Text>
+
+          {/* Known peers online */}
+          {sync.knownPeers.length > 0 && (
+            <View style={{ gap: 12 }}>
+              <Text style={{ color: c.textMuted, fontSize: 13, fontWeight: '700', letterSpacing: 0.5 }}>
+                ● DISPOSITIVOS CERCANOS
+              </Text>
+              {sync.knownPeers.map((peer) => {
+                const device = sync.pairedDevices.find((d) => d.deviceId === peer.deviceId);
+                return (
+                  <TouchableOpacity
+                    key={peer.deviceId}
+                    onPress={() => sync.startHost(peer.deviceId)}
+                    style={{
+                      backgroundColor: c.card,
+                      borderRadius: 16,
+                      padding: 16,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                    }}
+                  >
+                    <View style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 22,
+                      backgroundColor: '#4CAF50',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <Text style={{ fontSize: 20 }}>🔗</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: c.textBody, fontWeight: '700', fontSize: 15 }}>
+                        {device?.name ?? 'Dispositivo'}
+                      </Text>
+                      <Text style={{ color: '#4CAF50', fontSize: 12, fontWeight: '600' }}>
+                        En línea — Toca para conectar
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 20 }}>▶</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
           <TouchableOpacity
             onPress={handleStartHost}
@@ -216,7 +260,42 @@ export default function SyncScreen() {
               Escanear QR del anfitrión
             </Text>
           </TouchableOpacity>
-        </View>
+
+          {/* Paired devices */}
+          {sync.pairedDevices.length > 0 && (
+            <View style={{ gap: 10 }}>
+              <Text style={{ color: c.textMuted, fontSize: 12, fontWeight: '600', marginTop: 8 }}>
+                DISPOSITIVOS VINCULADOS
+              </Text>
+              {sync.pairedDevices.map((device) => (
+                <View
+                  key={device.deviceId}
+                  style={{
+                    backgroundColor: c.elevated,
+                    borderRadius: 12,
+                    padding: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}
+                >
+                  <View style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: sync.knownPeers.some((p) => p.deviceId === device.deviceId) ? '#4CAF50' : '#999',
+                  }} />
+                  <Text style={{ color: c.textBody, fontWeight: '600', fontSize: 14, flex: 1 }}>
+                    {device.name}
+                  </Text>
+                  <Text style={{ color: c.textMuted, fontSize: 11 }}>
+                    {device.sessionCount} sesiones
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
       )}
 
       {mode === 'host' && (

@@ -1,8 +1,8 @@
-import { useState, useCallback, useRef } from 'react';
-import { Alert } from 'react-native';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { randomUUID } from 'expo-crypto';
-import type { SyncOffer, SyncPayload, SyncMessage, SyncStep, SyncRole } from './types';
+import type { SyncOffer, SyncPayload, SyncMessage, SyncStep, SyncRole, PairedDevice } from './types';
 import { generateKey } from './crypto';
 import {
   createSession,
@@ -13,6 +13,13 @@ import {
   listenHostSdp,
   cleanupSession,
 } from './firebase';
+import {
+  getPairedDevices,
+  savePairedDevice,
+  announcePresence,
+  removePresence,
+  listenKnownPeers,
+} from './presence';
 import {
   createPeerConnection,
   createDataChannel,
@@ -29,6 +36,7 @@ import { generateId } from '@/src/utils/id';
 
 const DEVICE_STORAGE = '@sync/device_id';
 const LAST_SYNC_STORAGE = '@sync/last_sync_ats';
+const PEER_NAME_PREFIX = 'Dispositivo';
 
 async function getOrCreateDeviceId(): Promise<string> {
   let id = await AsyncStorage.getItem(DEVICE_STORAGE);
@@ -66,6 +74,8 @@ export function useSync() {
   const [mergedCount, setMergedCount] = useState(0);
   const [conflictCount, setConflictCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [pairedDevices, setPairedDevices] = useState<PairedDevice[]>([]);
+  const [knownPeers, setKnownPeers] = useState<{ deviceId: string; sessionId: string }[]>([]);
 
   const channelRef = useRef<any>(null);
   const pcRef = useRef<any>(null);
@@ -73,10 +83,25 @@ export function useSync() {
   const sessionIdRef = useRef<string>('');
   const cleanupRef = useRef<Array<() => void>>([]);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const pairedDeviceIdRef = useRef<string>('');
 
   const addLog = useCallback((msg: string) => {
     setLog((prev) => [...prev, msg]);
   }, []);
+
+  // Load paired devices on mount
+  useEffect(() => {
+    getPairedDevices().then(setPairedDevices);
+  }, []);
+
+  // Listen for known peers presence when we have paired devices
+  useEffect(() => {
+    const ids = pairedDevices.map((d) => d.deviceId);
+    const unsub = listenKnownPeers(ids, (online) => {
+      setKnownPeers(online);
+    });
+    return unsub;
+  }, [pairedDevices]);
 
   function runCleanup() {
     cleanupRef.current.forEach((fn) => fn());
@@ -127,6 +152,19 @@ export function useSync() {
       const status = result.conflictCount > 0 ? 'conflict' : 'success';
       await saveHistoryEntry('received', payload.deviceId, status, result.mergedCount, result.conflictCount);
 
+      // Save paired device
+      const devices = await getPairedDevices();
+      const existing = devices.find((d) => d.deviceId === payload.deviceId);
+      const device: PairedDevice = {
+        deviceId: payload.deviceId,
+        name: existing?.name ?? `${PEER_NAME_PREFIX} ${devices.length + 1}`,
+        lastConnectedAt: Date.now(),
+        sessionCount: (existing?.sessionCount ?? 0) + 1,
+      };
+      await savePairedDevice(device);
+      pairedDeviceIdRef.current = payload.deviceId;
+      setPairedDevices(await getPairedDevices());
+
       setStep('done');
       stepRef.current = 'done';
       addLog('Sincronización completada');
@@ -139,8 +177,10 @@ export function useSync() {
     }
   }, [addLog]);
 
-  const reset = useCallback(() => {
+  const reset = useCallback(async () => {
     runCleanup();
+    const id = await getOrCreateDeviceId();
+    await removePresence(id).catch(() => {});
     setStep('idle');
     stepRef.current = 'idle';
     setRole(null);
@@ -166,7 +206,7 @@ export function useSync() {
     }
   }
 
-  const startHost = useCallback(async () => {
+  const startHost = useCallback(async (targetPeerId?: string) => {
     reset();
     setRole('host');
     cachedKey = null;
@@ -182,6 +222,9 @@ export function useSync() {
       const sessionId = await createSession();
       sessionIdRef.current = sessionId;
 
+      await announcePresence(deviceId, sessionId);
+      addLog('Presencia anunciada');
+
       const syncOffer: SyncOffer = {
         v: 2,
         key,
@@ -193,7 +236,11 @@ export function useSync() {
 
       setStep('waiting_qr');
       stepRef.current = 'waiting_qr';
-      addLog('Esperando escaneo del QR...');
+      if (targetPeerId) {
+        addLog(`Esperando conexión de dispositivo conocido...`);
+      } else {
+        addLog('Esperando escaneo del QR...');
+      }
 
       const pc = createPeerConnection();
       pcRef.current = pc;
@@ -309,5 +356,56 @@ export function useSync() {
     }
   }, [addLog, reset, handleRemotePayload]);
 
-  return { step, role, offer, log, mergedCount, conflictCount, error, startHost, startJoin, reset };
+  return {
+    step, role, offer, log, mergedCount, conflictCount, error,
+    pairedDevices, knownPeers,
+    startHost, startJoin, reset,
+  };
+}
+
+// ─── BACKGROUND SYNC ───────────────────────────────────────────────────────────
+
+export function useBackgroundSync() {
+  const { pairedDevices, startHost, reset } = useSync();
+  const intervalRef = useRef<ReturnType<typeof setInterval>>(null);
+  const appStateRef = useRef(AppState.currentState);
+
+  const checkAndSync = useCallback(async () => {
+    if (pairedDevices.length === 0) return;
+    const { listenKnownPeers } = await import('./presence');
+    const ids = pairedDevices.map((d) => d.deviceId);
+    let found = false;
+    const unsub = listenKnownPeers(ids, (online) => {
+      if (online.length > 0 && !found) {
+        found = true;
+        startHost(online[0].deviceId);
+      }
+    });
+    setTimeout(unsub, 5000);
+  }, [pairedDevices, startHost]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (appStateRef.current.match(/inactive|background/) && state === 'active') {
+        checkAndSync();
+      }
+      appStateRef.current = state;
+    });
+    return () => sub.remove();
+  }, [checkAndSync]);
+
+  const startPeriodicSync = useCallback((intervalMs = 300000) => {
+    stopPeriodicSync();
+    checkAndSync();
+    intervalRef.current = setInterval(checkAndSync, intervalMs);
+  }, [checkAndSync]);
+
+  const stopPeriodicSync = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  return { checkAndSync, startPeriodicSync, stopPeriodicSync };
 }
