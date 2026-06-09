@@ -1,7 +1,12 @@
-import database from '@react-native-firebase/database';
 import { randomUUID } from 'expo-crypto';
 
 const DB_PATH = 'sessions';
+
+let _db: any = null;
+async function getDb() {
+  if (!_db) _db = (await import('@react-native-firebase/database')).default();
+  return _db;
+}
 
 export type FirebaseSessionData = {
   hostSdp?: string;
@@ -12,7 +17,7 @@ export type FirebaseSessionData = {
 
 export async function createSession(): Promise<string> {
   const sessionId = randomUUID();
-  const ref = database().ref(`${DB_PATH}/${sessionId}`);
+  const ref = (await getDb()).ref(`${DB_PATH}/${sessionId}`);
   await ref.set({
     status: 'waiting',
     createdAt: Date.now(),
@@ -21,15 +26,15 @@ export async function createSession(): Promise<string> {
 }
 
 export async function writeHostSdp(sessionId: string, sdp: string) {
-  await database().ref(`${DB_PATH}/${sessionId}/hostSdp`).set(sdp);
+  await (await getDb()).ref(`${DB_PATH}/${sessionId}/hostSdp`).set(sdp);
 }
 
 export async function writeJoinSdp(sessionId: string, sdp: string) {
-  await database().ref(`${DB_PATH}/${sessionId}/joinSdp`).set(sdp);
+  await (await getDb()).ref(`${DB_PATH}/${sessionId}/joinSdp`).set(sdp);
 }
 
 export async function updateSessionStatus(sessionId: string, status: 'waiting' | 'paired' | 'done') {
-  await database().ref(`${DB_PATH}/${sessionId}/status`).set(status);
+  await (await getDb()).ref(`${DB_PATH}/${sessionId}/status`).set(status);
 }
 
 export function listenHostSdp(
@@ -37,12 +42,16 @@ export function listenHostSdp(
   callback: (sdp: string) => void,
   onError: (err: Error) => void,
 ): () => void {
-  const ref = database().ref(`${DB_PATH}/${sessionId}/hostSdp`);
-  const listener = ref.on('value', (snapshot) => {
-    const sdp = snapshot.val();
-    if (sdp) callback(sdp);
-  }, onError);
-  return () => ref.off('value', listener);
+  const unsubs: (() => void)[] = [];
+  getDb().then((db) => {
+    const ref = db.ref(`${DB_PATH}/${sessionId}/hostSdp`);
+    const listener = ref.on('value', (snapshot: any) => {
+      const sdp = snapshot.val();
+      if (sdp) callback(sdp);
+    }, onError);
+    unsubs.push(() => ref.off('value', listener));
+  });
+  return () => unsubs.forEach((fn) => fn());
 }
 
 export function listenJoinSdp(
@@ -50,26 +59,34 @@ export function listenJoinSdp(
   callback: (sdp: string) => void,
   onError: (err: Error) => void,
 ): () => void {
-  const ref = database().ref(`${DB_PATH}/${sessionId}/joinSdp`);
-  const listener = ref.on('value', (snapshot) => {
-    const sdp = snapshot.val();
-    if (sdp) callback(sdp);
-  }, onError);
-  return () => ref.off('value', listener);
+  const unsubs: (() => void)[] = [];
+  getDb().then((db) => {
+    const ref = db.ref(`${DB_PATH}/${sessionId}/joinSdp`);
+    const listener = ref.on('value', (snapshot: any) => {
+      const sdp = snapshot.val();
+      if (sdp) callback(sdp);
+    }, onError);
+    unsubs.push(() => ref.off('value', listener));
+  });
+  return () => unsubs.forEach((fn) => fn());
 }
 
 export async function cleanupSession(sessionId: string) {
-  await database().ref(`${DB_PATH}/${sessionId}`).remove();
+  await (await getDb()).ref(`${DB_PATH}/${sessionId}`).remove();
 }
 
 export function listenSessionStatus(
   sessionId: string,
   callback: (status: string) => void,
 ): () => void {
-  const ref = database().ref(`${DB_PATH}/${sessionId}/status`);
-  const listener = ref.on('value', (snapshot) => {
-    const status = snapshot.val();
-    if (status) callback(status);
+  const unsubs: (() => void)[] = [];
+  getDb().then((db) => {
+    const ref = db.ref(`${DB_PATH}/${sessionId}/status`);
+    const listener = ref.on('value', (snapshot: any) => {
+      const status = snapshot.val();
+      if (status) callback(status);
+    });
+    unsubs.push(() => ref.off('value', listener));
   });
-  return () => ref.off('value', listener);
+  return () => unsubs.forEach((fn) => fn());
 }

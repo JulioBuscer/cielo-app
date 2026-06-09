@@ -1,10 +1,15 @@
-import database from '@react-native-firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PRESENCE_PATH = 'presence';
 const SIGNALS_PATH = 'sync_signals';
 const PAIRED_STORAGE = '@sync/paired_devices';
 const PRESENCE_TTL = 60000;
+
+let _db: any = null;
+async function getDb() {
+  if (!_db) _db = (await import('@react-native-firebase/database')).default();
+  return _db;
+}
 
 export interface PairedDevice {
   deviceId: string;
@@ -34,7 +39,7 @@ export async function savePairedDevice(device: PairedDevice) {
 }
 
 export async function announcePresence(deviceId: string, sessionId: string) {
-  const ref = database().ref(`${PRESENCE_PATH}/${deviceId}`);
+  const ref = (await getDb()).ref(`${PRESENCE_PATH}/${deviceId}`);
   await ref.set({
     sessionId,
     lastSeen: Date.now(),
@@ -44,7 +49,8 @@ export async function announcePresence(deviceId: string, sessionId: string) {
 }
 
 export async function removePresence(deviceId: string) {
-  await database().ref(`${PRESENCE_PATH}/${deviceId}`).remove();
+  const db = await getDb();
+  await db.ref(`${PRESENCE_PATH}/${deviceId}`).remove();
 }
 
 export function listenKnownPeers(
@@ -53,17 +59,20 @@ export function listenKnownPeers(
 ): () => void {
   if (knownDeviceIds.length === 0) return () => {};
 
-  const unsubs = knownDeviceIds.map((deviceId) => {
-    const ref = database().ref(`${PRESENCE_PATH}/${deviceId}`);
-    const listener = ref.on('value', (snapshot) => {
-      const val = snapshot.val();
-      if (val && val.sessionId && (Date.now() - val.lastSeen) < PRESENCE_TTL) {
-        callback([{ deviceId, sessionId: val.sessionId }]);
-      } else {
-        callback([]);
-      }
+  const unsubs: (() => void)[] = [];
+  getDb().then((db) => {
+    knownDeviceIds.forEach((deviceId) => {
+      const ref = db.ref(`${PRESENCE_PATH}/${deviceId}`);
+      const listener = ref.on('value', (snapshot: any) => {
+        const val = snapshot.val();
+        if (val && val.sessionId && (Date.now() - val.lastSeen) < PRESENCE_TTL) {
+          callback([{ deviceId, sessionId: val.sessionId }]);
+        } else {
+          callback([]);
+        }
+      });
+      unsubs.push(() => ref.off('value', listener));
     });
-    return () => ref.off('value', listener);
   });
 
   return () => unsubs.forEach((fn) => fn());
@@ -72,7 +81,8 @@ export function listenKnownPeers(
 // ─── SYNC SIGNALS ───────────────────────────────────────────────────────────
 
 export async function sendSyncSignal(targetDeviceId: string, senderDeviceId: string) {
-  await database().ref(`${SIGNALS_PATH}/${targetDeviceId}/${senderDeviceId}`).set({
+  const db = await getDb();
+  await db.ref(`${SIGNALS_PATH}/${targetDeviceId}/${senderDeviceId}`).set({
     timestamp: Date.now(),
     senderDeviceId,
   });
@@ -90,12 +100,16 @@ export function listenSyncSignals(
   deviceId: string,
   callback: (signal: { senderDeviceId: string; timestamp: number }) => void,
 ): () => void {
-  const ref = database().ref(`${SIGNALS_PATH}/${deviceId}`);
-  const listener = ref.on('child_added', (snapshot) => {
-    const val = snapshot.val();
-    if (val && val.senderDeviceId && val.timestamp) {
-      callback({ senderDeviceId: val.senderDeviceId, timestamp: val.timestamp });
-    }
+  const unsubs: (() => void)[] = [];
+  getDb().then((db) => {
+    const ref = db.ref(`${SIGNALS_PATH}/${deviceId}`);
+    const listener = ref.on('child_added', (snapshot: any) => {
+      const val = snapshot.val();
+      if (val && val.senderDeviceId && val.timestamp) {
+        callback({ senderDeviceId: val.senderDeviceId, timestamp: val.timestamp });
+      }
+    });
+    unsubs.push(() => ref.off('child_added', listener));
   });
-  return () => ref.off('child_added', listener);
+  return () => unsubs.forEach((fn) => fn());
 }
