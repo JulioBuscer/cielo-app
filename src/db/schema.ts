@@ -10,6 +10,11 @@ export const profiles = sqliteTable('profiles', {
   avatarUri: text('avatar_uri'),
   isDefault: integer('is_default', { mode: 'boolean' }).default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  createdBy: text('created_by'),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }),
+  updatedBy: text('updated_by'),
+  deletedAt: integer('deleted_at', { mode: 'timestamp' }),
+  deletedBy: text('deleted_by'),
 });
 
 // ─── PERFIL DEL BEBÉ ──────────────────────────────────────────────────────────
@@ -17,7 +22,7 @@ export const babies = sqliteTable('babies', {
   id:               text('id').primaryKey(),
   name:             text('name').notNull(),
   nickname:         text('nickname'),
-  avatarEmoji:      text('avatar_emoji').default('👶'),   // emoji elegido por el usuario
+  avatarEmoji:      text('avatar_emoji').default('👶'),
   birthDate:        integer('birth_date', { mode: 'timestamp' }).notNull(),
   sex:              text('sex', { enum: ['male', 'female', 'unknown'] }).default('unknown'),
   status:           text('status', { enum: ['healthy', 'sick', 'unknown'] }).default('unknown'),
@@ -25,7 +30,11 @@ export const babies = sqliteTable('babies', {
   heightBirthMm:    integer('height_birth_mm'),
   photoUri:         text('photo_uri'),
   createdAt:        integer('created_at', { mode: 'timestamp' }).notNull(),
+  createdBy:        text('created_by'),
   updatedAt:        integer('updated_at', { mode: 'timestamp' }),
+  updatedBy:        text('updated_by'),
+  deletedAt:        integer('deleted_at', { mode: 'timestamp' }),
+  deletedBy:        text('deleted_by'),
 });
 
 // ─── CATÁLOGO DE TIPOS DE EVENTO (default + custom) ───────────────────────────
@@ -48,6 +57,11 @@ export const tags = sqliteTable('tags', {
   name:        text('name').notNull(),
   usageCount:  integer('usage_count').default(1),
   createdAt:   integer('created_at', { mode: 'timestamp' }).notNull(),
+  createdBy:   text('created_by'),
+  updatedAt:   integer('updated_at', { mode: 'timestamp' }),
+  updatedBy:   text('updated_by'),
+  deletedAt:   integer('deleted_at', { mode: 'timestamp' }),
+  deletedBy:   text('deleted_by'),
 });
 
 export type Tag = typeof tags.$inferSelect;
@@ -156,6 +170,11 @@ export const timelineEvents = sqliteTable('timeline_events', {
   metadata:         text('metadata'),
   values:           text('values').default('{}'), // JSON: Record<string, number>
   createdAt:        integer('created_at', { mode: 'timestamp' }).notNull(),
+  createdBy:        text('created_by'),
+  updatedAt:        integer('updated_at', { mode: 'timestamp' }),
+  updatedBy:        text('updated_by'),
+  deletedAt:        integer('deleted_at', { mode: 'timestamp' }),
+  deletedBy:        text('deleted_by'),
 });
 
 // ─── TIPOS DERIVADOS ──────────────────────────────────────────────────────────
@@ -312,12 +331,27 @@ export const syncHistory = sqliteTable('sync_history', {
 
 export type SyncHistory = typeof syncHistory.$inferSelect;
 
+// ─── SYNC OUTBOX (registro de mutaciones pendientes de sincronizar) ─────
+export const syncOutbox = sqliteTable('sync_outbox', {
+  id:        text('id').primaryKey(),
+  tableName: text('table_name', {
+               enum: ['timeline_events', 'catalog_items', 'tags', 'profiles', 'babies'],
+             }).notNull(),
+  recordId:  text('record_id').notNull(),
+  operation: text('operation', { enum: ['insert', 'update', 'delete'] }).notNull(),
+  data:      text('data').notNull(),
+  createdBy: text('created_by').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+export type SyncOutbox = typeof syncOutbox.$inferSelect;
+
 // ─── CATÁLOGO UNIFICADO (reemplaza event_types + event_presets) ──────────
 export const catalogItems = sqliteTable('catalog_items', {
   id:                  text('id').primaryKey(),
   category:            text('category', {
-                         enum: ['diaper', 'feeding', 'health', 'growth', 'milestones', 'other'],
-                       }).notNull(),
+                          enum: ['diaper', 'feeding', 'health', 'growth', 'milestones', 'other'],
+                        }).notNull(),
   parentId:            text('parent_id'),
   name:                text('name').notNull(),
   emoji:               text('emoji').default('📌'),
@@ -330,6 +364,11 @@ export const catalogItems = sqliteTable('catalog_items', {
   isQuickAction:       integer('is_quick_action', { mode: 'boolean' }).default(false),
   sortOrder:           integer('sort_order').default(0),
   createdAt:           integer('created_at', { mode: 'timestamp' }).notNull(),
+  createdBy:           text('created_by'),
+  updatedAt:           integer('updated_at', { mode: 'timestamp' }),
+  updatedBy:           text('updated_by'),
+  deletedAt:           integer('deleted_at', { mode: 'timestamp' }),
+  deletedBy:           text('deleted_by'),
 });
 
 export type CatalogItem = typeof catalogItems.$inferSelect;

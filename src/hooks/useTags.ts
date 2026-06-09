@@ -4,6 +4,8 @@ import { tags } from '@/src/db/schema';
 import { eq, desc, inArray, and } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 import { onMutationError } from '@/src/utils/mutationError';
+import { writeOutbox } from '@/src/sync/outbox';
+import { signalPeers } from '@/src/sync/hooks';
 
 export function useTags(babyId?: string) {
   return useQuery({
@@ -45,19 +47,23 @@ export function useSaveTags() {
       // Upsert existing: increment usage_count
       for (const t of existing) {
         await getDb().update(tags).set({ usageCount: (t.usageCount ?? 0) + 1 }).where(eq(tags.id, t.id));
+        await writeOutbox('tags', t.id, 'update', { ...t, usageCount: (t.usageCount ?? 0) + 1 });
       }
 
       // Insert new
       const newNames = input.tagNames.filter((n) => !existingNames.has(n));
       for (const name of newNames) {
+        const id = generateId();
         await getDb().insert(tags).values({
-          id: generateId(),
+          id,
           babyId: input.babyId,
           name,
           usageCount: 1,
           createdAt: now,
         });
+        await writeOutbox('tags', id, 'insert', { id, babyId: input.babyId, name, usageCount: 1 });
       }
+      await signalPeers();
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['tags', vars.babyId] });

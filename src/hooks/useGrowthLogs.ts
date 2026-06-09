@@ -5,6 +5,8 @@ import { desc, eq, inArray, and } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 import { getProfileId } from '@/src/utils/storage';
 import { onMutationError } from '@/src/utils/mutationError';
+import { writeOutbox } from '@/src/sync/outbox';
+import { signalPeers } from '@/src/sync/hooks';
 
 // ─── Helpers de conversión (UI en kg/cm, DB en g/mm) ─────────────────────────
 export const kgToGrams  = (kg: number)  => Math.round(kg * 1000);
@@ -75,6 +77,7 @@ export function useSaveMeasurement() {
       const profileId = await getProfileId();
       const now = input.timestamp ?? new Date();
       const db = getDb();
+      let timelineEventId = '';
 
       await db.transaction(async (tx) => {
         await tx.insert(growthLogs).values({
@@ -91,8 +94,9 @@ export function useSaveMeasurement() {
         });
 
         const hasPhotos = (input.photoUris?.length ?? 0) > 0;
+        timelineEventId = generateId();
         await tx.insert(timelineEvents).values({
-          id:          generateId(),
+          id:          timelineEventId,
           babyId:      input.babyId,
           profileId,
           eventTypeId: 'measurement',
@@ -107,6 +111,13 @@ export function useSaveMeasurement() {
           createdAt: new Date(),
         });
       });
+
+      await writeOutbox('timeline_events', timelineEventId, 'insert', {
+        id: timelineEventId, babyId: input.babyId, profileId,
+        eventTypeId: 'measurement', timestamp: now.getTime(),
+        notes: input.notes, values: { weightKg: input.weightKg, heightCm: input.heightCm, headCircCm: input.headCircCm },
+      });
+      await signalPeers();
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });

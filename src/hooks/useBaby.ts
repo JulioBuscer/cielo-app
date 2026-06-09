@@ -5,6 +5,8 @@ import { eq } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 import { setBabyId, setOnboardingDone, getBabyId } from '@/src/utils/storage';
 import { onMutationError } from '@/src/utils/mutationError';
+import { writeOutbox } from '@/src/sync/outbox';
+import { signalPeers } from '@/src/sync/hooks';
 import type { Baby } from '@/src/db/schema';
 
 export function useCreateBaby() {
@@ -32,6 +34,8 @@ export function useCreateBaby() {
         createdAt:   now,
         updatedAt:   now,
       } as any);
+      await writeOutbox('babies', id, 'insert', { id, ...input });
+      await signalPeers();
       await setBabyId(id);
       await setOnboardingDone();
       return id;
@@ -60,6 +64,8 @@ export function useUpdateBaby() {
       await getDb().update(babies)
         .set({ ...input, updatedAt: new Date() })
         .where(eq(babies.id, input.id));
+      await writeOutbox('babies', input.id, 'update', { ...input, updatedAt: Date.now() });
+      await signalPeers();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['baby'] }),
     onError: onMutationError("[useUpdateBaby]"),

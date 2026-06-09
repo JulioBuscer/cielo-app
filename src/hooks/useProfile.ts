@@ -4,6 +4,8 @@ import { profiles } from '@/src/db/schema';
 import { eq } from 'drizzle-orm';
 import { getProfileId, setProfileId } from '@/src/utils/storage';
 import { onMutationError } from '@/src/utils/mutationError';
+import { writeOutbox } from '@/src/sync/outbox';
+import { signalPeers } from '@/src/sync/hooks';
 import type { Role } from '@/src/constants/roles';
 
 export function useCreateProfile() {
@@ -15,6 +17,8 @@ export function useCreateProfile() {
         id, name: input.name, role: input.role,
         isDefault: true, createdAt: new Date(),
       });
+      await writeOutbox('profiles', id, 'insert', { id, name: input.name, role: input.role });
+      await signalPeers();
       await setProfileId(id);
       return id;
     },

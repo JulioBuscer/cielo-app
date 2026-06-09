@@ -4,6 +4,8 @@ import { catalogItems, eventTypes } from '@/src/db/schema';
 import { eq, and, isNull, asc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 import { onMutationError } from '@/src/utils/mutationError';
+import { writeOutbox } from '@/src/sync/outbox';
+import { signalPeers } from '@/src/sync/hooks';
 import type { CatalogItem } from '@/src/db/schema';
 import type { EventMetric } from '@/src/units/types';
 
@@ -127,6 +129,8 @@ export function useCreateCatalogItem() {
         console.error('[CatalogItems] catalog_items insert failed (fatal):', e);
         throw e;
       }
+      await writeOutbox('catalog_items', id, 'insert', { id, ...input });
+      await signalPeers();
       return id;
     },
     onSuccess: () => {
@@ -172,6 +176,8 @@ export function useUpdateCatalogItem() {
           console.warn('[CatalogItems] event_types update failed (non-fatal):', e);
         }
       }
+      await writeOutbox('catalog_items', input.id, 'update', input);
+      await signalPeers();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['catalog_items'] });
@@ -188,7 +194,9 @@ export function useDeleteCatalogItem() {
       const idList = Array.isArray(ids) ? ids : [ids];
       for (const id of idList) {
         await getDb().delete(catalogItems).where(eq(catalogItems.id, id));
+        await writeOutbox('catalog_items', id, 'delete', { id });
       }
+      await signalPeers();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['catalog_items'] });

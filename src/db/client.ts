@@ -249,6 +249,15 @@ export async function runMigrations() {
       sort_order INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS sync_outbox (
+      id TEXT PRIMARY KEY NOT NULL,
+      table_name TEXT NOT NULL,
+      record_id TEXT NOT NULL,
+      operation TEXT NOT NULL,
+      data TEXT NOT NULL,
+      created_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )`,
   ];
   for (const sql of CREATE_TABLES) {
     await _raw.execAsync(sql);
@@ -326,6 +335,35 @@ export async function runMigrations() {
     END WHERE subgroup IS NULL AND is_system = 1`,
     // event_presets
     `ALTER TABLE event_presets ADD COLUMN default_tags TEXT DEFAULT '[]'`,
+    // trazabilidad sync: profiles
+    `ALTER TABLE profiles ADD COLUMN created_by TEXT`,
+    `ALTER TABLE profiles ADD COLUMN updated_at INTEGER`,
+    `ALTER TABLE profiles ADD COLUMN updated_by TEXT`,
+    `ALTER TABLE profiles ADD COLUMN deleted_at INTEGER`,
+    `ALTER TABLE profiles ADD COLUMN deleted_by TEXT`,
+    // trazabilidad sync: babies (updated_at already exists)
+    `ALTER TABLE babies ADD COLUMN created_by TEXT`,
+    `ALTER TABLE babies ADD COLUMN updated_by TEXT`,
+    `ALTER TABLE babies ADD COLUMN deleted_at INTEGER`,
+    `ALTER TABLE babies ADD COLUMN deleted_by TEXT`,
+    // trazabilidad sync: timeline_events
+    `ALTER TABLE timeline_events ADD COLUMN created_by TEXT`,
+    `ALTER TABLE timeline_events ADD COLUMN updated_at INTEGER`,
+    `ALTER TABLE timeline_events ADD COLUMN updated_by TEXT`,
+    `ALTER TABLE timeline_events ADD COLUMN deleted_at INTEGER`,
+    `ALTER TABLE timeline_events ADD COLUMN deleted_by TEXT`,
+    // trazabilidad sync: catalog_items
+    `ALTER TABLE catalog_items ADD COLUMN created_by TEXT`,
+    `ALTER TABLE catalog_items ADD COLUMN updated_at INTEGER`,
+    `ALTER TABLE catalog_items ADD COLUMN updated_by TEXT`,
+    `ALTER TABLE catalog_items ADD COLUMN deleted_at INTEGER`,
+    `ALTER TABLE catalog_items ADD COLUMN deleted_by TEXT`,
+    // trazabilidad sync: tags
+    `ALTER TABLE tags ADD COLUMN created_by TEXT`,
+    `ALTER TABLE tags ADD COLUMN updated_at INTEGER`,
+    `ALTER TABLE tags ADD COLUMN updated_by TEXT`,
+    `ALTER TABLE tags ADD COLUMN deleted_at INTEGER`,
+    `ALTER TABLE tags ADD COLUMN deleted_by TEXT`,
   ]) {
     try { await _raw.execAsync(sql); } catch { /* columna ya existe, ok */ }
   }

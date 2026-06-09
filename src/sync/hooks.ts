@@ -1,54 +1,16 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import database from '@react-native-firebase/database';
-import { randomUUID } from 'expo-crypto';
+import { getOrCreateDeviceId } from './device';
 import type { SyncOffer, SyncPayload, SyncMessage, SyncStep, SyncRole, PairedDevice } from './types';
 import { generateKey } from './crypto';
-import {
-  createSession,
-  writeHostSdp,
-  writeJoinSdp,
-  updateSessionStatus,
-  listenJoinSdp,
-  listenHostSdp,
-  cleanupSession,
-} from './firebase';
-import {
-  getPairedDevices,
-  savePairedDevice,
-  announcePresence,
-  removePresence,
-  listenKnownPeers,
-  listenSyncSignals,
-  signalAllPeers,
-} from './presence';
-import {
-  createPeerConnection,
-  createDataChannel,
-  createOfferSdp,
-  createAnswerSdp,
-  setRemoteAnswer,
-  setupChannelListeners,
-  sendSyncMessage,
-} from './webrtc';
 import { gatherLocalPayload, mergeSyncPayload, type MergeResult } from './merge';
 import { syncHistory } from '@/src/db/schema';
 import { getDb } from '@/src/db/client';
 import { generateId } from '@/src/utils/id';
 
-const DEVICE_STORAGE = '@sync/device_id';
 const LAST_SYNC_STORAGE = '@sync/last_sync_ats';
 const PEER_NAME_PREFIX = 'Dispositivo';
-
-async function getOrCreateDeviceId(): Promise<string> {
-  let id = await AsyncStorage.getItem(DEVICE_STORAGE);
-  if (!id) {
-    id = randomUUID();
-    await AsyncStorage.setItem(DEVICE_STORAGE, id);
-  }
-  return id;
-}
 
 async function getLastSyncAts(): Promise<Record<string, number>> {
   try {
@@ -94,16 +56,23 @@ export function useSync() {
 
   // Load paired devices on mount
   useEffect(() => {
-    getPairedDevices().then(setPairedDevices);
+    (async () => {
+      const { getPairedDevices } = await import('./presence');
+      getPairedDevices().then(setPairedDevices);
+    })();
   }, []);
 
   // Listen for known peers presence when we have paired devices
   useEffect(() => {
-    const ids = pairedDevices.map((d) => d.deviceId);
-    const unsub = listenKnownPeers(ids, (online) => {
-      setKnownPeers(online);
-    });
-    return unsub;
+    let unsub: (() => void) | null = null;
+    (async () => {
+      const { listenKnownPeers } = await import('./presence');
+      const ids = pairedDevices.map((d) => d.deviceId);
+      unsub = listenKnownPeers(ids, (online) => {
+        setKnownPeers(online);
+      });
+    })();
+    return () => { if (unsub) unsub(); };
   }, [pairedDevices]);
 
   function runCleanup() {
@@ -156,6 +125,7 @@ export function useSync() {
       await saveHistoryEntry('received', payload.deviceId, status, result.mergedCount, result.conflictCount);
 
       // Save paired device
+      const { getPairedDevices, savePairedDevice } = await import('./presence');
       const devices = await getPairedDevices();
       const existing = devices.find((d) => d.deviceId === payload.deviceId);
       const device: PairedDevice = {
@@ -183,6 +153,7 @@ export function useSync() {
   const reset = useCallback(async () => {
     runCleanup();
     const id = await getOrCreateDeviceId();
+    const { removePresence } = await import('./presence');
     await removePresence(id).catch(() => {});
     setStep('idle');
     stepRef.current = 'idle';
@@ -202,7 +173,8 @@ export function useSync() {
     addLog('Recopilando datos...');
     try {
       const payload = await gatherLocalPayload(await getLastSyncAts(), _deviceId);
-      addLog(`Enviando ${payload.timelineEvents.length} eventos, ${payload.catalogItems.length} items...`);
+      addLog(`Enviando ${(payload.timelineEvents ?? []).length} eventos, ${(payload.catalogItems ?? []).length} items...`);
+      const { sendSyncMessage } = await import('./webrtc');
       sendSyncMessage(channel, { type: 'sync_response', payload });
     } catch (err: any) {
       addLog(`Error al enviar: ${err.message}`);
@@ -222,9 +194,11 @@ export function useSync() {
 
     try {
       addLog('Creando sesión en Firebase...');
+      const { createSession } = await import('./firebase');
       const sessionId = await createSession();
       sessionIdRef.current = sessionId;
 
+      const { announcePresence } = await import('./presence');
       await announcePresence(deviceId, sessionId);
       addLog('Presencia anunciada');
 
@@ -245,6 +219,7 @@ export function useSync() {
         addLog('Esperando escaneo del QR...');
       }
 
+      const { createPeerConnection, createDataChannel, setupChannelListeners } = await import('./webrtc');
       const pc = createPeerConnection();
       pcRef.current = pc;
       const dc = createDataChannel(pc);
@@ -259,20 +234,24 @@ export function useSync() {
         doSendLocalData(dc);
       });
 
+      const { createOfferSdp } = await import('./webrtc');
       const sdpOffer = await createOfferSdp(pc);
       addLog('Oferta WebRTC generada');
 
       addLog('Publicando SDP en Firebase...');
+      const { writeHostSdp } = await import('./firebase');
       await writeHostSdp(sessionId, sdpOffer);
 
       setStep('signaling');
       stepRef.current = 'signaling';
       addLog('Esperando respuesta...');
 
+      const { listenJoinSdp, updateSessionStatus, cleanupSession } = await import('./firebase');
       const unsub = listenJoinSdp(sessionId, async (joinSdp) => {
         addLog('Respuesta recibida');
         runCleanup();
         try {
+          const { setRemoteAnswer } = await import('./webrtc');
           await setRemoteAnswer(pc, joinSdp);
           addLog('Conexión WebRTC establecida');
           await updateSessionStatus(sessionId, 'paired');
@@ -317,6 +296,7 @@ export function useSync() {
     addLog('Esperando SDP del anfitrión...');
 
     try {
+      const { createPeerConnection, createDataChannel, setupChannelListeners } = await import('./webrtc');
       const pc = createPeerConnection();
       pcRef.current = pc;
       const dc = createDataChannel(pc);
@@ -331,14 +311,17 @@ export function useSync() {
         doSendLocalData(dc);
       });
 
+      const { listenHostSdp } = await import('./firebase');
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error('Tiempo de espera agotado esperando SDP del anfitrión')), 60000);
         const unsub = listenHostSdp(scannedOffer.sessionId!, async (hostSdp) => {
           clearTimeout(timeout);
           addLog('SDP del anfitrión recibido');
           try {
+            const { createAnswerSdp } = await import('./webrtc');
             const answerSdp = await createAnswerSdp(pc, hostSdp);
             addLog('Respuesta SDP generada');
+            const { writeJoinSdp } = await import('./firebase');
             await writeJoinSdp(scannedOffer.sessionId!, answerSdp);
             addLog('Respuesta publicada en Firebase');
             setStep('connecting_webrtc');
@@ -366,6 +349,7 @@ export function useSync() {
 
     (async () => {
       const myId = await getOrCreateDeviceId();
+      const { listenSyncSignals } = await import('./presence');
       unsub = listenSyncSignals(myId, async (signal) => {
         if (busy) return;
         const isPaired = pairedDevices.some((d) => d.deviceId === signal.senderDeviceId);
@@ -374,7 +358,7 @@ export function useSync() {
         busy = true;
         addLog(`Señal de sync recibida de ${signal.senderDeviceId.slice(0, 6)}...`);
         await startHost(signal.senderDeviceId);
-        await database().ref(`sync_signals/${myId}/${signal.senderDeviceId}`).remove().catch(() => {});
+        try { (await import('@react-native-firebase/database')).default().ref(`sync_signals/${myId}/${signal.senderDeviceId}`).remove().catch(() => {}); } catch {}
         busy = false;
       });
     })();
@@ -396,6 +380,7 @@ export function useSync() {
 
 export async function signalPeers() {
   const deviceId = await getOrCreateDeviceId();
+  const { signalAllPeers } = await import('./presence');
   await signalAllPeers(deviceId);
 }
 

@@ -5,6 +5,8 @@ import { eq, desc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 import { getProfileId } from '@/src/utils/storage';
 import { onMutationError } from '@/src/utils/mutationError';
+import { writeOutbox } from '@/src/sync/outbox';
+import { signalPeers } from '@/src/sync/hooks';
 import type { DiaperMetadata, MedicationMetadata, GrowthMetadata, TemperatureMetadata } from '@/src/db/schema';
 
 export type { DiaperMetadata, MedicationMetadata, GrowthMetadata, TemperatureMetadata };
@@ -22,8 +24,9 @@ export async function insertTimelineEvent(input: {
   feedingSessionId?: string | null;
   sleepSessionId?:   string | null;
 }) {
+  const id = generateId();
   await getDb().insert(timelineEvents).values({
-    id:               generateId(),
+    id,
     babyId:           input.babyId,
     profileId:        input.profileId,
     feedingSessionId: input.feedingSessionId ?? null,
@@ -36,6 +39,8 @@ export async function insertTimelineEvent(input: {
     values:           input.values ? JSON.stringify(input.values) : '{}',
     createdAt:        new Date(),
   });
+  await writeOutbox('timeline_events', id, 'insert', { id, ...input, eventItemId: input.eventItemId ?? null });
+  await signalPeers();
 }
 
 // ─── QUERIES ──────────────────────────────────────────────────────────────────
@@ -169,6 +174,8 @@ export function useUpdateTimelineEvent() {
       await getDb().update(timelineEvents)
         .set(update)
         .where(eq(timelineEvents.id, input.id));
+      await writeOutbox('timeline_events', input.id, 'update', { ...input, ...update });
+      await signalPeers();
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['timeline_event', 'detail', vars.id] });

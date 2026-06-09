@@ -10,11 +10,20 @@ export interface SyncOffer {
 export interface SyncPayload {
   deviceId: string;
   timestamp: number;
-  timelineEvents: any[];
-  catalogItems: any[];
-  tags: any[];
+  timelineEvents?: any[];
+  catalogItems?: any[];
+  tags?: any[];
   profiles?: any[];
   babies?: any[];
+  operations?: SyncOperation[];
+}
+
+export interface SyncOperation {
+  tableName: 'timeline_events' | 'catalog_items' | 'tags' | 'profiles' | 'babies';
+  recordId: string;
+  operation: 'insert' | 'update' | 'delete';
+  data: any;
+  createdAt: number;
 }
 
 export type SyncMessageType = 'sync_request' | 'sync_response' | 'sync_ack' | 'sync_error';
