@@ -2,6 +2,7 @@ import database from '@react-native-firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PRESENCE_PATH = 'presence';
+const SIGNALS_PATH = 'sync_signals';
 const PAIRED_STORAGE = '@sync/paired_devices';
 const PRESENCE_TTL = 60000;
 
@@ -66,4 +67,35 @@ export function listenKnownPeers(
   });
 
   return () => unsubs.forEach((fn) => fn());
+}
+
+// ─── SYNC SIGNALS ───────────────────────────────────────────────────────────
+
+export async function sendSyncSignal(targetDeviceId: string, senderDeviceId: string) {
+  await database().ref(`${SIGNALS_PATH}/${targetDeviceId}/${senderDeviceId}`).set({
+    timestamp: Date.now(),
+    senderDeviceId,
+  });
+}
+
+export async function signalAllPeers(senderDeviceId: string) {
+  const devices = await getPairedDevices();
+  const promises = devices
+    .filter((d) => d.deviceId !== senderDeviceId)
+    .map((d) => sendSyncSignal(d.deviceId, senderDeviceId));
+  await Promise.all(promises);
+}
+
+export function listenSyncSignals(
+  deviceId: string,
+  callback: (signal: { senderDeviceId: string; timestamp: number }) => void,
+): () => void {
+  const ref = database().ref(`${SIGNALS_PATH}/${deviceId}`);
+  const listener = ref.on('child_added', (snapshot) => {
+    const val = snapshot.val();
+    if (val && val.senderDeviceId && val.timestamp) {
+      callback({ senderDeviceId: val.senderDeviceId, timestamp: val.timestamp });
+    }
+  });
+  return () => ref.off('child_added', listener);
 }

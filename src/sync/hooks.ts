@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import database from '@react-native-firebase/database';
 import { randomUUID } from 'expo-crypto';
 import type { SyncOffer, SyncPayload, SyncMessage, SyncStep, SyncRole, PairedDevice } from './types';
 import { generateKey } from './crypto';
@@ -19,6 +20,8 @@ import {
   announcePresence,
   removePresence,
   listenKnownPeers,
+  listenSyncSignals,
+  signalAllPeers,
 } from './presence';
 import {
   createPeerConnection,
@@ -356,11 +359,44 @@ export function useSync() {
     }
   }, [addLog, reset, handleRemotePayload]);
 
+  // Auto-respond to sync signals from known peers
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    let busy = false;
+
+    (async () => {
+      const myId = await getOrCreateDeviceId();
+      unsub = listenSyncSignals(myId, async (signal) => {
+        if (busy) return;
+        const isPaired = pairedDevices.some((d) => d.deviceId === signal.senderDeviceId);
+        const isOnline = knownPeers.some((p) => p.deviceId === signal.senderDeviceId);
+        if (!isPaired || !isOnline) return;
+        busy = true;
+        addLog(`Señal de sync recibida de ${signal.senderDeviceId.slice(0, 6)}...`);
+        await startHost(signal.senderDeviceId);
+        await database().ref(`sync_signals/${myId}/${signal.senderDeviceId}`).remove().catch(() => {});
+        busy = false;
+      });
+    })();
+
+    return () => {
+      if (unsub) unsub();
+    };
+  }, [pairedDevices, knownPeers, startHost, addLog]);
+
   return {
     step, role, offer, log, mergedCount, conflictCount, error,
     pairedDevices, knownPeers,
     startHost, startJoin, reset,
   };
+}
+
+// ─── SIGNAL PEERS ──────────────────────────────────────────────────────────────
+// Call this after saving data locally to notify paired devices to sync.
+
+export async function signalPeers() {
+  const deviceId = await getOrCreateDeviceId();
+  await signalAllPeers(deviceId);
 }
 
 // ─── BACKGROUND SYNC ───────────────────────────────────────────────────────────

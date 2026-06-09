@@ -61,18 +61,25 @@
 - [x] Botón para copiar IP:puerto manual (fallback si no hay cámara)
 - [x] Entrada manual de IP/puerto/clave para invitado sin cámara
 
-### Fase 3 — Post-MVP (orden priorizado)
+### Fase 3 — Sincronización en tiempo real
 
-**Independientes de Firebase (se pueden hacer ya):**
-- [x] Historial de sincronización con conflictos visibles — tabla `sync_history`, detección en merge, UI en `app/settings/sync-history.tsx`
-- [x] Sincronización de bebés/perfiles — agregar `profiles` y `babies` a las tablas sincronizadas en `merge.ts`
+- [x] Historial de sincronización con conflictos visibles — tabla `sync_history`
+- [x] Sincronización de bebés/perfiles — `profiles` y `babies` en `merge.ts`
+- [x] Relay ligero vía Firebase RTDB — reemplazar TCP signaling por Firebase
+- [x] Reconexión automática con pares conocidos — Firebase Presence + quick-connect UI
+- [x] Background sync periódico — AppState + intervalo configurable (5 min default)
+- [x] Señales RTDB para sync inmediato en foreground — `/sync_signals/{target}/{sender}`
 
-**Requieren Firebase RTDB (después de setup):**
-- [x] Relay ligero vía Firebase RTDB — reemplazar TCP signaling por Firebase (solo señalización, datos E2E)
-- [x] Reconexión automática con pares conocidos — detectar pares vía Firebase Presence, quick-connect en UI
-- [x] Background sync periódico — sincronizar al volver a foreground + intervalo configurable (default 5 min)
+### Fase 4 — Pre-lanzamiento (antes de Play Store)
+- [ ] Migrar notificaciones de señalización a FCM (Firebase Cloud Messaging)
+  - [ ] `@react-native-firebase/messaging` / `expo-notifications`
+  - [ ] Registro y refresh de tokens FCM en RTDB (`/fcm_tokens/{deviceId}`)
+  - [ ] Cloud Function HTTP para relay de mensajes FCM
+  - [ ] Configurar APNs key para iOS
+  - [ ] Manejar `contentAvailable: true` para background wake
+- [ ] Dejar señales RTDB como fallback local
 
-> **Nota:** Firebase RTDB solo se usa para señalización (intercambio de SDP + ICE candidates). Los datos reales viajan P2P cifrados por WebRTC DataChannel. Ver `docs/FIREBASE_SETUP.md` para guía de configuración.
+> **Nota:** Firebase FCM es 100% gratuito sin límites de mensajes, en plan Spark y Blaze. Las señales RTDB dan latencia ~1-2s en foreground; FCM añade capacidad de despertar la app en background. Todo en `docs/SYNC_PLAN.md`.
 
 ---
 
@@ -108,6 +115,16 @@
 5. Sesión Firebase se limpia (status → 'done')
 6. WebRTC DataChannel establecido
 7. Intercambio de datos cifrados over WebRTC
+```
+
+### RTDB Sync Signals (acelerador en foreground)
+```
+1. Usuario guarda un evento localmente → `signalPeers()` desde hooks.ts
+2. Se escribe en `/sync_signals/{targetDeviceId}/{senderDeviceId}` = `{ timestamp, senderDeviceId }`
+3. El target escucha `child_added` en `/sync_signals/{suDeviceId}` (hooks.ts useEffect)
+4. Si el sender es paired y está online (presence), responde con `startHost(senderDeviceId)`
+5. Se limpia la señal inmediatamente (`remove()`) para evitar re-fire
+6. Sync P2P vía WebRTC como siempre
 ```
 
 ### Sync Payload (over WebRTC DataChannel)
