@@ -21,6 +21,7 @@ import type { EventMetric } from "@/src/units/types";
 import { getUnit } from "@/src/units/registry";
 import { formatWithUnit, findBestUnit, normalizeToBase } from "@/src/units/helpers";
 import { useDiaperObservations } from "@/src/hooks/useTimeline";
+import { getCachedDeviceId } from "@/src/sync/device";
 import { useTheme } from "@/src/theme/useTheme";
 import { formatWakeWindow } from "@/src/hooks/useWakeWindows";
 import type { Role } from "@/src/constants/roles";
@@ -117,16 +118,21 @@ function BubbleFooter({
   profile,
   timestamp,
   accentColor,
+  originLabel,
 }: {
   isOwn: boolean;
   isFirstInGroup: boolean;
   profile?: Profile;
   timestamp: Date | string | number;
   accentColor?: string;
+  originLabel?: string | null;
 }) {
   const c = useTheme().theme.colors;
   return (
     <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 4, marginTop: 4 }}>
+      {originLabel && (
+        <Text style={{ fontSize: 9, color: c.textMuted, marginRight: 2 }}>{originLabel}</Text>
+      )}
       {!isOwn && isFirstInGroup && profile && (
         <Text style={{ fontSize: 11, fontWeight: "800", color: accentColor ?? c.accentStrong, marginRight: 2 }}>
           {profile.name}
@@ -193,6 +199,8 @@ export function TimelineBubble({
   const emoji = catalogItem?.emoji ?? eventType?.emoji ?? "📝";
   const label = catalogItem?.name ?? eventType?.label ?? event.eventTypeId;
   const categoryKey = catalogItem?.category ?? eventType?.category;
+  const localDeviceId = getCachedDeviceId();
+  const originLabel = event.createdBy && event.createdBy !== localDeviceId ? "📡" : null;
 
   const bubble = (
     <TouchableOpacity
@@ -430,6 +438,7 @@ export function TimelineBubble({
         isFirstInGroup={isFirstInGroup}
         profile={profile}
         timestamp={event.timestamp}
+        originLabel={originLabel}
       />
     </TouchableOpacity>
   );

@@ -35,6 +35,7 @@ import { getUnit, getUnitsByDimension, getUnitsForMetric } from "@/src/units/reg
 import { findBestUnit } from "@/src/units/helpers";
 import type { EventMetric } from "@/src/units/types";
 import { getCategory, getCategoryLabel, getCategoryEmoji, USER_CATEGORIES } from "@/src/utils/categories";
+import { getCachedDeviceId } from "@/src/sync/device";
 import { useFoodCatalog, FOOD_GROUPS, SUBGROUPS, BADGE_FILTERS } from "@/src/hooks/useFoodLogs";
 import { useCamera } from "@/src/hooks/useCamera";
 import { useDebounce } from "@/src/hooks/useDebounce";
@@ -654,6 +655,33 @@ export default function EventDetailScreen() {
           <View className="rounded-2xl p-5 gap-1.5" style={{ backgroundColor: c.card }}>
             <Text className="font-bold text-xs" style={{ color: c.textDim }}>📝 Notas</Text>
             <Text className="font-medium text-sm" style={{ color: c.textBody }}>{event.notes}</Text>
+          </View>
+        )}
+
+        {/* Origen (trazabilidad) */}
+        {!editing && (event.createdBy || event.updatedBy) && (
+          <View className="rounded-2xl p-5 gap-1.5" style={{ backgroundColor: c.card }}>
+            <Text className="font-black text-[15px]" style={{ color: c.textBody }}>📡 Origen</Text>
+            {event.createdBy && (
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text className="font-semibold text-[13px]" style={{ color: c.textDim }}>Creado por</Text>
+                <Text className="font-bold text-sm" style={{
+                  color: event.createdBy === getCachedDeviceId() ? c.success : c.accent,
+                }}>
+                  {event.createdBy === getCachedDeviceId() ? "Este dispositivo" : event.createdBy.slice(0, 8) + "..."}
+                </Text>
+              </View>
+            )}
+            {event.updatedBy && event.updatedBy !== event.createdBy && (
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text className="font-semibold text-[13px]" style={{ color: c.textDim }}>Modificado por</Text>
+                <Text className="font-bold text-sm" style={{
+                  color: event.updatedBy === getCachedDeviceId() ? c.success : c.accent,
+                }}>
+                  {event.updatedBy === getCachedDeviceId() ? "Este dispositivo" : event.updatedBy.slice(0, 8) + "..."}
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
