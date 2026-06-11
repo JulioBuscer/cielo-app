@@ -189,7 +189,7 @@ export default function ChatsScreen() {
               marginBottom: 24,
             }}
           >
-            Agrega un bebé desde Perfil para empezar
+            Agrega un bebé para empezar
           </Text>
           <TouchableOpacity
             onPress={() => router.push("/onboarding/baby")}
@@ -226,6 +226,8 @@ export default function ChatsScreen() {
           backgroundColor: c.headerBg,
           paddingHorizontal: 16,
           paddingVertical: 14,
+          flexDirection: "row",
+          alignItems: "center",
         }}
       >
         <Text
@@ -233,10 +235,23 @@ export default function ChatsScreen() {
             color: "#FFFFFF",
             fontWeight: "900",
             fontSize: 22,
+            flex: 1,
           }}
         >
-          💬 Chats
+          💬 Cielo
         </Text>
+        <TouchableOpacity
+          onPress={() => router.push("/settings/sync")}
+          style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+        >
+          <Text style={{ fontSize: 22, color: "rgba(255,255,255,0.85)" }}>🔄</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push("/settings")}
+          style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+        >
+          <Text style={{ fontSize: 22, color: "rgba(255,255,255,0.85)" }}>⚙️</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -244,6 +259,45 @@ export default function ChatsScreen() {
         keyExtractor={(item) => item.id}
         style={{ backgroundColor: c.surface }}
         contentContainerStyle={{ paddingBottom: 20 }}
+        ListHeaderComponent={() => (
+          <TouchableOpacity
+            onPress={() => router.push("/settings/sync")}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              marginBottom: 8,
+              backgroundColor: c.elevated,
+              marginHorizontal: 12,
+              marginTop: 12,
+              borderRadius: 14,
+            }}
+          >
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: c.whatsGreen + "30",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ fontSize: 18 }}>🔗</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: c.textBody }}>
+                Sincronizar dispositivo
+              </Text>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted, marginTop: 1 }}>
+                Conecta con otro celular
+              </Text>
+            </View>
+            <Text style={{ fontSize: 18, color: c.textMuted }}>›</Text>
+          </TouchableOpacity>
+        )}
         renderItem={({ item: baby }) => (
           <BabyChatItem
             baby={baby}

@@ -2,28 +2,78 @@ import { View, Text, ScrollView, TouchableOpacity, StatusBar, Alert } from "reac
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/src/theme/useTheme";
-import { useActiveBaby } from "@/src/hooks/useBaby";
 import packageJson from "@/package.json";
 import { resetDiaperConfigs } from '@/src/utils/storage';
 
-const SETTINGS_ITEMS: { emoji: string; label: string; desc: string; route: string }[] = [
-  { emoji: "📝", label: "Catálogos", desc: "Eventos, pipí, popó, observaciones", route: "/settings/catalogs" },
-  { emoji: "🔄", label: "Sincronizar", desc: "Conectar con otro dispositivo", route: "/settings/sync" },
-  { emoji: "📋", label: "Historial de Sync", desc: "Sesiones pasadas y conflictos", route: "/settings/sync-history" },
-  { emoji: "🎨", label: "Tema", desc: "Personalizar colores de la app", route: "/settings/theme" },
-  { emoji: "👤", label: "Perfil del bebé", desc: "Nombre, avatar, datos", route: "/baby/profile" },
-];
+function MenuLink({
+  emoji,
+  label,
+  subtitle,
+  onPress,
+}: {
+  emoji: string;
+  label: string;
+  subtitle?: string;
+  onPress: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        backgroundColor: c.card,
+        borderRadius: 14,
+        padding: 14,
+        minHeight: 52,
+        borderWidth: 1,
+        borderColor: c.elevated,
+      }}
+    >
+      <Text style={{ fontSize: 24 }}>{emoji}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 15, fontWeight: "700", color: c.textBody }}>
+          {label}
+        </Text>
+        {subtitle && (
+          <Text style={{ fontSize: 11, fontWeight: "600", color: c.textMuted, marginTop: 1 }}>
+            {subtitle}
+          </Text>
+        )}
+      </View>
+      <Text style={{ fontSize: 18, color: c.textMuted }}>›</Text>
+    </TouchableOpacity>
+  );
+}
+
+function SectionHeader({ label }: { label: string }) {
+  const { theme } = useTheme();
+  return (
+    <Text
+      style={{
+        fontSize: 12,
+        fontWeight: "800",
+        color: theme.colors.textMuted,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+      }}
+    >
+      {label}
+    </Text>
+  );
+}
 
 export default function SettingsScreen() {
   const { theme } = useTheme();
-  const { data: baby } = useActiveBaby();
   const c = theme.colors;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.headerBg }} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor={c.headerBg} />
 
-      {/* Header */}
       <View
         style={{
           backgroundColor: c.headerBg,
@@ -37,222 +87,71 @@ export default function SettingsScreen() {
           onPress={() => router.back()}
           style={{ paddingRight: 16, minWidth: 44, minHeight: 44, justifyContent: "center" }}
         >
-          <Text style={{ color: c.headerText, fontSize: 26, lineHeight: 28 }}>
-            ←
-          </Text>
+          <Text style={{ color: c.headerText, fontSize: 26, lineHeight: 28 }}>←</Text>
         </TouchableOpacity>
-        <Text
-          style={{
-            color: c.headerText,
-            fontWeight: "900",
-            fontSize: 18,
-            flex: 1,
-          }}
-        >
+        <Text style={{ color: c.headerText, fontWeight: "900", fontSize: 18, flex: 1 }}>
           ⚙️ Ajustes
         </Text>
       </View>
 
       <ScrollView
         style={{ backgroundColor: c.surface, flex: 1 }}
-        contentContainerStyle={{ padding: 16, gap: 12 }}
+        contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}
       >
-        {/* Baby card */}
-        <TouchableOpacity
-          onPress={() => router.push("/baby/profile")}
-          style={{
-            backgroundColor: c.card,
-            borderRadius: 20,
-            padding: 16,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 14,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 3,
-          }}
-        >
-          <View
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              backgroundColor: c.elevated,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Text style={{ fontSize: 28 }}>
-              {baby?.avatarEmoji ?? "👶"}
-            </Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                color: c.textBody,
-                fontWeight: "900",
-                fontSize: 17,
-              }}
-            >
-              {baby ? baby.nickname || baby.name : "Cielo"}
-            </Text>
-            <Text
-              style={{
-                color: c.textMuted,
-                fontSize: 13,
-                fontWeight: "600",
-                marginTop: 2,
-              }}
-            >
-              {baby?.sex === "female"
-                ? "👧"
-                : baby?.sex === "male"
-                  ? "👦"
-                  : "👶"}{" "}
-              · {baby?.birthDate?.toString() ?? "—"}
-            </Text>
-          </View>
-          <Text style={{ color: c.textMuted, fontSize: 18 }}>›</Text>
-        </TouchableOpacity>
-
-        {/* Settings list */}
-        <View
-          style={{
-            backgroundColor: c.card,
-            borderRadius: 20,
-            overflow: "hidden",
-          }}
-        >
-          {SETTINGS_ITEMS.map((item, i) => (
-            <TouchableOpacity
-              key={item.route}
-              onPress={() => router.push(item.route as any)}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                padding: 16,
-                gap: 14,
-                minHeight: 60,
-                borderBottomWidth: i < SETTINGS_ITEMS.length - 1 ? 1 : 0,
-                borderBottomColor: c.elevated,
-              }}
-            >
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  backgroundColor: c.elevated,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text style={{ fontSize: 20 }}>{item.emoji}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    color: c.textBody,
-                    fontWeight: "800",
-                    fontSize: 15,
-                  }}
-                >
-                  {item.label}
-                </Text>
-                <Text
-                  style={{
-                    color: c.textMuted,
-                    fontSize: 12,
-                    fontWeight: "600",
-                    marginTop: 1,
-                  }}
-                >
-                  {item.desc}
-                </Text>
-              </View>
-              <Text style={{ color: c.textMuted, fontSize: 18 }}>›</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Theme preview */}
-        <View
-          style={{
-            backgroundColor: c.card,
-            borderRadius: 20,
-            padding: 16,
-          }}
-        >
-          <Text
-            style={{
-              color: c.textMuted,
-              fontWeight: "700",
-              fontSize: 11,
-              textTransform: "uppercase",
-              marginBottom: 10,
-            }}
-          >
-            Tema activo
-          </Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                backgroundColor: c.accent,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Text style={{ fontSize: 22 }}>🎨</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  color: c.textBody,
-                  fontWeight: "800",
-                  fontSize: 16,
-                }}
-              >
-                {theme.name}
-              </Text>
-              <Text
-                style={{
-                  color: c.textMuted,
-                  fontSize: 12,
-                  fontWeight: "600",
-                }}
-              >
-                {theme.isBuiltIn ? "Tema por defecto" : "Tema personalizado"}
-              </Text>
-            </View>
-            <View
-              style={{
-                flexDirection: "row",
-                gap: 4,
-              }}
-            >
-              {[c.surface, c.card, c.accent, c.textBody].map((color, i) => (
-                <View
-                  key={i}
-                  style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: 6,
-                    backgroundColor: color,
-                    borderWidth: color === c.card ? 1 : 0,
-                    borderColor: c.elevated,
-                  }}
-                />
-              ))}
-            </View>
+        <View style={{ gap: 8 }}>
+          <SectionHeader label="Sincronización" />
+          <View style={{ gap: 8 }}>
+            <MenuLink
+              emoji="🔄"
+              label="Sincronizar"
+              subtitle="Conectar con otro dispositivo"
+              onPress={() => router.push("/settings/sync")}
+            />
+            <MenuLink
+              emoji="📋"
+              label="Historial de Sync"
+              subtitle="Sesiones pasadas y conflictos"
+              onPress={() => router.push("/settings/sync-history")}
+            />
           </View>
         </View>
 
-        {/* Restaurar config */}
+        <View style={{ gap: 8 }}>
+          <SectionHeader label="Personalización" />
+          <View style={{ gap: 8 }}>
+            <MenuLink
+              emoji="🎨"
+              label="Temas"
+              subtitle="Personaliza colores y apariencia"
+              onPress={() => router.push("/settings/theme")}
+            />
+            <MenuLink
+              emoji="📋"
+              label="Catálogos"
+              subtitle="Eventos, escalas, observaciones"
+              onPress={() => router.push("/settings/catalogs")}
+            />
+          </View>
+        </View>
+
+        <View style={{ gap: 8 }}>
+          <SectionHeader label="Utilidades" />
+          <View style={{ gap: 8 }}>
+            <MenuLink
+              emoji="🥗"
+              label="Alimentos OMS"
+              subtitle="Catálogo de alimentación complementaria"
+              onPress={() => router.push("/catalog/food")}
+            />
+            <MenuLink
+              emoji="📖"
+              label="Recursos"
+              subtitle="Guía de colores, consistencias y sueño"
+              onPress={() => router.push("/resources")}
+            />
+          </View>
+        </View>
+
         <TouchableOpacity
           onPress={() => {
             Alert.alert(
@@ -272,49 +171,41 @@ export default function SettingsScreen() {
             );
           }}
           style={{
-            backgroundColor: c.card,
-            borderRadius: 20,
-            padding: 16,
             flexDirection: "row",
             alignItems: "center",
-            gap: 14,
-            minHeight: 60,
+            gap: 12,
+            backgroundColor: c.card,
+            borderRadius: 14,
+            padding: 14,
+            minHeight: 52,
+            borderWidth: 1,
+            borderColor: c.elevated,
           }}
         >
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              backgroundColor: c.danger + "20",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Text style={{ fontSize: 20 }}>🔄</Text>
-          </View>
+          <Text style={{ fontSize: 24 }}>🔄</Text>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: c.danger, fontWeight: "800", fontSize: 15 }}>
+            <Text style={{ fontSize: 15, fontWeight: "700", color: c.danger }}>
               Restaurar escalas de fábrica
             </Text>
-            <Text style={{ color: c.textMuted, fontSize: 12, fontWeight: "600", marginTop: 1 }}>
-              Pipí 1-4 · Color Armstrong · Popó 1-5 · Sangre/Moco escalas
+            <Text style={{ fontSize: 11, fontWeight: "600", color: c.textMuted, marginTop: 1 }}>
+              Pipí 1-4 · Color Armstrong · Popó 1-5
             </Text>
           </View>
         </TouchableOpacity>
 
-        {/* Version */}
-        <Text
+        <View
           style={{
-            color: c.textMuted,
-            fontSize: 12,
-            fontWeight: "600",
-            textAlign: "center",
-            paddingVertical: 8,
+            borderTopWidth: 1,
+            borderTopColor: c.elevated,
+            paddingTop: 16,
+            alignItems: "center",
+            gap: 4,
           }}
         >
-          Cielo App v{packageJson.version}
-        </Text>
+          <Text style={{ fontSize: 11, fontWeight: "600", color: c.textMuted }}>
+            Cielo App v{packageJson.version}
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
