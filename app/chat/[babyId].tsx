@@ -629,7 +629,7 @@ export default function ChatTimelineScreen() {
       {/* Header */}
       <View style={{ backgroundColor: c.headerBg, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 4, paddingVertical: 10 }}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => router.push("/(tabs)")}
           style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
         >
           <Text style={{ fontSize: 24, color: "#FFFFFF" }}>‹</Text>

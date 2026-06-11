@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useActiveBaby, calcAge, STATUS_LABELS } from "@/src/hooks/useBaby";
 import { useActiveProfile } from "@/src/hooks/useProfile";
 import { useTheme } from "@/src/theme/useTheme";
+import packageJson from "@/package.json";
 
 function MenuLink({
   emoji,
@@ -49,6 +50,23 @@ function MenuLink({
   );
 }
 
+function SectionHeader({ label }: { label: string }) {
+  const { theme } = useTheme();
+  return (
+    <Text
+      style={{
+        fontSize: 12,
+        fontWeight: "800",
+        color: theme.colors.textMuted,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+      }}
+    >
+      {label}
+    </Text>
+  );
+}
+
 export default function PerfilScreen() {
   const { theme } = useTheme();
   const { data: baby } = useActiveBaby();
@@ -67,8 +85,9 @@ export default function PerfilScreen() {
           👤 Perfil
         </Text>
 
+        {/* Baby card */}
         <TouchableOpacity
-          onPress={() => router.push("/baby")}
+          onPress={() => router.push("/baby/profile")}
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -85,7 +104,7 @@ export default function PerfilScreen() {
               width: 56,
               height: 56,
               borderRadius: 28,
-              backgroundColor: "rgba(0,0,0,0.06)",
+              backgroundColor: c.elevated,
               alignItems: "center",
               justifyContent: "center",
               overflow: "hidden",
@@ -108,11 +127,11 @@ export default function PerfilScreen() {
             {baby && (
               <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted, marginTop: 2 }}>
                 {calcAge(baby.birthDate).label}
-                {baby.status ? ` · ${STATUS_LABELS[(baby.status ?? "unknown") as keyof typeof STATUS_LABELS]?.emoji ?? ""}` : ""}
+                {baby.status ? ` · ${STATUS_LABELS[baby.status]?.emoji ?? ""}` : ""}
               </Text>
             )}
             {profile && (
-              <Text style={{ fontSize: 11, fontWeight: "600", color: c.textMuted, marginTop: 1 }}>
+              <Text style={{ fontSize: 11, fontWeight: "600", color: c.textMuted, marginTop: 1, opacity: 0.7 }}>
                 {profile.name}
               </Text>
             )}
@@ -120,10 +139,44 @@ export default function PerfilScreen() {
           <Text style={{ fontSize: 18, color: c.textMuted }}>›</Text>
         </TouchableOpacity>
 
-        <View style={{ gap: 8 }}>
-          <Text style={{ fontSize: 13, fontWeight: "800", color: c.textMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Configuración
+        <TouchableOpacity
+          onPress={() => router.push("/baby")}
+          style={{
+            backgroundColor: c.card,
+            borderRadius: 14,
+            padding: 12,
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: c.elevated,
+            borderStyle: "dashed",
+          }}
+        >
+          <Text style={{ fontSize: 13, fontWeight: "700", color: c.textMuted }}>
+            Cambiar de bebé o agregar nuevo
           </Text>
+        </TouchableOpacity>
+
+        {/* Sync & Config */}
+        <View style={{ gap: 8 }}>
+          <SectionHeader label="Sincronización y Datos" />
+          <View style={{ gap: 8 }}>
+            <MenuLink
+              emoji="🔄"
+              label="Sincronizar"
+              subtitle="Conectar con otro dispositivo"
+              onPress={() => router.push("/settings/sync")}
+            />
+            <MenuLink
+              emoji="📋"
+              label="Historial de Sync"
+              subtitle="Sesiones pasadas y conflictos"
+              onPress={() => router.push("/settings/sync-history")}
+            />
+          </View>
+        </View>
+
+        <View style={{ gap: 8 }}>
+          <SectionHeader label="Personalización" />
           <View style={{ gap: 8 }}>
             <MenuLink
               emoji="🎨"
@@ -137,82 +190,62 @@ export default function PerfilScreen() {
               subtitle="Tipos de evento, escalas y observaciones"
               onPress={() => router.push("/settings/catalogs")}
             />
-            <MenuLink
-              emoji="🔄"
-              label="Sincronizar"
-              subtitle="Conectar con otro dispositivo"
-              onPress={() => router.push("/settings/sync")}
-            />
-            <MenuLink
-              emoji="⚙️"
-              label="Ajustes"
-              subtitle="Sincronización, historial y más"
-              onPress={() => router.push("/settings")}
-            />
-            <MenuLink
-              emoji="👤"
-              label="Perfil del bebé"
-              subtitle="Nombre, foto, fecha de nacimiento"
-              onPress={() => router.push("/baby/profile")}
-            />
           </View>
         </View>
 
+        <View style={{ gap: 8 }}>
+          <SectionHeader label="Referencia" />
           <View style={{ gap: 8 }}>
-            <Text style={{ fontSize: 13, fontWeight: "800", color: c.textMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>
-              Referencia
-            </Text>
-            <View style={{ gap: 8 }}>
-              <MenuLink
-                emoji="📈"
-                label="Curvas OMS"
-                subtitle="Peso, talla y CC con percentiles"
-                onPress={() => router.push("/logs/growth/history")}
-              />
-              <MenuLink
-                emoji="📋"
-                label="Historial"
-                subtitle="Todos los registros con filtros"
-                onPress={() => router.push("/history")}
-              />
-              <MenuLink
-                emoji="🍽️"
-                label="Comidas"
-                subtitle="Historial de alimentación complementaria"
-                onPress={() => router.push("/logs/food/history")}
-              />
-              <MenuLink
-                emoji="🌡️"
-                label="Salud"
-                subtitle="Temperatura, medicamentos y síntomas"
-                onPress={() => router.push("/logs/health/new")}
-              />
-              <MenuLink
-                emoji="🥗"
-                label="Alimentos OMS"
-                subtitle="Catálogo de alimentación complementaria"
-                onPress={() => router.push("/catalog/food")}
-              />
-              <MenuLink
-                emoji="🥜"
-                label="Alérgenos"
-                subtitle="Seguimiento de introducción de alérgenos"
-                onPress={() => router.push("/food/allergens")}
-              />
-              <MenuLink
-                emoji="⏳"
-                label="Ventanas de sueño"
-                subtitle="Tiempo despierto entre siestas"
-                onPress={() => router.push("/wake-windows")}
-              />
-              <MenuLink
-                emoji="📖"
-                label="Recursos"
-                subtitle="Guía de colores, consistencias y sueño"
-                onPress={() => router.push("/resources")}
-              />
-            </View>
+            <MenuLink
+              emoji="📈"
+              label="Curvas OMS"
+              subtitle="Peso, talla y CC con percentiles"
+              onPress={() => router.push("/logs/growth/history")}
+            />
+            <MenuLink
+              emoji="📝"
+              label="Historial completo"
+              subtitle="Todos los registros con filtros"
+              onPress={() => router.push("/history")}
+            />
+            <MenuLink
+              emoji="🍽️"
+              label="Comidas"
+              subtitle="Historial de alimentación complementaria"
+              onPress={() => router.push("/logs/food/history")}
+            />
+            <MenuLink
+              emoji="🌡️"
+              label="Salud"
+              subtitle="Temperatura, medicamentos y síntomas"
+              onPress={() => router.push("/logs/health/new")}
+            />
+            <MenuLink
+              emoji="🥗"
+              label="Alimentos OMS"
+              subtitle="Catálogo de alimentación complementaria"
+              onPress={() => router.push("/catalog/food")}
+            />
+            <MenuLink
+              emoji="🥜"
+              label="Alérgenos"
+              subtitle="Seguimiento de introducción de alérgenos"
+              onPress={() => router.push("/food/allergens")}
+            />
+            <MenuLink
+              emoji="⏳"
+              label="Ventanas de sueño"
+              subtitle="Tiempo despierto entre siestas"
+              onPress={() => router.push("/wake-windows")}
+            />
+            <MenuLink
+              emoji="📖"
+              label="Recursos"
+              subtitle="Guía de colores, consistencias y sueño"
+              onPress={() => router.push("/resources")}
+            />
           </View>
+        </View>
 
         <View
           style={{
@@ -220,10 +253,11 @@ export default function PerfilScreen() {
             borderTopColor: c.elevated,
             paddingTop: 16,
             alignItems: "center",
+            gap: 4,
           }}
         >
           <Text style={{ fontSize: 11, fontWeight: "600", color: c.textMuted }}>
-            Cielo App
+            Cielo App v{packageJson.version}
           </Text>
         </View>
       </ScrollView>
