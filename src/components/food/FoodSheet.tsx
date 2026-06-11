@@ -1,14 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  Modal,
-  Platform,
-  Alert,
-  Image,
-  ScrollView,
+  View, Text, TouchableOpacity, TextInput, Modal,
+  Platform, Alert, Image, ScrollView,
 } from "react-native";
 import { useTheme } from "@/src/theme/useTheme";
 import { BigButton } from "@/src/components/ui/BigButton";
@@ -219,84 +212,101 @@ export function FoodSheet({
               }}
             />
 
-            <View style={{ gap: 4 }}>
-              <Text style={{ fontSize: 10, fontWeight: "700", color: c.textMuted, letterSpacing: 0.5 }}>GRUPO</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
-                {GROUP_KEYS.map((k) => (
-                  <TouchableOpacity
-                    key={k}
-                    onPress={() => setSelectedGroup(selectedGroup === k ? null : k)}
-                    style={{
-                      paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
-                      backgroundColor: selectedGroup === k ? c.accent : c.card,
-                    }}
-                  >
-                    <Text style={{
-                      fontSize: 12, fontWeight: "600",
-                      color: selectedGroup === k ? c.textOnAccent : c.textBody,
-                    }}>{FOOD_GROUPS[k]}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
+              {GROUP_KEYS.map((k) => (
+                <TouchableOpacity
+                  key={k}
+                  onPress={() => setSelectedGroup(selectedGroup === k ? null : k)}
+                  style={{
+                    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
+                    backgroundColor: selectedGroup === k ? c.accent : c.card,
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 12, fontWeight: "600",
+                    color: selectedGroup === k ? c.textOnAccent : c.textBody,
+                  }}>{FOOD_GROUPS[k]}</Text>
+                </TouchableOpacity>
+              ))}
+              {BADGE_FILTERS.map((bf) => (
+                <TouchableOpacity
+                  key={bf.key}
+                  onPress={() => toggleBadgeFilter(bf.key)}
+                  style={{
+                    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
+                    backgroundColor: selectedBadgeFilters.includes(bf.key) ? c.accent : c.card,
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 12, fontWeight: "600",
+                    color: selectedBadgeFilters.includes(bf.key) ? c.textOnAccent : c.textBody,
+                  }}>{bf.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
             {availableSubgroups.length > 0 && (
-              <View style={{ gap: 4 }}>
-                <Text style={{ fontSize: 10, fontWeight: "700", color: c.textMuted, letterSpacing: 0.5 }}>SUBGRUPO</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
-                  {availableSubgroups.map((sg) => (
-                    <TouchableOpacity
-                      key={sg}
-                      onPress={() => toggleSubgroup(sg)}
-                      style={{
-                        paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
-                        backgroundColor: selectedSubgroups.includes(sg) ? c.accent : c.card,
-                      }}
-                    >
-                      <Text style={{
-                        fontSize: 12, fontWeight: "600",
-                        color: selectedSubgroups.includes(sg) ? c.textOnAccent : c.textBody,
-                      }}>{SUBGROUPS[sg] ?? sg}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            <View style={{ gap: 4 }}>
-              <Text style={{ fontSize: 10, fontWeight: "700", color: c.textMuted, letterSpacing: 0.5 }}>BADGE</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
-                {BADGE_FILTERS.map((bf) => (
+                {availableSubgroups.map((sg) => (
                   <TouchableOpacity
-                    key={bf.key}
-                    onPress={() => toggleBadgeFilter(bf.key)}
+                    key={sg}
+                    onPress={() => toggleSubgroup(sg)}
                     style={{
                       paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
-                      backgroundColor: selectedBadgeFilters.includes(bf.key) ? c.accent : c.card,
+                      backgroundColor: selectedSubgroups.includes(sg) ? c.accent : c.card,
                     }}
                   >
                     <Text style={{
                       fontSize: 12, fontWeight: "600",
-                      color: selectedBadgeFilters.includes(bf.key) ? c.textOnAccent : c.textBody,
-                    }}>{bf.label}</Text>
+                      color: selectedSubgroups.includes(sg) ? c.textOnAccent : c.textBody,
+                    }}>{SUBGROUPS[sg] ?? sg}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-            </View>
+            )}
 
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-              {filtered.map((f) => (
-                <FoodItemChip
-                  key={f.id}
-                  food={f}
-                  selected={selectedFoodIds.includes(f.id)}
-                  onPress={() => toggleFood(f.id)}
-                  onLongPress={() => setDetailFood(f)}
-                  colors={c}
-                  subgroups={SUBGROUPS}
-                />
-              ))}
-            </View>
+            {filtered.length === 0 ? (
+              <View style={{ padding: 24, alignItems: "center" }}>
+                <Text style={{ color: c.textMuted, fontSize: 14 }}>No hay alimentos</Text>
+              </View>
+            ) : (
+              (() => {
+                const grouped: Record<string, typeof filtered> = {};
+                for (const f of filtered) {
+                  const g = f.group || "other";
+                  if (!grouped[g]) grouped[g] = [];
+                  grouped[g].push(f);
+                }
+                return Object.entries(grouped).map(([group, foods]) => {
+                  const grpLabel = (FOOD_GROUPS as any)[group] ?? group;
+                  const emoji = grpLabel.split(" ")[0];
+                  const label = grpLabel.split(" ").slice(1).join(" ");
+                  return (
+                    <View key={group}>
+                      <Text style={{
+                        fontSize: 13, fontWeight: "700", color: c.textBody, marginBottom: 4,
+                      }}>
+                        {emoji} {label}
+                        <Text style={{ color: c.textMuted, fontWeight: "400" }}> ({foods.length})</Text>
+                      </Text>
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+                        {foods.map((f: any) => (
+                          <FoodItemChip
+                            key={f.id}
+                            food={f}
+                            selected={selectedFoodIds.includes(f.id)}
+                            onPress={() => toggleFood(f.id)}
+                            onLongPress={() => setDetailFood(f)}
+                            colors={c}
+                            subgroups={SUBGROUPS}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  );
+                });
+              })()
+            )}
 
             <TouchableOpacity
               onPress={() => setShowDetails(!showDetails)}

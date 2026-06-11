@@ -69,3 +69,5 @@ drizzle/meta
 # Temporales de reporte
 reporte-cielo.txt
 crecimiento-cielo.txt
+
+*.pdf

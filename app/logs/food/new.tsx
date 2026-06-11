@@ -3,7 +3,7 @@ import { useTheme } from "@/src/theme/useTheme";
 import {
   View, Text, ScrollView, TouchableOpacity,
   TextInput, StatusBar, Alert, Image,
-  KeyboardAvoidingView, Platform, Keyboard,
+  KeyboardAvoidingView, Platform, Keyboard, Modal,
 } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -65,8 +65,6 @@ function QuickAddModal({
     }
   }, [visible]);
 
-  if (!visible) return null;
-
   const handleAdd = async () => {
     if (!name.trim()) return;
     try {
@@ -84,110 +82,109 @@ function QuickAddModal({
   };
 
   return (
-    <View style={{
-      position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end", zIndex: 10,
-    }}>
-      <TouchableOpacity style={{ flex: 1 }} onPress={onClose} />
-      <View style={{
-        backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
-        padding: 24, paddingBottom: keyboardH ? keyboardH + 24 : 24,
-        maxHeight: "85%",
-      }}>
-        <ScrollView
-          ref={scrollRef}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ gap: 16 }}
-        >
-          <Text style={{ fontSize: 18, fontWeight: "900", color: c.textBody, textAlign: "center" }}>
-            🍽️ Nuevo alimento
-          </Text>
-
-          <View style={{ gap: 6 }}>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted }}>Nombre</Text>
-            <TextInput
-              ref={nameRef}
-              value={name}
-              onChangeText={setName}
-              placeholder="Ej: Espinaca"
-              placeholderTextColor={c.textDim}
-              onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300)}
-              style={{ backgroundColor: c.card, color: c.textBody, padding: 14, borderRadius: 12, fontSize: 15 }}
-            />
-          </View>
-
-          <View style={{ gap: 6 }}>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted }}>Emoji</Text>
-            <TextInput
-              value={emoji}
-              onChangeText={setEmoji}
-              placeholder="🥬"
-              placeholderTextColor={c.textDim}
-              onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300)}
-              style={{ backgroundColor: c.card, color: c.textBody, padding: 14, borderRadius: 12, fontSize: 15 }}
-            />
-          </View>
-
-          <View style={{ gap: 6 }}>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted }}>Grupo</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-              {GROUP_KEYS.map((k) => (
-                <TouchableOpacity
-                  key={k}
-                  onPress={() => setGroup(k)}
-                  style={{
-                    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99,
-                    backgroundColor: group === k ? c.accent : c.card,
-                  }}
-                >
-                  <Text style={{
-                    fontSize: 13, fontWeight: "600",
-                    color: group === k ? c.textOnAccent : c.textBody,
-                  }}>
-                    {FOOD_GROUPS[k]}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={{ gap: 6 }}>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted }}>
-              🥜 Alérgenos (opcional)
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
+        <TouchableOpacity style={{ flex: 1 }} onPress={onClose} />
+        <View style={{
+          backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+          padding: 24, paddingBottom: keyboardH ? keyboardH + 24 : 24,
+          maxHeight: "85%",
+        }}>
+          <ScrollView
+            ref={scrollRef}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ gap: 16 }}
+          >
+            <Text style={{ fontSize: 18, fontWeight: "900", color: c.textBody, textAlign: "center" }}>
+              🍽️ Nuevo alimento
             </Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-              {ALLERGEN_LIST.map((a) => {
-                const selected = allergens.includes(a.id);
-                return (
+
+            <View style={{ gap: 6 }}>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted }}>Nombre</Text>
+              <TextInput
+                ref={nameRef}
+                value={name}
+                onChangeText={setName}
+                placeholder="Ej: Espinaca"
+                placeholderTextColor={c.textDim}
+                onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300)}
+                style={{ backgroundColor: c.card, color: c.textBody, padding: 14, borderRadius: 12, fontSize: 15 }}
+              />
+            </View>
+
+            <View style={{ gap: 6 }}>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted }}>Emoji</Text>
+              <TextInput
+                value={emoji}
+                onChangeText={setEmoji}
+                placeholder="🥬"
+                placeholderTextColor={c.textDim}
+                onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300)}
+                style={{ backgroundColor: c.card, color: c.textBody, padding: 14, borderRadius: 12, fontSize: 15 }}
+              />
+            </View>
+
+            <View style={{ gap: 6 }}>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted }}>Grupo</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                {GROUP_KEYS.map((k) => (
                   <TouchableOpacity
-                    key={a.id}
-                    onPress={() => setAllergens((prev) =>
-                      prev.includes(a.id)
-                        ? prev.filter((x) => x !== a.id)
-                        : [...prev, a.id]
-                    )}
+                    key={k}
+                    onPress={() => setGroup(k)}
                     style={{
                       paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99,
-                      backgroundColor: selected ? c.accent : c.card,
+                      backgroundColor: group === k ? c.accent : c.card,
                     }}
                   >
                     <Text style={{
                       fontSize: 13, fontWeight: "600",
-                      color: selected ? c.textOnAccent : c.textBody,
+                      color: group === k ? c.textOnAccent : c.textBody,
                     }}>
-                      {a.emoji} {a.label}
+                      {FOOD_GROUPS[k]}
                     </Text>
                   </TouchableOpacity>
-                );
-              })}
+                ))}
+              </View>
             </View>
-          </View>
 
-          <BigButton title="Agregar" onPress={handleAdd} disabled={!name.trim()} />
-        </ScrollView>
+            <View style={{ gap: 6 }}>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted }}>
+                🥜 Alérgenos (opcional)
+              </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                {ALLERGEN_LIST.map((a) => {
+                  const selected = allergens.includes(a.id);
+                  return (
+                    <TouchableOpacity
+                      key={a.id}
+                      onPress={() => setAllergens((prev) =>
+                        prev.includes(a.id)
+                          ? prev.filter((x) => x !== a.id)
+                          : [...prev, a.id]
+                      )}
+                      style={{
+                        paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99,
+                        backgroundColor: selected ? c.accent : c.card,
+                      }}
+                    >
+                      <Text style={{
+                        fontSize: 13, fontWeight: "600",
+                        color: selected ? c.textOnAccent : c.textBody,
+                      }}>
+                        {a.emoji} {a.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <BigButton title="Agregar" onPress={handleAdd} disabled={!name.trim()} />
+          </ScrollView>
+        </View>
       </View>
-    </View>
+    </Modal>
   );
 }
 
@@ -215,10 +212,6 @@ export default function FoodLogNewScreen() {
   const debouncedSearch = useDebounce(searchQuery, 250);
   const searchRef = useRef<TextInput>(null);
   const [detailFood, setDetailFood] = useState<any>(null);
-
-  useEffect(() => {
-    setTimeout(() => searchRef.current?.focus(), 300);
-  }, []);
 
   const toggleGroup = (group: string) => {
     setCollapsedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
@@ -369,75 +362,63 @@ export default function FoodLogNewScreen() {
           }}
         />
 
-        <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 10, fontWeight: "700", color: c.textMuted, letterSpacing: 0.5 }}>GRUPO</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
-            {GROUP_KEYS.map((k) => (
-              <TouchableOpacity
-                key={k}
-                onPress={() => setSelectedGroup(selectedGroup === k ? null : k)}
-                style={{
-                  paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
-                  backgroundColor: selectedGroup === k ? c.accent : c.card,
-                }}
-              >
-                <Text style={{
-                  fontSize: 12, fontWeight: "600",
-                  color: selectedGroup === k ? c.textOnAccent : c.textBody,
-                }}>{FOOD_GROUPS[k]}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
+          {GROUP_KEYS.map((k) => (
+            <TouchableOpacity
+              key={k}
+              onPress={() => setSelectedGroup(selectedGroup === k ? null : k)}
+              style={{
+                paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
+                backgroundColor: selectedGroup === k ? c.accent : c.card,
+              }}
+            >
+              <Text style={{
+                fontSize: 12, fontWeight: "600",
+                color: selectedGroup === k ? c.textOnAccent : c.textBody,
+              }}>{FOOD_GROUPS[k]}</Text>
+            </TouchableOpacity>
+          ))}
+          {BADGE_FILTERS.map((bf) => (
+            <TouchableOpacity
+              key={bf.key}
+              onPress={() => toggleBadgeFilter(bf.key)}
+              style={{
+                paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
+                backgroundColor: selectedBadgeFilters.includes(bf.key) ? c.accent : c.card,
+              }}
+            >
+              <Text style={{
+                fontSize: 12, fontWeight: "600",
+                color: selectedBadgeFilters.includes(bf.key) ? c.textOnAccent : c.textBody,
+              }}>{bf.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
         {availableSubgroups.length > 0 && (
-          <View style={{ gap: 4 }}>
-            <Text style={{ fontSize: 10, fontWeight: "700", color: c.textMuted, letterSpacing: 0.5 }}>SUBGRUPO</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
-              {availableSubgroups.map((sg) => (
-                <TouchableOpacity
-                  key={sg}
-                  onPress={() => toggleSubgroup(sg)}
-                  style={{
-                    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
-                    backgroundColor: selectedSubgroups.includes(sg) ? c.accent : c.card,
-                  }}
-                >
-                  <Text style={{
-                    fontSize: 12, fontWeight: "600",
-                    color: selectedSubgroups.includes(sg) ? c.textOnAccent : c.textBody,
-                  }}>{SUBGROUPS[sg] ?? sg}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 10, fontWeight: "700", color: c.textMuted, letterSpacing: 0.5 }}>BADGE</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
-            {BADGE_FILTERS.map((bf) => (
+            {availableSubgroups.map((sg) => (
               <TouchableOpacity
-                key={bf.key}
-                onPress={() => toggleBadgeFilter(bf.key)}
+                key={sg}
+                onPress={() => toggleSubgroup(sg)}
                 style={{
                   paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
-                  backgroundColor: selectedBadgeFilters.includes(bf.key) ? c.accent : c.card,
+                  backgroundColor: selectedSubgroups.includes(sg) ? c.accent : c.card,
                 }}
               >
                 <Text style={{
                   fontSize: 12, fontWeight: "600",
-                  color: selectedBadgeFilters.includes(bf.key) ? c.textOnAccent : c.textBody,
-                }}>{bf.label}</Text>
+                  color: selectedSubgroups.includes(sg) ? c.textOnAccent : c.textBody,
+                }}>{SUBGROUPS[sg] ?? sg}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
+        )}
 
         <View>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted }}>
-              Alimento
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <Text style={{ fontSize: 13, fontWeight: "700", color: c.textBody }}>
+              Alimentos
             </Text>
             <TouchableOpacity
               onPress={() => setShowQuickAdd(true)}
@@ -449,29 +430,36 @@ export default function FoodLogNewScreen() {
           {Object.entries(groupedFoods).map(([group, foods]) => {
             const isCollapsed = collapsedGroups[group] ?? false;
             const grpLabel = (FOOD_GROUPS as any)[group] ?? group;
+            const emoji = grpLabel.split(" ")[0];
+            const label = grpLabel.split(" ").slice(1).join(" ");
             return (
             <View key={group} style={{ marginBottom: 8 }}>
               <TouchableOpacity
                 onPress={() => toggleGroup(group)}
                 style={{
                   flexDirection: "row", alignItems: "center", gap: 6,
-                  paddingVertical: 6, paddingHorizontal: 4,
+                  paddingVertical: 4, paddingHorizontal: 4,
                 }}
               >
-                <Text style={{ fontSize: 12, color: c.textMuted }}>
-                  {isCollapsed ? "▶" : "▼"}
+                <Text style={{ fontSize: 13, opacity: isCollapsed ? 0.4 : 1 }}>
+                  {emoji}
                 </Text>
                 <Text style={{
                   fontSize: 14, fontWeight: "700", color: c.textBody,
                 }}>
-                  {grpLabel}
+                  {label}
                 </Text>
-                <Text style={{ fontSize: 12, color: c.textMuted }}>
-                  ({foods.length})
-                </Text>
+                <View style={{
+                  backgroundColor: c.card, borderRadius: 99,
+                  paddingHorizontal: 6, paddingVertical: 1,
+                }}>
+                  <Text style={{ fontSize: 11, color: c.textMuted }}>
+                    {foods.length}
+                  </Text>
+                </View>
               </TouchableOpacity>
               {!isCollapsed && (
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5, paddingLeft: 16 }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5, paddingLeft: 4 }}>
                 {foods.map((f: any) => (
                   <FoodItemChip
                     key={f.id}
@@ -489,6 +477,8 @@ export default function FoodLogNewScreen() {
             );
           })}
         </View>
+
+        <View style={{ height: 1, backgroundColor: c.card, marginVertical: 4 }} />
 
         <DateTimePicker value={timestamp} onChange={setTimestamp} />
 

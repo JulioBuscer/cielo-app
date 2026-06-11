@@ -1,965 +1,422 @@
-import { useState, useRef, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
-  StatusBar,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-  ScrollView,
+  RefreshControl,
 } from "react-native";
-import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
-import { timeOptions } from "@/src/utils/timeFormat";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useActiveBaby, calcAge, STATUS_LABELS } from "@/src/hooks/useBaby";
-import { useActiveProfile, useProfiles } from "@/src/hooks/useProfile";
+import { useActiveBaby, useBabies, useSetActiveBaby, calcAge, STATUS_LABELS } from "@/src/hooks/useBaby";
+import { useProfiles } from "@/src/hooks/useProfile";
 import {
   useActiveFeedingSession,
   useFeedingHistory,
-  useStartFeeding,
-  type FeedingType,
-  type BottleSubtype,
 } from "@/src/hooks/useFeedingSessions";
 import {
   useActiveSleepSession,
-  useStartSleep,
-  useFinishSleep,
   useSleepHistory,
 } from "@/src/hooks/useSleepSessions";
-import {
-  useTimeline,
-  useSaveTimelineEvent,
-  useEventTypes,
-} from "@/src/hooks/useTimeline";
-import { useWakeWindows, getWakeReference } from "@/src/hooks/useWakeWindows";
-import { ActiveFeedingCard } from "@/src/components/ui/ActiveFeedingCard";
-import { ActiveSleepCard } from "@/src/components/ui/ActiveSleepCard";
-import { BottleSubtypeModal } from "@/src/components/ui/BottleSubtypeModal";
-import {
-  TimelineBubble,
-  FeedingSessionBubble,
-  SleepSessionBubble,
-  DateSeparator,
-} from "@/src/components/ui/TimelineBubbles";
-import { ItemEditorModal } from "@/src/components/ui/ItemEditorModal";
+import { useTimeline } from "@/src/hooks/useTimeline";
 import { useTheme } from "@/src/theme/useTheme";
-import { useQuickActionItems, useQuickSaveCatalogItem, useCatalogItems } from "@/src/hooks/useCatalogItems";
-import type { CatalogItem } from "@/src/hooks/useCatalogItems";
-import { DiaperSheet } from "@/src/components/diaper/DiaperSheet";
-import { TemperatureSheet } from "@/src/components/health/TemperatureSheet";
-import { FoodSheet } from "@/src/components/food/FoodSheet";
-import { getCategory, getCategoryLabel } from "@/src/utils/categories";
+import { timeOptions } from "@/src/utils/timeFormat";
 
-function QuickBtn({
-  emoji,
-  label,
-  onPress,
-  onLongPress,
-  disabled,
-  loading,
-  bgColor,
-  size = 52,
-}: {
-  emoji: string;
-  label: string;
-  onPress: () => void;
-  onLongPress?: () => void;
-  disabled?: boolean;
-  loading?: boolean;
-  bgColor: string;
-  size?: number;
-}) {
-  const { theme } = useTheme();
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      onLongPress={onLongPress}
-      delayLongPress={400}
-      disabled={disabled || loading}
-      style={{ alignItems: "center", gap: 3, opacity: disabled ? 0.4 : 1 }}
-    >
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: bgColor,
-          alignItems: "center",
-          justifyContent: "center",
-          shadowColor: bgColor,
-          shadowOffset: { width: 0, height: 3 },
-          shadowOpacity: 0.35,
-          shadowRadius: 6,
-          elevation: 4,
-        }}
-      >
-        {loading ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <Text style={{ fontSize: size >= 60 ? 26 : 20 }}>{emoji}</Text>
-        )}
-      </View>
-      <Text style={{ fontSize: 9, fontWeight: "900", color: theme.colors.textMuted, textAlign: "center", lineHeight: 12 }}>{label}</Text>
-    </TouchableOpacity>
-  );
+function formatRelativeTime(date: Date | string | number) {
+  const d = new Date(date);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMin < 1) return "Ahora";
+  if (diffMin < 60) return `Hace ${diffMin}m`;
+  if (diffHours < 24) return `Hace ${diffHours}h`;
+  if (diffDays === 1) return "Ayer";
+  if (diffDays < 7) return `Hace ${diffDays}d`;
+  return d.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
 }
 
-function EventPickerModal({
-  visible,
-  onClose,
-  onSelect,
-  onNewEvent,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onSelect: (id: string) => void;
-  onNewEvent: () => void;
-}) {
-  const { theme } = useTheme();
-  const { data: types } = useEventTypes();
-  const c = theme.colors;
+function getLastActivityPreview(
+  sessions: ReturnType<typeof useFeedingHistory>["data"],
+  sleepHistory: ReturnType<typeof useSleepHistory>["data"],
+  tlEvents: ReturnType<typeof useTimeline>["data"],
+  profiles: ReturnType<typeof useProfiles>["data"],
+) {
+  const all: { ts: Date; preview: string; emoji: string }[] = [];
 
-  const byCategory = useMemo(() => {
-    const map = new Map<string, typeof types>();
-    for (const t of types ?? []) {
-      if (t.id === "diaper") continue;
-      const cat = t.category;
-      if (!map.has(cat)) map.set(cat, []);
-      map.get(cat)!.push(t);
-    }
-    return map;
-  }, [types]);
+  for (const s of sessions ?? []) {
+    if (s.status !== "finished") continue;
+    all.push({
+      ts: s.endedAt ?? s.startedAt,
+      preview: `${s.durationSec ? Math.round(s.durationSec / 60) + "min" : ""}`,
+      emoji: "🍼",
+    });
+  }
+  for (const s of sleepHistory ?? []) {
+    if (s.status !== "finished") continue;
+    all.push({
+      ts: s.endedAt ?? s.startedAt,
+      preview: `${s.durationSec ? Math.round(s.durationSec / 60) + "min" : ""}`,
+      emoji: "😴",
+    });
+  }
+  for (const e of tlEvents ?? []) {
+    const emojiMap: Record<string, string> = {
+      diaper: "🍑",
+      food: "🥦",
+      temperature: "🌡️",
+      medication: "💊",
+      weight: "📏",
+      height: "📏",
+    };
+    all.push({
+      ts: e.timestamp,
+      preview: e.notes ?? "",
+      emoji: emojiMap[e.eventTypeId] ?? "📝",
+    });
+  }
 
-  const categoryOrder = ["health", "feeding", "growth", "other"];
-
-  if (!visible) return null;
-
-  return (
-    <View
-      style={{
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        top: 0,
-        justifyContent: "flex-end",
-        zIndex: 100,
-      }}
-    >
-      <View style={{ backgroundColor: c.textBody + "66", flex: 1 }}>
-        <TouchableOpacity style={{ flex: 1 }} onPress={onClose} />
-      </View>
-      <View style={{ backgroundColor: c.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 36 }}>
-        <View style={{ width: 40, height: 4, backgroundColor: c.accent + "4D", borderRadius: 99, alignSelf: "center", marginBottom: 16 }} />
-        <Text style={{ fontWeight: "900", fontSize: 17, color: c.textBody, marginBottom: 12 }}>
-          📝 Registrar Evento
-        </Text>
-        <ScrollView style={{ maxHeight: 400 }}>
-          {categoryOrder.map((catId) => {
-            const items = byCategory.get(catId);
-            if (!items?.length) return null;
-            const cat = getCategory(catId);
-            return (
-              <View key={catId} style={{ marginBottom: 16 }}>
-                <Text style={{ fontSize: 13, fontWeight: "800", color: cat.color, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-                  {cat.emoji} {cat.label}
-                </Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                  {items.map((t) => (
-                    <TouchableOpacity
-                      key={t.id}
-                      onPress={() => onSelect(t.id)}
-                      style={{ backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 48 }}
-                    >
-                      <Text style={{ fontSize: 20 }}>{t.emoji}</Text>
-                      <Text style={{ fontWeight: "900", fontSize: 14, color: c.textBody }}>{t.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            );
-          })}
-          <TouchableOpacity
-            onPress={onNewEvent}
-            style={{ backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 48, borderWidth: 1, borderColor: c.textDim + "40", borderStyle: "dashed" }}
-          >
-            <Text style={{ fontSize: 20 }}>➕</Text>
-            <Text style={{ fontWeight: "900", fontSize: 13, color: c.textMuted }}>Nuevo tipo de evento</Text>
-          </TouchableOpacity>
-        </ScrollView>
-        <TouchableOpacity
-          onPress={onClose}
-          style={{ marginTop: 14, alignItems: "center", paddingVertical: 14, minHeight: 48 }}
-        >
-          <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 15 }}>Cancelar</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  all.sort((a, b) => b.ts.getTime() - a.ts.getTime());
+  const last = all[0];
+  if (!last) return { preview: "Sin actividad aún", emoji: "👶", ts: null };
+  return last;
 }
 
-function WakeWindowBar({
-  awakeMs,
-  ref: wakeRef,
-  onPress,
-}: {
-  awakeMs: number;
-  ref: { minMin: number; maxMin: number };
-  onPress: () => void;
-}) {
+export default function ChatsScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
-  const totalMin = Math.round(awakeMs / 60000);
-  const label = totalMin < 60 ? `${totalMin}m` : `${Math.floor(totalMin / 60)}h ${totalMin % 60}m`;
-  const pct = Math.min((awakeMs / 60000) / wakeRef.maxMin * 100, 200);
-  const isOvertired = pct > 100;
-
-  const wokeUpAt = Date.now() - awakeMs;
-  const earliestNap = new Date(wokeUpAt + wakeRef.minMin * 60000);
-  const latestNap = new Date(wokeUpAt + wakeRef.maxMin * 60000);
-  const napTimeStr = `${earliestNap.toLocaleTimeString("es-MX", timeOptions())} — ${latestNap.toLocaleTimeString("es-MX", timeOptions())}`;
-
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={{
-        flexDirection: "row", alignItems: "center",
-        backgroundColor: isOvertired ? "rgba(171,71,188,0.2)" : "rgba(255,255,255,0.1)",
-        marginHorizontal: 12, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12,
-        marginTop: 4, marginBottom: 2, minHeight: 40, gap: 8,
-      }}
-    >
-      <Text style={{ fontSize: 16 }}>{isOvertired ? "🫶" : "⏳"}</Text>
-      <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "700", flex: 1 }}>
-        {label} despierto
-      </Text>
-      <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: "600" }}>
-        {isOvertired ? "ya quiere dormir" : `siesta ≈ ${napTimeStr}`}
-      </Text>
-      <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 14 }}>›</Text>
-    </TouchableOpacity>
-  );
-}
-
-export default function HomeScreen() {
-  const { theme } = useTheme();
-  const [showBottleModal, setShowBottleModal] = useState(false);
-  const [showEventPicker, setShowEventPicker] = useState(false);
-  const [showNewEventTypeModal, setShowNewEventTypeModal] = useState(false);
-  const [loadingType, setLoadingType] = useState<FeedingType | null>(null);
-  const [sleepLoading, setSleepLoading] = useState(false);
-  const [note, setNote] = useState("");
-  const [showDiaperSheet, setShowDiaperSheet] = useState(false);
-  const [showTemperatureSheet, setShowTemperatureSheet] = useState(false);
-  const [showFoodSheet, setShowFoodSheet] = useState(false);
-  const flatRef = useRef<FlatList>(null);
-
-  const { data: baby } = useActiveBaby();
-  const { data: profile } = useActiveProfile();
+  const { data: babies } = useBabies();
+  const { data: activeBaby } = useActiveBaby();
   const { data: allProfiles } = useProfiles();
-  const profileMap = useMemo(() => {
-    const m = new Map(allProfiles?.map((p) => [p.id, p]) ?? []);
-    return m;
-  }, [allProfiles]);
-  const { data: activeSession } = useActiveFeedingSession(baby?.id);
-  const { data: activeSleep } = useActiveSleepSession(baby?.id);
-  const { data: tlEvents } = useTimeline(baby?.id, 60);
-  const { data: sessions } = useFeedingHistory(baby?.id, 30);
-  const { data: sleepHistory } = useSleepHistory(baby?.id, 20);
-  const { data: eventTypes } = useEventTypes();
-  const { data: allCatalogItems } = useCatalogItems();
-  const catalogItemMap = useMemo(() => {
-    if (!allCatalogItems) return {};
-    const map: Record<string, CatalogItem> = {};
-    for (const item of allCatalogItems) map[item.id] = item;
-    return map;
-  }, [allCatalogItems]);
-  const HOME_FILTERS = [
-    { key: "all", emoji: "📋" },
-    { key: "feeding", emoji: "🤱" },
-    { key: "sleep", emoji: "😴" },
-    { key: "diaper", emoji: "🍑" },
-    { key: "health", emoji: "💊" },
-    { key: "growth", emoji: "📏" },
-    { key: "measurement", emoji: "📐" },
-    { key: "food", emoji: "🍎" },
-    { key: "other", emoji: "📝" },
-  ];
-  const DATE_FILTERS = [
-    { key: "all", label: "Todo" },
-    { key: "today", label: "Hoy" },
-    { key: "7d", label: "7d" },
-    { key: "10d", label: "10d" },
-    { key: "range", label: "📅 Rango" },
-  ];
-  const [showFilters, setShowFilters] = useState(false);
-  const [homeFilter, setHomeFilter] = useState("all");
-  const [homeDateFilter, setHomeDateFilter] = useState("all");
-  const [homeSearchText, setHomeSearchText] = useState("");
-  const [homeRangeStart, setHomeRangeStart] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 6); d.setHours(0, 0, 0, 0); return d;
-  });
-  const [homeRangeEnd, setHomeRangeEnd] = useState(() => {
-    const d = new Date(); d.setHours(23, 59, 59, 999); return d;
-  });
-  const [showHomeDatePicker, setShowHomeDatePicker] = useState<"start" | "end" | null>(null);
-  const startFeeding = useStartFeeding();
-  const startSleep = useStartSleep();
-  const finishSleep = useFinishSleep();
-  const saveEvent = useSaveTimelineEvent();
-  const { data: quickItems } = useQuickActionItems();
-  const quickSaveItem = useQuickSaveCatalogItem();
-
-  const c = theme.colors;
-
-  const babyAvatar = (baby as any)?.avatarEmoji ?? "👶";
-  const babyPhotoUri = baby?.photoUri ?? null;
-
-  const wakeWindows = useWakeWindows(
-    sleepHistory?.filter((s) => s.status === "finished") ?? [],
-    baby ? new Date(baby.birthDate) : null,
+  const setActive = useSetActiveBaby();
+  const profileMap = useMemo(
+    () => new Map(allProfiles?.map((p) => [p.id, p]) ?? []),
+    [allProfiles],
   );
-  const wakeMap = useMemo(() => {
-    const m = new Map<string, { durationMs: number; windowIndex: number; expectedMin: number; expectedMax: number }>();
-    for (const ww of wakeWindows) {
-      m.set(ww.nextSleepId, {
-        durationMs: ww.durationMs,
-        windowIndex: ww.windowIndex,
-        expectedMin: getWakeReference(baby ? Math.floor((Date.now() - new Date(baby.birthDate).getTime()) / 86400000) : 0).minMin,
-        expectedMax: getWakeReference(baby ? Math.floor((Date.now() - new Date(baby.birthDate).getTime()) / 86400000) : 0).maxMin,
-      });
-    }
-    return m;
-  }, [wakeWindows, baby]);
 
-  const currentWake = useMemo(() => {
-    if (!sleepHistory || activeSleep) return null;
-    const finished = sleepHistory
-      .filter((s) => s.status === "finished" && s.endedAt)
-      .sort((a, b) => new Date(b.endedAt!).getTime() - new Date(a.endedAt!).getTime());
-    const last = finished[0];
-    if (!last) return null;
-    const awakeMs = Date.now() - new Date(last.endedAt!).getTime();
-    const ageDays = baby ? Math.floor((Date.now() - new Date(baby.birthDate).getTime()) / 86400000) : 0;
-    const ref = getWakeReference(ageDays);
-    const pct = Math.min((awakeMs / 60000) / ref.maxMin * 100, 200);
-    return { awakeMs, ref, pct, lastSleepEnd: last.endedAt };
-  }, [sleepHistory, activeSleep, baby]);
+  const babyIds = useMemo(() => babies?.map((b) => b.id) ?? [], [babies]);
 
-  type TLItem =
-    | { kind: "event"; data: NonNullable<typeof tlEvents>[0]; ts: number }
-    | { kind: "session"; data: NonNullable<typeof sessions>[0]; ts: number }
-    | { kind: "sleep"; data: NonNullable<typeof sleepHistory>[0]; ts: number }
-    | { kind: "date"; date: Date; ts: number };
-
-  const dateCutoff = useMemo(() => {
-    if (homeDateFilter === "all") return null;
-    if (homeDateFilter === "range") return homeRangeStart;
-    const n = new Date();
-    if (homeDateFilter === "today") { n.setHours(0, 0, 0, 0); return n; }
-    const days = homeDateFilter === "7d" ? 7 : 10;
-    n.setDate(n.getDate() - days + 1);
-    n.setHours(0, 0, 0, 0);
-    return n;
-  }, [homeDateFilter, homeRangeStart]);
-
-  const matchesText = (text: string | null | undefined) => {
-    if (!homeSearchText.trim()) return true;
-    return (text ?? "").toLowerCase().includes(homeSearchText.trim().toLowerCase());
-  };
-
-  const buildItems = (): TLItem[] => {
-    const inRange = (ts: Date | number) => {
-    const d = new Date(ts);
-    if (homeDateFilter === "range") {
-      return d >= homeRangeStart && d <= homeRangeEnd;
-    }
-    return !dateCutoff || d >= dateCutoff;
-  };
-
-    const filteredEvents = (tlEvents ?? []).filter((e) => {
-      if (!inRange(e.timestamp)) return false;
-      if (!matchesText(e.notes)) return false;
-      if (homeFilter === "all") return true;
-      if (homeFilter === "diaper") return e.eventTypeId === "diaper";
-      if (homeFilter === "health" || homeFilter === "growth") {
-        const cat = eventTypes?.find((t) => t.id === e.eventTypeId)?.category;
-        return cat === homeFilter;
+  const handleBabyPress = useCallback(
+    (babyId: string) => {
+      if (babyId !== activeBaby?.id) {
+        setActive.mutate(babyId);
       }
-      if (homeFilter === "other") {
-        const cat = eventTypes?.find((t) => t.id === e.eventTypeId)?.category;
-        return cat === "other";
-      }
-      return false;
-    });
-    const filteredSessions = (homeFilter === "all" || homeFilter === "feeding")
-      ? (sessions ?? []).filter((s) => s.status === "finished" && inRange(s.startedAt) && matchesText(s.notes)) : [];
-    const filteredSleep = (homeFilter === "all" || homeFilter === "sleep")
-      ? (sleepHistory ?? []).filter((s) => s.status === "finished" && inRange(s.startedAt) && matchesText(s.notes)) : [];
-    const all: TLItem[] = [
-      ...filteredEvents.map((e) => ({
-        kind: "event" as const,
-        data: e,
-        ts: new Date(e.timestamp).getTime(),
-      })),
-      ...filteredSessions.map((s) => ({
-        kind: "session" as const,
-        data: s,
-        ts: s.endedAt
-          ? new Date(s.endedAt).getTime()
-          : new Date(s.startedAt).getTime(),
-      })),
-      ...filteredSleep.map((s) => ({
-        kind: "sleep" as const,
-        data: s,
-        ts: s.endedAt
-          ? new Date(s.endedAt).getTime()
-          : new Date(s.startedAt).getTime(),
-      })),
-    ].sort((a, b) => a.ts - b.ts);
+      router.push(`/chat/${babyId}`);
+    },
+    [activeBaby?.id, setActive],
+  );
 
-    const result: TLItem[] = [];
-    let lastDate = "";
-    for (const item of all) {
-      const dateStr = new Date(item.ts).toDateString();
-      if (dateStr !== lastDate) {
-        result.push({ kind: "date", date: new Date(item.ts), ts: item.ts - 1 });
-        lastDate = dateStr;
-      }
-      result.push(item);
-    }
-    return result;
-  };
-
-  const items = buildItems();
-
-  const handleStartFeeding = async (
-    type: FeedingType,
-    bottleSubtype?: BottleSubtype,
-  ) => {
-    if (!baby) return;
-    setLoadingType(type);
-    try {
-      await startFeeding.mutateAsync({ babyId: baby.id, type, bottleSubtype });
-    } finally {
-      setLoadingType(null);
-    }
-  };
-
-  const handleToggleSleep = async () => {
-    if (!baby) return;
-    setSleepLoading(true);
-    try {
-      if (activeSleep) {
-        await finishSleep.mutateAsync(activeSleep);
-      } else {
-        await startSleep.mutateAsync({ babyId: baby.id });
-      }
-    } finally {
-      setSleepLoading(false);
-    }
-  };
-
-  const handleSendNote = () => {
-    if (!note.trim() || !baby) return;
-    saveEvent.mutate({
-      babyId: baby.id,
-      eventTypeId: "note",
-      notes: note.trim(),
-      feedingSessionId: activeSession?.id,
-    });
-    setNote("");
-  };
-
-  const handleEventSelect = (typeId: string) => {
-    setShowEventPicker(false);
-    if (typeId === "diaper") setShowDiaperSheet(true);
-    else if (typeId === "temperature") setShowTemperatureSheet(true);
-    else
-      router.push({
-        pathname: "/logs/event/new",
-        params: { preselect: typeId },
-      });
-  };
-
-  const savingTapRef = useRef(false);
-  const handleItemTap = (item: CatalogItem) => {
-    if (!baby || savingTapRef.current) return;
-    savingTapRef.current = true;
-    quickSaveItem.mutate(
-      { babyId: baby.id, item, timestamp: new Date() },
-      {
-        onSettled: () => { savingTapRef.current = false; },
-      },
-    );
-  };
-
-  const handleItemLongPress = (item: CatalogItem) => {
-    router.push({
-      pathname: "/logs/event/new",
-      params: {
-        preselect: item.id,
-        presetValues: item.defaultValues,
-        presetUnitOverrides: item.defaultUnitOverrides,
-        presetNotes: item.defaultNotes ?? "",
-        presetName: item.name,
-        presetEmoji: item.emoji,
-        presetTags: item.defaultTags,
-      },
-    });
-  };
-
-  const renderItem = ({ item, index }: { item: TLItem; index: number }) => {
-    function getProfileId(t: TLItem): string | null {
-      if (t.kind === "date") return null;
-      return t.data.profileId;
-    }
-    const prevItem = index > 0 ? items[index - 1] : null;
-    const itemProfileId = getProfileId(item);
-    const isFirstInGroup = !prevItem || prevItem.kind === "date" || getProfileId(prevItem) !== itemProfileId;
-    const itemProfile = itemProfileId ? profileMap.get(itemProfileId) : undefined;
-
-    if (item.kind === "date") return <DateSeparator date={item.date} />;
-    if (item.kind === "session") {
-      const isOwn = item.data.profileId === profile?.id;
-      return (
-        <FeedingSessionBubble
-          session={item.data}
-          isOwn={isOwn}
-          isFirstInGroup={isFirstInGroup}
-          profile={isOwn ? undefined : itemProfile}
-          onPress={() => router.push(`/logs/feeding/${item.data.id}`)}
-        />
-      );
-    }
-    if (item.kind === "sleep") {
-      const isOwn = item.data.profileId === profile?.id;
-      const prevWW = wakeMap.get(item.data.id);
-      return (
-        <SleepSessionBubble
-          session={item.data}
-          isOwn={isOwn}
-          isFirstInGroup={isFirstInGroup}
-          profile={isOwn ? undefined : itemProfile}
-          onPress={() => router.push(`/logs/sleep/${item.data.id}`)}
-          prevWakeWindow={prevWW ?? null}
-        />
-      );
-    }
-    const isOwn = item.data.profileId === profile?.id;
-    const evType = eventTypes?.find((t) => t.id === item.data.eventTypeId);
-    const evCatalogItem = item.data.eventItemId ? catalogItemMap[item.data.eventItemId] : undefined;
-
+  if (!babies) {
     return (
-      <TimelineBubble
-        event={item.data}
-        eventType={evType}
-        catalogItem={evCatalogItem}
-        isOwn={isOwn}
-        isFirstInGroup={isFirstInGroup}
-        profile={isOwn ? undefined : itemProfile}
-        onPress={() => item.data.eventTypeId === "diaper"
-          ? router.push(`/logs/diaper/${item.data.id}`)
-          : router.push(`/logs/event/${item.data.id}`)
-        }
-      />
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: c.headerBg }}
+        edges={["top"]}
+      >
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <ActivityIndicator size="large" color="#FFFFFF" />
+        </View>
+      </SafeAreaView>
     );
-  };
+  }
 
-  const sleepStatus = activeSleep
-    ? activeSleep.status === "active"
-      ? "😴 Durmiendo"
-      : "😴 Sueño pausado"
-    : null;
+  if (babies.length === 0) {
+    return (
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: c.headerBg }}
+        edges={["top"]}
+      >
+        <View
+          style={{
+            backgroundColor: c.headerBg,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+          }}
+        >
+          <Text
+            style={{
+              color: "#FFFFFF",
+              fontWeight: "900",
+              fontSize: 22,
+            }}
+          >
+            💬 Chats
+          </Text>
+        </View>
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+            backgroundColor: c.surface,
+          }}
+        >
+          <Text style={{ fontSize: 56, marginBottom: 16 }}>👶</Text>
+          <Text
+            style={{
+              color: c.textMuted,
+              fontWeight: "700",
+              fontSize: 16,
+              textAlign: "center",
+              marginBottom: 8,
+            }}
+          >
+            No hay bebés registrados
+          </Text>
+          <Text
+            style={{
+              color: c.textMuted,
+              fontSize: 13,
+              textAlign: "center",
+              marginBottom: 24,
+            }}
+          >
+            Agrega un bebé desde Perfil para empezar
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push("/onboarding/baby")}
+            style={{
+              backgroundColor: c.accent,
+              borderRadius: 14,
+              paddingHorizontal: 24,
+              paddingVertical: 14,
+              minHeight: 48,
+            }}
+          >
+            <Text
+              style={{
+                color: "#FFFFFF",
+                fontWeight: "900",
+                fontSize: 15,
+              }}
+            >
+              ➕ Agregar bebé
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.headerBg }} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor={c.headerBg} />
-
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: c.headerBg }}
+      edges={["top"]}
+    >
       <View
         style={{
           backgroundColor: c.headerBg,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 10,
           paddingHorizontal: 16,
-          paddingVertical: 10,
+          paddingVertical: 14,
         }}
       >
-        <TouchableOpacity
-          style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1, minHeight: 44 }}
-          onPress={() => router.push("/baby/profile")}
+        <Text
+          style={{
+            color: "#FFFFFF",
+            fontWeight: "900",
+            fontSize: 22,
+          }}
         >
-          <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,0.3)", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-            {babyPhotoUri ? (
-              <Image
-                source={{ uri: babyPhotoUri }}
-                style={{ width: 42, height: 42 }}
-                resizeMode="cover"
-              />
-            ) : (
-              <Text style={{ fontSize: 22 }}>{babyAvatar}</Text>
-            )}
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 17 }}>
-              {baby ? baby.nickname || baby.name : "Cielo"}
-            </Text>
-            <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "600" }}>
-              {baby
-                ? [
-                  activeSession ? "🍼 Comiendo" : null,
-                  sleepStatus,
-                  !activeSession && !sleepStatus
-                    ? `${calcAge(baby.birthDate).label} · ${STATUS_LABELS[(baby.status ?? "unknown") as keyof typeof STATUS_LABELS]?.emoji ?? ""}`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join("  ·  ")
-                : "Cielo App"}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => setShowFilters((s) => !s)}
-            style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
-          >
-            <Text style={{ fontSize: 20, color: "rgba(255,255,255,0.8)" }}>
-              {showFilters ? "✕" : "🔍"}
-            </Text>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          💬 Chats
+        </Text>
       </View>
 
-      {showFilters && (
-        <View style={{ backgroundColor: c.headerBg, paddingHorizontal: 16, paddingBottom: 8, gap: 8 }}>
-          <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
-            {HOME_FILTERS.map((f) => (
-              <TouchableOpacity
-                key={f.key}
-                onPress={() => setHomeFilter(f.key)}
-                style={{
-                  paddingHorizontal: 12, paddingVertical: 5, borderRadius: 99,
-                  backgroundColor: homeFilter === f.key ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.2)",
-                  minHeight: 32,
-                }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: "700", color: homeFilter === f.key ? c.headerBg : "#fff" }}>
-                  {f.emoji}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-            {DATE_FILTERS.map((f) => (
-              <TouchableOpacity
-                key={f.key}
-                onPress={() => setHomeDateFilter(f.key)}
-                style={{
-                  paddingHorizontal: 14, paddingVertical: 5, borderRadius: 99,
-                  backgroundColor: homeDateFilter === f.key ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.15)",
-                  minHeight: 30,
-                }}
-              >
-                <Text style={{
-                  fontSize: 13, fontWeight: "700",
-                  color: homeDateFilter === f.key ? c.headerBg : "rgba(255,255,255,0.9)",
-                }}>
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {homeDateFilter === "range" && (
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <TouchableOpacity
-                onPress={() => setShowHomeDatePicker("start")}
-                style={{
-                  flex: 1, flexDirection: "row", alignItems: "center", gap: 6,
-                  backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
-                  minHeight: 38,
-                }}
-              >
-                <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Desde</Text>
-                <Text style={{ fontSize: 12, fontWeight: "700", color: "#fff", flex: 1 }}>
-                  {homeRangeStart.toLocaleDateString("es-MX")}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setShowHomeDatePicker("end")}
-                style={{
-                  flex: 1, flexDirection: "row", alignItems: "center", gap: 6,
-                  backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
-                  minHeight: 38,
-                }}
-              >
-                <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Hasta</Text>
-                <Text style={{ fontSize: 12, fontWeight: "700", color: "#fff", flex: 1 }}>
-                  {homeRangeEnd.toLocaleDateString("es-MX")}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <View style={{
-            flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.2)",
-            borderRadius: 99, paddingHorizontal: 14, minHeight: 36,
-          }}>
-            <TextInput
-              value={homeSearchText}
-              onChangeText={setHomeSearchText}
-              placeholder="Buscar…"
-              placeholderTextColor="rgba(255,255,255,0.5)"
-              style={{ flex: 1, fontSize: 14, color: "#fff", paddingVertical: 6 }}
-            />
-            {homeSearchText.length > 0 && (
-              <TouchableOpacity onPress={() => setHomeSearchText("")} style={{ minHeight: 36, justifyContent: "center", paddingLeft: 8 }}>
-                <Text style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>✕</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      )}
-
-      {showHomeDatePicker && (
-        <DateTimePicker
-          value={showHomeDatePicker === "start" ? homeRangeStart : homeRangeEnd}
-          mode="date"
-          display={Platform.OS === "ios" ? "inline" : "default"}
-          onChange={(_event: DateTimePickerEvent, date?: Date) => {
-            if (date) {
-              if (showHomeDatePicker === "start") {
-                const d = new Date(date); d.setHours(0, 0, 0, 0); setHomeRangeStart(d);
-              } else {
-                const d = new Date(date); d.setHours(23, 59, 59, 999); setHomeRangeEnd(d);
-              }
-            }
-            if (Platform.OS === "android") setShowHomeDatePicker(null);
-          }}
-        />
-      )}
-      {Platform.OS === "ios" && showHomeDatePicker && (
-        <TouchableOpacity
-          onPress={() => setShowHomeDatePicker(null)}
-          style={{ backgroundColor: c.headerBg, alignItems: "center", paddingVertical: 8, minHeight: 44 }}
-        >
-          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>Listo</Text>
-        </TouchableOpacity>
-      )}
-
-      {currentWake && !activeSleep && !activeSession && (
-        <WakeWindowBar
-          awakeMs={currentWake.awakeMs}
-          ref={currentWake.ref}
-          onPress={() => router.push("/wake-windows")}
-        />
-      )}
-
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={0}
-      >
-        <View style={{ flex: 1, backgroundColor: c.surface }}>
-          {(activeSession || activeSleep) && (
-            <View style={{ paddingHorizontal: 12, paddingTop: 8, gap: 0 }}>
-              {activeSession && <ActiveFeedingCard session={activeSession} />}
-              {activeSleep && <ActiveSleepCard session={activeSleep} />}
-            </View>
-          )}
-
-          <FlatList
-            ref={flatRef}
-            data={[...items].reverse()}
-            keyExtractor={(item, i) => `${item.kind}-${item.ts}-${i}`}
-            renderItem={renderItem}
-            inverted
-            contentContainerStyle={{ padding: 12, paddingBottom: 4 }}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={
-              <View style={{ alignItems: "center", paddingVertical: 48 }}>
-                <Text style={{ fontSize: 48, marginBottom: 12 }}>🌙</Text>
-                <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 15, textAlign: "center" }}>
-                  Aquí aparecerá el historial{"\n"}
-                  {baby?.nickname || baby?.name || ""}
-                </Text>
-                <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 8, textAlign: "center" }}>
-                  Empieza registrando la primera toma
-                </Text>
-              </View>
-            }
+      <FlatList
+        data={babies}
+        keyExtractor={(item) => item.id}
+        style={{ backgroundColor: c.surface }}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        renderItem={({ item: baby }) => (
+          <BabyChatItem
+            baby={baby}
+            isActive={baby.id === activeBaby?.id}
+            profileMap={profileMap}
+            onPress={() => handleBabyPress(baby.id)}
           />
-
-          <View style={{ backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.elevated, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 12 }}>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 2, marginBottom: 10, gap: 2, justifyContent: "center" }}>
-              <QuickBtn
-                emoji="🤱"
-                label={"Pecho\nIzq."}
-                bgColor={c.accent}
-                onPress={() => handleStartFeeding("breast_left")}
-                loading={loadingType === "breast_left"}
-                disabled={!!loadingType}
-              />
-              <QuickBtn
-                emoji="🤱"
-                label={"Pecho\nDer."}
-                bgColor={c.accent}
-                onPress={() => handleStartFeeding("breast_right")}
-                loading={loadingType === "breast_right"}
-                disabled={!!loadingType}
-              />
-              <QuickBtn
-                emoji={activeSleep ? "☀️" : "😴"}
-                label={activeSleep ? "Despertar" : "Dormir"}
-                bgColor={activeSleep ? "#6366F1" : "#818CF8"}
-                size={58}
-                onPress={handleToggleSleep}
-                loading={sleepLoading}
-                disabled={sleepLoading}
-              />
-              <QuickBtn
-                emoji="📏"
-                label="Medir"
-                bgColor={c.growth}
-                onPress={() => router.push("/logs/growth/new")}
-                disabled={!!loadingType}
-              />
-              <QuickBtn
-                emoji="🍼"
-                label="Biberón"
-                bgColor={c.feeding.bottle}
-                onPress={() => setShowBottleModal(true)}
-                loading={loadingType === "bottle"}
-                disabled={!!loadingType}
-              />
-              <QuickBtn
-                emoji="🍎"
-                label="Comida"
-                bgColor="#7CB342"
-                onPress={() => setShowFoodSheet(true)}
-                disabled={!!loadingType}
-              />
-              <QuickBtn
-                emoji="🌡️"
-                label="Temp."
-                bgColor="#F97316"
-                onPress={() => setShowTemperatureSheet(true)}
-                disabled={!!loadingType}
-              />
-              <QuickBtn
-                emoji="🍑"
-                label="Pañal"
-                bgColor={c.warning}
-                onPress={() => setShowDiaperSheet(true)}
-                disabled={!!loadingType}
-              />
-              {(quickItems ?? []).slice(0, 2).map((p) => (
-                <QuickBtn
-                  key={p.id}
-                  emoji={p.emoji ?? "📌"}
-                  label={p.name.length > 10 ? p.name.substring(0, 9) + "…" : p.name}
-                  bgColor={c.accentStrong}
-                  onPress={() => handleItemTap(p)}
-                  onLongPress={() => handleItemLongPress(p)}
-                  disabled={!!loadingType || quickSaveItem.isPending}
-                  size={52}
-                />
-              ))}
-              <QuickBtn
-                emoji="⚡"
-                label={(quickItems?.length ?? 0) > 2 ? `+${(quickItems?.length ?? 0) - 2}` : "Más"}
-                bgColor={c.accentStrong}
-                onPress={() => setShowEventPicker(true)}
-                disabled={!!loadingType || quickSaveItem.isPending}
-              />
-            </View>
-
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <TextInput
-                style={{
-                  flex: 1,
-                  backgroundColor: c.elevated,
-                  borderRadius: 99,
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  fontSize: 14,
-                  color: c.textBody,
-                }}
-                placeholder="Nota rápida…"
-                placeholderTextColor={c.textMuted}
-                value={note}
-                onChangeText={setNote}
-                onSubmitEditing={handleSendNote}
-                returnKeyType="send"
-              />
-              <TouchableOpacity
-                onPress={handleSendNote}
-                disabled={!note.trim()}
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: c.whatsGreen,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  shadowColor: c.whatsGreen,
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.35,
-                  shadowRadius: 6,
-                  elevation: 4,
-                  opacity: note.trim() ? 1 : 0.4,
-                }}
-              >
-                <Text style={{ color: "white", fontSize: 18 }}>➤</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-
-      <BottleSubtypeModal
-        visible={showBottleModal}
-        onClose={() => setShowBottleModal(false)}
-        onSelect={(subtype) => {
-          setShowBottleModal(false);
-          handleStartFeeding("bottle", subtype);
-        }}
-      />
-      <EventPickerModal
-        visible={showEventPicker}
-        onClose={() => setShowEventPicker(false)}
-        onSelect={handleEventSelect}
-        onNewEvent={() => {
-          setShowEventPicker(false);
-          setShowNewEventTypeModal(true);
-        }}
-      />
-      <ItemEditorModal
-        visible={showNewEventTypeModal}
-        onClose={() => setShowNewEventTypeModal(false)}
-        onSelect={(id: string) => {
-          handleEventSelect(id);
-        }}
-      />
-      <DiaperSheet
-        visible={showDiaperSheet}
-        onClose={() => setShowDiaperSheet(false)}
-      />
-      <TemperatureSheet
-        visible={showTemperatureSheet}
-        onClose={() => setShowTemperatureSheet(false)}
-      />
-      <FoodSheet
-        visible={showFoodSheet}
-        onClose={() => setShowFoodSheet(false)}
+        )}
       />
     </SafeAreaView>
+  );
+}
+
+function BabyChatItem({
+  baby,
+  isActive,
+  profileMap,
+  onPress,
+}: {
+  baby: NonNullable<ReturnType<typeof useBabies>["data"]>[0];
+  isActive: boolean;
+  profileMap: Map<string, any>;
+  onPress: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const { data: activeFeeding } = useActiveFeedingSession(baby.id);
+  const { data: activeSleep } = useActiveSleepSession(baby.id);
+  const { data: sessions } = useFeedingHistory(baby.id, 5);
+  const { data: sleepHistory } = useSleepHistory(baby.id, 5);
+  const { data: tlEvents } = useTimeline(baby.id, 20);
+
+  const lastActivity = getLastActivityPreview(
+    sessions,
+    sleepHistory,
+    tlEvents,
+    [...profileMap.values()],
+  );
+
+  const age = calcAge(baby.birthDate);
+  const hasActive = activeFeeding || activeSleep;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 14,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        backgroundColor: isActive ? c.accent + "10" : "transparent",
+        borderBottomWidth: 0.5,
+        borderBottomColor: c.elevated,
+        minHeight: 72,
+      }}
+    >
+      <View
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: 26,
+          backgroundColor: isActive ? c.accent + "30" : c.elevated,
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+        }}
+      >
+        <Text style={{ fontSize: 26 }}>
+          {baby.avatarEmoji ?? "👶"}
+        </Text>
+        {hasActive && (
+          <View
+            style={{
+              position: "absolute",
+              bottom: 0,
+              right: 0,
+              width: 18,
+              height: 18,
+              borderRadius: 9,
+              backgroundColor: c.success,
+              borderWidth: 2,
+              borderColor: c.surface,
+            }}
+          />
+        )}
+      </View>
+
+      <View style={{ flex: 1, gap: 2 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <Text
+            style={{
+              fontWeight: "900",
+              fontSize: 16,
+              color: c.textBody,
+              flexShrink: 1,
+            }}
+            numberOfLines={1}
+          >
+            {baby.nickname || baby.name}
+          </Text>
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: "600",
+              color: c.textMuted,
+            }}
+          >
+            {age.label}
+          </Text>
+          {isActive && (
+            <Text style={{ fontSize: 12, color: c.accentStrong }}>●</Text>
+          )}
+        </View>
+
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Text style={{ fontSize: 14 }}>{lastActivity.emoji}</Text>
+          <Text
+            style={{
+              fontSize: 13,
+              color: c.textMuted,
+              fontWeight: "600",
+              flex: 1,
+            }}
+            numberOfLines={1}
+          >
+            {hasActive
+              ? activeFeeding
+                ? "🍼 Comiendo..."
+                : "😴 Durmiendo..."
+              : lastActivity.preview || "Sin actividad"}
+          </Text>
+          {lastActivity.ts && (
+            <Text
+              style={{
+                fontSize: 11,
+                color: c.textDim,
+                fontWeight: "600",
+              }}
+            >
+              {formatRelativeTime(lastActivity.ts)}
+            </Text>
+          )}
+        </View>
+
+        {hasActive && (
+          <View style={{ flexDirection: "row", gap: 4 }}>
+            {activeFeeding && (
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "800",
+                  color: c.accent,
+                }}
+              >
+                🍼 Toma activa
+              </Text>
+            )}
+            {activeSleep && (
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "800",
+                  color: "#818CF8",
+                }}
+              >
+                😴 Sueño activo
+              </Text>
+            )}
+          </View>
+        )}
+      </View>
+
+      <Text style={{ fontSize: 20, color: c.textDim }}>›</Text>
+    </TouchableOpacity>
   );
 }

@@ -83,13 +83,13 @@ export function FoodDetailModal({
 
             {food.isAllergen ? (
               <View style={{
-                backgroundColor: "#FFEBEE", borderRadius: 12, padding: 14,
-                borderLeftWidth: 3, borderLeftColor: "#E53935",
+                backgroundColor: c.danger + "18", borderRadius: 12, padding: 14,
+                borderLeftWidth: 3, borderLeftColor: c.danger,
               }}>
-                <Text style={{ color: "#E53935", fontSize: 14, fontWeight: "700", marginBottom: 4 }}>
+                <Text style={{ color: c.danger, fontSize: 14, fontWeight: "700", marginBottom: 4 }}>
                   🚨 Alérgeno mayor
                 </Text>
-                <Text style={{ color: "#5D4037", fontSize: 13, lineHeight: 19 }}>
+                <Text style={{ color: c.textMuted, fontSize: 13, lineHeight: 19 }}>
                   {food.allergenDetails ?? "Este alimento es considerado un alérgeno prioritario. Se recomienda introducirlo temprano (6-12 meses) y mantener exposición regular."}
                 </Text>
               </View>
@@ -97,17 +97,17 @@ export function FoodDetailModal({
 
             {food.warning ? (
               <View style={{
-                backgroundColor: "#FFF3E0", borderRadius: 12, padding: 14,
-                borderLeftWidth: 3, borderLeftColor: "#E65100",
+                backgroundColor: c.warning + "18", borderRadius: 12, padding: 14,
+                borderLeftWidth: 3, borderLeftColor: c.warning,
               }}>
-                <Text style={{ color: "#E65100", fontSize: 14, fontWeight: "700", marginBottom: 4 }}>
+                <Text style={{ color: c.warning, fontSize: 14, fontWeight: "700", marginBottom: 4 }}>
                   ⚠️ Precaucion
                 </Text>
-                <Text style={{ color: "#5D4037", fontSize: 13, lineHeight: 19, marginBottom: 8 }}>
+                <Text style={{ color: c.textMuted, fontSize: 13, lineHeight: 19, marginBottom: 8 }}>
                   {food.warning}
                 </Text>
                 {food.warningType && WARNING_EXPLANATIONS[food.warningType] ? (
-                  <Text style={{ color: "#795548", fontSize: 12, lineHeight: 18, fontStyle: "italic" }}>
+                  <Text style={{ color: c.textDim, fontSize: 12, lineHeight: 18, fontStyle: "italic" }}>
                     {WARNING_EXPLANATIONS[food.warningType]}
                   </Text>
                 ) : null}

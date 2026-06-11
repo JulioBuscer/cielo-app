@@ -68,6 +68,18 @@ export function useBabies() {
   });
 }
 
+export function useBaby(babyId?: string) {
+  return useQuery({
+    queryKey: ['baby', babyId],
+    enabled: !!babyId,
+    queryFn: async () => {
+      if (!babyId) return null;
+      const res = await getDb().select().from(babies).where(eq(babies.id, babyId));
+      return res[0] ?? null;
+    },
+  });
+}
+
 export function useSetActiveBaby() {
   const qc = useQueryClient();
   return useMutation({

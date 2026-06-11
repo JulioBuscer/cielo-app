@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useActiveBaby, calcAge } from "@/src/hooks/useBaby";
+import { useActiveBaby, useBabies, useSetActiveBaby, calcAge } from "@/src/hooks/useBaby";
 import { useTimeline } from "@/src/hooks/useTimeline";
 import { safeJsonParse } from "@/src/utils/safeJsonParse";
 import { useTheme } from "@/src/theme/useTheme";
@@ -482,6 +482,8 @@ function MetaTag({ label, color = "#FF5C9A", bg = "#FFF0F5" }: { label: string; 
 export default function AnalisisScreen() {
   const { theme } = useTheme();
   const { data: baby } = useActiveBaby();
+  const { data: allBabies } = useBabies();
+  const setActiveBaby = useSetActiveBaby();
   const tl = useTimeline(baby?.id, 300);
   const c = theme.colors;
 
@@ -536,12 +538,45 @@ export default function AnalisisScreen() {
       <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 40 }}>
         <View>
           <Text style={{ fontSize: 24, fontWeight: "900", color: c.textBody }}>📊 Análisis</Text>
-          {baby && (
-            <Text style={{ fontSize: 13, fontWeight: "600", color: c.textMuted, marginTop: 2 }}>
-              {baby.nickname || baby.name} · {calcAge(baby.birthDate).label}
-            </Text>
-          )}
         </View>
+
+        {allBabies && allBabies.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+            {allBabies.map((b) => {
+              const isActive = b.id === baby?.id;
+              return (
+                <TouchableOpacity
+                  key={b.id}
+                  onPress={() => {
+                    if (!isActive) setActiveBaby.mutate(b.id);
+                  }}
+                  style={{
+                    alignItems: "center",
+                    gap: 4,
+                    opacity: isActive ? 1 : 0.5,
+                    paddingVertical: 4,
+                  }}
+                >
+                  <View style={{
+                    width: 44, height: 44, borderRadius: 22,
+                    backgroundColor: isActive ? c.accent + "30" : c.elevated,
+                    alignItems: "center", justifyContent: "center",
+                    borderWidth: isActive ? 2 : 0,
+                    borderColor: c.accent,
+                  }}>
+                    <Text style={{ fontSize: 22 }}>{b.avatarEmoji ?? "👶"}</Text>
+                  </View>
+                  <Text style={{
+                    fontSize: 11, fontWeight: isActive ? "800" : "600",
+                    color: isActive ? c.textBody : c.textMuted,
+                  }} numberOfLines={1}>
+                    {b.nickname || b.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {baby ? (
           <>

@@ -21,72 +21,53 @@ interface FoodItemChipProps {
   subgroups: Record<string, string>;
 }
 
-function FoodItemChipInner({ food, selected, onPress, onLongPress, colors: c, subgroups }: FoodItemChipProps) {
+function FoodItemChipInner({ food, selected, onPress, onLongPress, colors: c }: FoodItemChipProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
       onLongPress={onLongPress}
+      activeOpacity={0.7}
       style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
         borderRadius: 10,
         backgroundColor: selected ? c.accent : c.card,
         borderWidth: 1,
         borderColor: selected ? c.accent : c.border,
+        paddingHorizontal: 8,
+        paddingVertical: 5,
       }}
     >
-      <View style={{
-        paddingHorizontal: 10, paddingVertical: 6,
-        backgroundColor: selected ? c.accent : c.card,
-        borderRadius: 10,
-        borderBottomLeftRadius: 0,
-        borderBottomRightRadius: 0,
-        borderWidth: 0,
+      <Text style={{
+        fontSize: 16,
+        color: selected ? c.textOnAccent : c.textBody,
       }}>
-        <Text style={{
-          fontSize: 13, textAlign: "left",
-          color: selected ? c.textOnAccent : c.textBody,
-        }}>
-          {food.emoji ?? ""} {food.name}
-        </Text>
-      </View>
-
-      {!selected && (food.isAllergen || food.warning || food.effect || food.subgroup) && (
-        <View style={{
-          alignSelf: "flex-start",
-          flexDirection: "row", gap: 0,
-          padding: 2,
-          backgroundColor: c.card,
-          borderBottomLeftRadius: 10,
-          borderBottomRightRadius: 10,
-        }}>
+        {food.emoji ?? "🍽️"}
+      </Text>
+      <Text style={{
+        fontSize: 13, fontWeight: "600",
+        color: selected ? c.textOnAccent : c.textBody,
+        includeFontPadding: false,
+      }}>
+        {food.name}
+      </Text>
+      {!selected && (food.isAllergen || food.warning || food.effect) && (
+        <View style={{ flexDirection: "row", gap: 1, marginLeft: 2 }}>
           {food.isAllergen && (
-            <View style={{ borderRadius: 99, paddingHorizontal: 2 }}>
-              <Text style={{ fontSize: 11 }}>🚨</Text>
-            </View>
+            <Text style={{ fontSize: 10 }}>🚨</Text>
           )}
           {food.warning && (
-            <View style={{ borderRadius: 99, paddingHorizontal: 2 }}>
-              <Text style={{ fontSize: 11 }}>⚠️</Text>
-            </View>
-          )}
-          {food.subgroup && (
-            <View style={{ borderRadius: 99, paddingHorizontal: 4, paddingVertical: 1 }}>
-              <Text style={{ fontSize: 9, color: c.textMuted }}>{subgroups[food.subgroup]?.split(" ")[0] ?? ""}</Text>
-            </View>
+            <Text style={{ fontSize: 10 }}>⚠️</Text>
           )}
           {food.effect === "laxative" && (
-            <View style={{ backgroundColor: "#E8F5E9", borderRadius: 99, paddingHorizontal: 2 }}>
-              <Text style={{ fontSize: 11 }}>🟢</Text>
-            </View>
+            <Text style={{ fontSize: 10, color: "#2E7D32" }}>●</Text>
           )}
           {food.effect === "astringent" && (
-            <View style={{ backgroundColor: "#EFEBE9", borderRadius: 99, paddingHorizontal: 2 }}>
-              <Text style={{ fontSize: 11 }}>🟤</Text>
-            </View>
+            <Text style={{ fontSize: 10, color: "#795548" }}>●</Text>
           )}
           {food.effect === "regulator" && (
-            <View style={{ backgroundColor: "#E3F2FD", borderRadius: 99, paddingHorizontal: 2 }}>
-              <Text style={{ fontSize: 11 }}>🔄</Text>
-            </View>
+            <Text style={{ fontSize: 10, color: "#1565C0" }}>●</Text>
           )}
         </View>
       )}
