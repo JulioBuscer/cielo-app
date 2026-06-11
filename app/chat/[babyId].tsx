@@ -12,6 +12,7 @@ import {
   Platform,
   Image,
   ScrollView,
+  Modal,
 } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { timeOptions } from "@/src/utils/timeFormat";
@@ -326,6 +327,7 @@ export default function ChatTimelineScreen() {
 
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [analyticsTab, setAnalyticsTab] = useState<"stats" | "historial">("stats");
+  const [showBabyMenu, setShowBabyMenu] = useState(false);
 
   const wakeWindows = useWakeWindows(
     sleepHistory?.filter((s) => s.status === "finished") ?? [],
@@ -637,7 +639,7 @@ export default function ChatTimelineScreen() {
 
         <TouchableOpacity
           style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1, minHeight: 44 }}
-          onPress={() => router.push("/baby/profile")}
+          onPress={() => setShowBabyMenu(true)}
         >
           <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,0.3)", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
             {babyPhotoUri ? (
@@ -970,6 +972,75 @@ export default function ChatTimelineScreen() {
       <DiaperSheet visible={showDiaperSheet} onClose={() => setShowDiaperSheet(false)} />
       <TemperatureSheet visible={showTemperatureSheet} onClose={() => setShowTemperatureSheet(false)} />
       <FoodSheet visible={showFoodSheet} onClose={() => setShowFoodSheet(false)} />
+
+      {/* Baby menu modal */}
+      <Modal
+        visible={showBabyMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBabyMenu(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}
+          activeOpacity={1}
+          onPress={() => setShowBabyMenu(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => {}}
+            style={{
+              backgroundColor: c.card,
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              padding: 20,
+              paddingBottom: Platform.OS === "ios" ? 40 : 20,
+              gap: 4,
+            }}
+          >
+            <View style={{ width: 40, height: 4, backgroundColor: c.accent + "4D", borderRadius: 99, alignSelf: "center", marginBottom: 12 }} />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.elevated, alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ fontSize: 24 }}>{babyAvatar}</Text>
+              </View>
+              <View>
+                <Text style={{ fontSize: 18, fontWeight: "900", color: c.textBody }}>{baby.nickname || baby.name}</Text>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: c.textMuted }}>{calcAge(baby.birthDate).label}</Text>
+              </View>
+            </View>
+
+            {[
+              { emoji: "👤", label: "Editar perfil", route: "/baby/profile" },
+              { emoji: "📈", label: "Curvas OMS", route: "/logs/growth/history" },
+              { emoji: "📋", label: "Historial completo", route: "/history" },
+              { emoji: "🍽️", label: "Historial de comidas", route: "/logs/food/history" },
+              { emoji: "🌡️", label: "Salud", route: "/logs/health/new" },
+              { emoji: "🥜", label: "Alérgenos", route: "/food/allergens" },
+              { emoji: "⏳", label: "Ventanas de sueño", route: "/wake-windows" },
+            ].map((item) => (
+              <TouchableOpacity
+                key={item.route}
+                onPress={() => {
+                  setShowBabyMenu(false);
+                  router.push(item.route as any);
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                  paddingVertical: 12,
+                  paddingHorizontal: 4,
+                  borderRadius: 12,
+                }}
+              >
+                <Text style={{ fontSize: 20 }}>{item.emoji}</Text>
+                <Text style={{ fontSize: 15, fontWeight: "700", color: c.textBody }}>{item.label}</Text>
+                <View style={{ flex: 1 }} />
+                <Text style={{ fontSize: 18, color: c.textMuted }}>‹</Text>
+              </TouchableOpacity>
+            ))}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
