@@ -85,6 +85,8 @@ function getLastActivityPreview(
   return last;
 }
 
+let didInitialRedirect = false;
+
 export default function ChatsScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -128,7 +130,8 @@ export default function ChatsScreen() {
     );
   }
 
-  if (babies.length === 1) {
+  if (babies.length === 1 && !didInitialRedirect) {
+    didInitialRedirect = true;
     const b = babies[0];
     if (b.id !== activeBaby?.id) setActive.mutate(b.id);
     return <Redirect href={`/chat/${b.id}`} />;
