@@ -208,17 +208,17 @@ export function TimelineBubble({
       activeOpacity={0.85}
       style={{
         maxWidth: isOwn || !profile || !isFirstInGroup ? "82%" : "76%",
-        borderRadius: 18,
-        borderBottomRightRadius: isOwn ? (isFirstInGroup ? 4 : 18) : 18,
-        borderBottomLeftRadius: !isOwn ? (isFirstInGroup ? 4 : 18) : 18,
+        borderRadius: 16,
+        borderBottomRightRadius: isOwn ? (isFirstInGroup ? 4 : 16) : 16,
+        borderBottomLeftRadius: !isOwn ? (isFirstInGroup ? 4 : 16) : 16,
         padding: 12,
         paddingBottom: 8,
         backgroundColor: isOwn ? c.bubbleOwn : c.card,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.07,
-        shadowRadius: 4,
-        elevation: 2,
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
@@ -444,11 +444,11 @@ export function TimelineBubble({
   );
 
   if (isOwn) {
-    return <View style={{ alignItems: "flex-end", marginBottom: isFirstInGroup ? 6 : 3 }}>{bubble}</View>;
+    return <View style={{ alignItems: "flex-end", marginBottom: isFirstInGroup ? 4 : 2 }}>{bubble}</View>;
   }
 
   return (
-    <View style={{ flexDirection: "row", marginBottom: isFirstInGroup ? 6 : 3 }}>
+    <View style={{ flexDirection: "row", marginBottom: isFirstInGroup ? 4 : 2 }}>
       {isFirstInGroup && profile ? (
         <View style={{ marginRight: 8, justifyContent: "flex-end", paddingBottom: 4 }}>
           <AvatarCircle profile={profile} />
@@ -481,9 +481,9 @@ export function FeedingSessionBubble({
       activeOpacity={0.85}
       style={{
         maxWidth: isOwn || !profile || !isFirstInGroup ? "82%" : "76%",
-        borderRadius: 18,
-        borderBottomRightRadius: isOwn ? (isFirstInGroup ? 4 : 18) : 18,
-        borderBottomLeftRadius: !isOwn ? (isFirstInGroup ? 4 : 18) : 18,
+        borderRadius: 16,
+        borderBottomRightRadius: isOwn ? (isFirstInGroup ? 4 : 16) : 16,
+        borderBottomLeftRadius: !isOwn ? (isFirstInGroup ? 4 : 16) : 16,
         borderLeftWidth: 3,
         borderLeftColor: c.accentStrong,
         padding: 12,
@@ -492,9 +492,9 @@ export function FeedingSessionBubble({
         backgroundColor: isOwn ? c.bubbleOwn : c.card,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.07,
-        shadowRadius: 4,
-        elevation: 2,
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
@@ -529,11 +529,11 @@ export function FeedingSessionBubble({
   );
 
   if (isOwn) {
-    return <View style={{ alignItems: "flex-end", marginBottom: isFirstInGroup ? 6 : 3 }}>{bubble}</View>;
+    return <View style={{ alignItems: "flex-end", marginBottom: isFirstInGroup ? 4 : 2 }}>{bubble}</View>;
   }
 
   return (
-    <View style={{ flexDirection: "row", marginBottom: isFirstInGroup ? 6 : 3 }}>
+    <View style={{ flexDirection: "row", marginBottom: isFirstInGroup ? 4 : 2 }}>
       {isFirstInGroup && profile ? (
         <View style={{ marginRight: 8, justifyContent: "flex-end", paddingBottom: 4 }}>
           <AvatarCircle profile={profile} />
@@ -566,9 +566,9 @@ export function SleepSessionBubble({
       activeOpacity={0.85}
       style={{
         maxWidth: isOwn || !profile || !isFirstInGroup ? "82%" : "76%",
-        borderRadius: 18,
-        borderBottomRightRadius: isOwn ? (isFirstInGroup ? 4 : 18) : 18,
-        borderBottomLeftRadius: !isOwn ? (isFirstInGroup ? 4 : 18) : 18,
+        borderRadius: 16,
+        borderBottomRightRadius: isOwn ? (isFirstInGroup ? 4 : 16) : 16,
+        borderBottomLeftRadius: !isOwn ? (isFirstInGroup ? 4 : 16) : 16,
         borderLeftWidth: 3,
         borderLeftColor: INDIGO,
         padding: 12,
@@ -577,9 +577,9 @@ export function SleepSessionBubble({
         backgroundColor: isOwn ? c.bubbleOwn : c.card,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.07,
-        shadowRadius: 4,
-        elevation: 2,
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
@@ -640,11 +640,11 @@ export function SleepSessionBubble({
   );
 
   if (isOwn) {
-    return <View style={{ alignItems: "flex-end", marginBottom: isFirstInGroup ? 6 : 3 }}>{bubble}</View>;
+    return <View style={{ alignItems: "flex-end", marginBottom: isFirstInGroup ? 4 : 2 }}>{bubble}</View>;
   }
 
   return (
-    <View style={{ flexDirection: "row", marginBottom: isFirstInGroup ? 6 : 3 }}>
+    <View style={{ flexDirection: "row", marginBottom: isFirstInGroup ? 4 : 2 }}>
       {isFirstInGroup && profile ? (
         <View style={{ marginRight: 8, justifyContent: "flex-end", paddingBottom: 4 }}>
           <AvatarCircle profile={profile} />
@@ -672,8 +672,12 @@ export function DateSeparator({ date }: { date: Date | string | number }) {
 
   return (
     <View style={{ alignItems: "center", marginVertical: 12 }}>
-      <View style={{ backgroundColor: c.accent + "33", borderRadius: 99, paddingHorizontal: 14, paddingVertical: 4 }}>
-        <Text style={{ fontSize: 12, fontWeight: "700", color: c.textMuted }}>{label}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", width: "100%" }}>
+        <View style={{ flex: 1, height: 1, backgroundColor: c.elevated }} />
+        <View style={{ backgroundColor: c.card, borderRadius: 99, paddingHorizontal: 12, paddingVertical: 4, marginHorizontal: 12 }}>
+          <Text style={{ fontSize: 11, fontWeight: "800", color: c.textMuted }}>{label}</Text>
+        </View>
+        <View style={{ flex: 1, height: 1, backgroundColor: c.elevated }} />
       </View>
     </View>
   );

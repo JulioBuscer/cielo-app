@@ -842,16 +842,16 @@ export default function ChatTimelineScreen() {
           )}
 
           {/* Note input bar */}
-          <View style={{ backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.elevated, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 12 }}>
+          <View style={{ backgroundColor: c.card, paddingHorizontal: 8, paddingVertical: 6, paddingBottom: 8 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <TextInput
                 style={{
                   flex: 1,
-                  backgroundColor: c.elevated,
-                  borderRadius: 99,
+                  backgroundColor: c.surface,
+                  borderRadius: 22,
                   paddingHorizontal: 16,
                   paddingVertical: 10,
-                  fontSize: 14,
+                  fontSize: 15,
                   color: c.textBody,
                 }}
                 placeholder="Nota rápida…"
@@ -865,21 +865,17 @@ export default function ChatTimelineScreen() {
                 onPress={handleSendNote}
                 disabled={!note.trim()}
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
                   backgroundColor: c.whatsGreen,
                   alignItems: "center",
                   justifyContent: "center",
-                  shadowColor: c.whatsGreen,
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.35,
-                  shadowRadius: 6,
-                  elevation: 4,
                   opacity: note.trim() ? 1 : 0.4,
+                  marginRight: 2,
                 }}
               >
-                <Text style={{ color: "white", fontSize: 18 }}>➤</Text>
+                <Text style={{ color: "white", fontSize: 18, transform: [{ rotate: "0deg" }] }}>➤</Text>
               </TouchableOpacity>
             </View>
           </View>
