@@ -16,44 +16,44 @@ export default function TabsLayout() {
 
   return (
     <>
-      <StatusBar barStyle={parseInt(c.surface.replace("#","").slice(0,2),16) > 128 ? "dark-content" : "light-content"} />
+      <StatusBar barStyle={parseInt(c.surface.replace("#", "").slice(0, 2), 16) > 128 ? "dark-content" : "light-content"} />
       <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: c.card,
-          borderTopColor: c.elevated,
-          borderTopWidth: 1,
-          height: Platform.OS === "ios" ? 85 : 64,
-          paddingBottom: Platform.OS === "ios" ? 24 : 8,
-          paddingTop: 8,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        tabBarActiveTintColor: c.accent,
-        tabBarInactiveTintColor: c.textMuted,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "800",
-          marginTop: 2,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Chats",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="💬" focused={focused} />,
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: {
+            backgroundColor: c.card,
+            borderTopColor: c.elevated,
+            borderTopWidth: 1,
+            height: Platform.OS === "ios" ? 85 : 64,
+            paddingBottom: Platform.OS === "ios" ? 24 : 8,
+            paddingTop: 8,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          tabBarActiveTintColor: c.accent,
+          tabBarInactiveTintColor: c.textMuted,
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: "800",
+            marginTop: 2,
+          },
         }}
-      />
-      <Tabs.Screen
-        name="perfil"
-        options={{
-          title: "Ajustes",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" focused={focused} />,
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: "Chats",
+            tabBarIcon: ({ focused }) => <TabIcon emoji="💬" focused={focused} />,
+          }}
+        />
+        <Tabs.Screen
+          name="perfil"
+          options={{
+            title: "Ajustes",
+            tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" focused={focused} />,
+          }}
+        />
+      </Tabs>
     </>
   );
 }
