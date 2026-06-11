@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
-import { router } from "expo-router";
+import { router, Redirect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useActiveBaby, useBabies, useSetActiveBaby, calcAge, STATUS_LABELS } from "@/src/hooks/useBaby";
 import { useProfiles } from "@/src/hooks/useProfile";
@@ -126,6 +126,12 @@ export default function ChatsScreen() {
         </View>
       </SafeAreaView>
     );
+  }
+
+  if (babies.length === 1) {
+    const b = babies[0];
+    if (b.id !== activeBaby?.id) setActive.mutate(b.id);
+    return <Redirect href={`/chat/${b.id}`} />;
   }
 
   if (babies.length === 0) {

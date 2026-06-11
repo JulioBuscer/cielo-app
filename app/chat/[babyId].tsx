@@ -57,6 +57,8 @@ import { FoodSheet } from "@/src/components/food/FoodSheet";
 import { getCategory, getCategoryLabel } from "@/src/utils/categories";
 import { TodaySummary } from "@/src/components/chat/TodaySummary";
 import { QuickActionFAB, type ActionId } from "@/src/components/chat/QuickActionFAB";
+import { StatsSection } from "@/src/components/analisis/StatsSection";
+import { HistorySection } from "@/src/components/analisis/HistorySection";
 
 function QuickBtn({
   emoji,
@@ -321,6 +323,9 @@ export default function ChatTimelineScreen() {
     const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardVisible(false));
     return () => { show.remove(); hide.remove(); };
   }, []);
+
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [analyticsTab, setAnalyticsTab] = useState<"stats" | "historial">("stats");
 
   const wakeWindows = useWakeWindows(
     sleepHistory?.filter((s) => s.status === "finished") ?? [],
@@ -642,25 +647,43 @@ export default function ChatTimelineScreen() {
             )}
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 17 }}>
-              {baby.nickname || baby.name}
-            </Text>
-            <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "600" }}>
-              {[
-                activeSession ? "🍼 Comiendo" : null,
-                sleepStatus,
-                !activeSession && !sleepStatus ? `${calcAge(baby.birthDate).label} · ${STATUS_LABELS[(baby.status ?? "unknown") as keyof typeof STATUS_LABELS]?.emoji ?? ""}` : null,
-              ].filter(Boolean).join("  ·  ") || ""}
-            </Text>
+            {showAnalytics ? (
+              <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 17 }}>
+                📊 Análisis
+              </Text>
+            ) : (
+              <>
+                <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 17 }}>
+                  {baby.nickname || baby.name}
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "600" }}>
+                  {[
+                    activeSession ? "🍼 Comiendo" : null,
+                    sleepStatus,
+                    !activeSession && !sleepStatus ? `${calcAge(baby.birthDate).label} · ${STATUS_LABELS[(baby.status ?? "unknown") as keyof typeof STATUS_LABELS]?.emoji ?? ""}` : null,
+                  ].filter(Boolean).join("  ·  ") || ""}
+                </Text>
+              </>
+            )}
           </View>
           <TouchableOpacity
-            onPress={() => setShowFilters((s) => !s)}
+            onPress={() => { setShowAnalytics((s) => !s); }}
             style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
           >
             <Text style={{ fontSize: 20, color: "rgba(255,255,255,0.8)" }}>
-              {showFilters ? "✕" : "🔍"}
+              {showAnalytics ? "✕" : "📊"}
             </Text>
           </TouchableOpacity>
+          {!showAnalytics && (
+            <TouchableOpacity
+              onPress={() => setShowFilters((s) => !s)}
+              style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+            >
+              <Text style={{ fontSize: 20, color: "rgba(255,255,255,0.8)" }}>
+                {showFilters ? "✕" : "🔍"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -783,104 +806,143 @@ export default function ChatTimelineScreen() {
         </TouchableOpacity>
       )}
 
-      {/* TodaySummary */}
-      <TodaySummary babyId={babyId} />
+      {showAnalytics ? (
+        <View style={{ flex: 1, backgroundColor: c.surface, paddingHorizontal: 16, paddingTop: 8 }}>
+          {/* Analytics tab bar */}
+          <View style={{ flexDirection: "row", marginBottom: 8, backgroundColor: c.card, borderRadius: 12, padding: 3 }}>
+            {[
+              { key: "stats" as const, emoji: "📈", label: "Stats" },
+              { key: "historial" as const, emoji: "📋", label: "Historial" },
+            ].map((tab) => (
+              <TouchableOpacity
+                key={tab.key}
+                onPress={() => setAnalyticsTab(tab.key)}
+                style={{
+                  flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 10,
+                  backgroundColor: analyticsTab === tab.key ? c.accent : "transparent",
+                  flexDirection: "row", justifyContent: "center", gap: 4,
+                }}
+              >
+                <Text style={{ fontSize: 14 }}>{tab.emoji}</Text>
+                <Text style={{ fontSize: 12, fontWeight: "800", color: analyticsTab === tab.key ? "#fff" : c.textMuted }}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-      {currentWake && !activeSleep && !activeSession && (
-        <WakeWindowBar
-          awakeMs={currentWake.awakeMs}
-          ref={currentWake.ref}
-          onPress={() => router.push("/wake-windows")}
-        />
-      )}
-
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={0}
-      >
-        <View style={{ flex: 1, backgroundColor: c.surface }}>
-          {/* Active session cards */}
-          {(activeSession || activeSleep) && (
-            <View style={{ paddingHorizontal: 12, paddingTop: 8, gap: 0 }}>
-              {activeSession && <ActiveFeedingCard session={activeSession} />}
-              {activeSleep && <ActiveSleepCard session={activeSleep} />}
+          {analyticsTab === "stats" ? (
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
+              <StatsSection babyId={babyId} />
+            </ScrollView>
+          ) : (
+            <View style={{ flex: 1 }}>
+              <HistorySection babyId={babyId} />
             </View>
           )}
+        </View>
+      ) : (
+        <>
+          {/* TodaySummary */}
+          <TodaySummary babyId={babyId} />
 
-          {/* Timeline */}
-          <FlatList
-            ref={flatRef}
-            data={[...items].reverse()}
-            keyExtractor={(item, i) => `${item.kind}-${item.ts}-${i}`}
-            renderItem={renderItem}
-            inverted
-            contentContainerStyle={{ padding: 12, paddingBottom: 4 }}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={
-              <View style={{ alignItems: "center", paddingVertical: 48 }}>
-                <Text style={{ fontSize: 48, marginBottom: 12 }}>🌙</Text>
-                <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 15, textAlign: "center" }}>
-                  Aquí aparecerá el historial{"\n"}
-                  {baby?.nickname || baby?.name || ""}
-                </Text>
-                <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 8, textAlign: "center" }}>
-                  Empieza registrando la primera toma
-                </Text>
-              </View>
-            }
-          />
-
-          {!keyboardVisible && (
-            <QuickActionFAB
-              onAction={handleFABAction}
-              activeSleep={!!activeSleep}
-              sleepLoading={sleepLoading}
-              disabled={!!loadingType}
+          {currentWake && !activeSleep && !activeSession && (
+            <WakeWindowBar
+              awakeMs={currentWake.awakeMs}
+              ref={currentWake.ref}
+              onPress={() => router.push("/wake-windows")}
             />
           )}
 
-          {/* Note input bar */}
-          <View style={{ backgroundColor: c.card, paddingHorizontal: 8, paddingVertical: 6, paddingBottom: 8 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <TextInput
-                style={{
-                  flex: 1,
-                  backgroundColor: c.surface,
-                  borderRadius: 22,
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  fontSize: 15,
-                  color: c.textBody,
-                }}
-                placeholder="Nota rápida…"
-                placeholderTextColor={c.textMuted}
-                value={note}
-                onChangeText={setNote}
-                onSubmitEditing={handleSendNote}
-                returnKeyType="send"
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={0}
+          >
+            <View style={{ flex: 1, backgroundColor: c.surface }}>
+              {/* Active session cards */}
+              {(activeSession || activeSleep) && (
+                <View style={{ paddingHorizontal: 12, paddingTop: 8, gap: 0 }}>
+                  {activeSession && <ActiveFeedingCard session={activeSession} />}
+                  {activeSleep && <ActiveSleepCard session={activeSleep} />}
+                </View>
+              )}
+
+              {/* Timeline */}
+              <FlatList
+                ref={flatRef}
+                data={[...items].reverse()}
+                keyExtractor={(item, i) => `${item.kind}-${item.ts}-${i}`}
+                renderItem={renderItem}
+                inverted
+                contentContainerStyle={{ padding: 12, paddingBottom: 4 }}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
+                  <View style={{ alignItems: "center", paddingVertical: 48 }}>
+                    <Text style={{ fontSize: 48, marginBottom: 12 }}>🌙</Text>
+                    <Text style={{ color: c.textMuted, fontWeight: "700", fontSize: 15, textAlign: "center" }}>
+                      Aquí aparecerá el historial{"\n"}
+                      {baby?.nickname || baby?.name || ""}
+                    </Text>
+                    <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 8, textAlign: "center" }}>
+                      Empieza registrando la primera toma
+                    </Text>
+                  </View>
+                }
               />
-              <TouchableOpacity
-                onPress={handleSendNote}
-                disabled={!note.trim()}
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: c.whatsGreen,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity: note.trim() ? 1 : 0.4,
-                  marginRight: 2,
-                }}
-              >
-                <Text style={{ color: "white", fontSize: 18, transform: [{ rotate: "0deg" }] }}>➤</Text>
-              </TouchableOpacity>
+
+              {!keyboardVisible && (
+                <QuickActionFAB
+                  onAction={handleFABAction}
+                  activeSleep={!!activeSleep}
+                  sleepLoading={sleepLoading}
+                  disabled={!!loadingType}
+                />
+              )}
+
+              {/* Note input bar */}
+              <View style={{ backgroundColor: c.card, paddingHorizontal: 8, paddingVertical: 6, paddingBottom: 8 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <TextInput
+                    style={{
+                      flex: 1,
+                      backgroundColor: c.surface,
+                      borderRadius: 22,
+                      paddingHorizontal: 16,
+                      paddingVertical: 10,
+                      fontSize: 15,
+                      color: c.textBody,
+                    }}
+                    placeholder="Nota rápida…"
+                    placeholderTextColor={c.textMuted}
+                    value={note}
+                    onChangeText={setNote}
+                    onSubmitEditing={handleSendNote}
+                    returnKeyType="send"
+                  />
+                  <TouchableOpacity
+                    onPress={handleSendNote}
+                    disabled={!note.trim()}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: c.whatsGreen,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: note.trim() ? 1 : 0.4,
+                      marginRight: 2,
+                    }}
+                  >
+                    <Text style={{ color: "white", fontSize: 18 }}>➤</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </>
+      )}
 
       {/* Modals & Sheets */}
       <BottleSubtypeModal

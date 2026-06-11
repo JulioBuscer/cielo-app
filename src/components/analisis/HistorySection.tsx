@@ -1,0 +1,442 @@
+import { useState, useMemo } from "react";
+import {
+  View, Text, TouchableOpacity, ActivityIndicator, FlatList, TextInput,
+  Platform, ScrollView,
+} from "react-native";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import { router } from "expo-router";
+import { useTheme } from "@/src/theme/useTheme";
+import { useEventTypes } from "@/src/hooks/useTimeline";
+import { useFoodCatalog } from "@/src/hooks/useFoodLogs";
+import { useHistoryData } from "@/src/hooks/useHistory";
+import { safeJsonParse } from "@/src/utils/safeJsonParse";
+import { timeOptions } from "@/src/utils/timeFormat";
+import { getCategory } from "@/src/utils/categories";
+import { formatDuration } from "@/src/db/client";
+
+type FilterType = "all" | "diaper" | "feeding" | "sleep" | "health" | "growth" | "food" | "other";
+type FilterDate = "today" | "week" | "month" | "all" | "range";
+
+const DATE_FILTERS: { key: FilterDate; label: string }[] = [
+  { key: "today", label: "Hoy" },
+  { key: "week", label: "7d" },
+  { key: "month", label: "30d" },
+  { key: "range", label: "📅 Rango" },
+  { key: "all", label: "Todo" },
+];
+
+const TYPE_FILTERS: { key: FilterType; emoji: string; label: string }[] = [
+  { key: "all", emoji: "📋", label: "Todo" },
+  { key: "diaper", emoji: "🍑", label: "Pañal" },
+  { key: "feeding", emoji: "🤱", label: "Toma" },
+  { key: "sleep", emoji: "😴", label: "Sueño" },
+  { key: "health", emoji: "💊", label: "Salud" },
+  { key: "growth", emoji: "📏", label: "Medición" },
+  { key: "food", emoji: "🍎", label: "Comida" },
+  { key: "other", emoji: "📝", label: "Otros" },
+];
+
+function toDateKey(ts: Date | number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatDateHeader(key: string): string {
+  const d = new Date(key + "T12:00:00");
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (toDateKey(today) === key) return "Hoy";
+  if (toDateKey(yesterday) === key) return "Ayer";
+  return d.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" });
+}
+
+function groupByDate(items: { id: string; ts: Date; dateKey: string; render: () => React.ReactNode }[]) {
+  const map = new Map<string, typeof items>();
+  for (const it of items) {
+    const existing = map.get(it.dateKey) ?? [];
+    existing.push(it);
+    map.set(it.dateKey, existing);
+  }
+  return Array.from(map.entries())
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([dateKey, its]) => ({ dateKey, items: its }));
+}
+
+export function HistorySection({ babyId }: { babyId?: string }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const { data: eventTypes } = useEventTypes();
+  const { data: foodCatalog } = useFoodCatalog();
+
+  const [typeFilter, setTypeFilter] = useState<FilterType>("all");
+  const [dateFilter, setDateFilter] = useState<FilterDate>("week");
+  const [searchText, setSearchText] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [rangeStart, setRangeStart] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 6); d.setHours(0, 0, 0, 0); return d;
+  });
+  const [rangeEnd, setRangeEnd] = useState(() => {
+    const d = new Date(); d.setHours(23, 59, 59, 999); return d;
+  });
+  const [showDatePicker, setShowDatePicker] = useState<"start" | "end" | null>(null);
+
+  const dateBounds = useMemo(() => {
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    if (dateFilter === "today") {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      return { start, end };
+    }
+    if (dateFilter === "week") {
+      const start = new Date(now);
+      start.setDate(start.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+      return { start, end };
+    }
+    if (dateFilter === "month") {
+      const start = new Date(now);
+      start.setDate(start.getDate() - 29);
+      start.setHours(0, 0, 0, 0);
+      return { start, end };
+    }
+    if (dateFilter === "range") return { start: rangeStart, end: rangeEnd };
+    return { start: new Date(0), end };
+  }, [dateFilter, rangeStart, rangeEnd]);
+
+  const { data: raw, isLoading } = useHistoryData(babyId, dateBounds);
+
+  function formatTime(ts: Date | number): string {
+    return new Date(ts).toLocaleTimeString("es-MX", timeOptions());
+  }
+
+  function hasDiaperAlert(meta: unknown): boolean {
+    if (!meta) return false;
+    const m: Record<string, any> = typeof meta === "string" ? safeJsonParse(meta, {}) : meta as Record<string, any>;
+    if (m?.peeHealthAlert || m?.poopHealthAlert || m?.poopConsistencyAlert) return true;
+    const ph = m?.peeHealth ?? 0;
+    const poh = m?.poopHealth ?? 0;
+    const pc = m?.poopConsistency;
+    if (ph >= 7) return true;
+    if (poh >= 5) return true;
+    if (pc === 1 || pc === 5) return true;
+    return false;
+  }
+
+  const grouped = useMemo(() => {
+    if (!raw) return [];
+
+    const items: { id: string; ts: Date; dateKey: string; text: string; render: () => React.ReactNode }[] = [];
+
+    for (const f of raw.feedings) {
+      if (typeFilter === "food" || typeFilter === "other" || typeFilter === "growth" || typeFilter === "diaper") continue;
+      if (typeFilter === "sleep") continue;
+      const duration = f.endedAt
+        ? formatDuration(Math.round((new Date(f.endedAt).getTime() - new Date(f.startedAt).getTime()) / 1000))
+        : "en curso";
+      const typeLabel = f.type === "bottle" ? "Biberón" : f.type === "breast_left" ? "Pecho Izq." : "Pecho Der.";
+      const emoji = f.type === "bottle" ? "🍼" : "🤱";
+      const color = f.type === "bottle" ? "#7CB342" : "#E07B9C";
+      items.push({
+        id: `f-${f.id}`, ts: new Date(f.startedAt), dateKey: toDateKey(f.startedAt),
+        text: `${typeLabel} ${formatTime(f.startedAt)} ${f.notes ?? ""}`,
+        render: () => (
+          <TouchableOpacity
+            onPress={() => router.push(`/logs/feeding/${f.id}`)}
+            style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 8, minHeight: 56 }}
+          >
+            <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: color, backgroundColor: color + "20", alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ fontSize: 16 }}>{emoji}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: c.textBody }}>{typeLabel}</Text>
+              <Text style={{ fontSize: 11, color: c.textMuted }}>{formatTime(f.startedAt)} · ⏱ {duration}</Text>
+              {f.notes && <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 2 }}>{f.notes}</Text>}
+            </View>
+          </TouchableOpacity>
+        ),
+      });
+    }
+
+    for (const s of raw.sleeps) {
+      if (typeFilter === "food" || typeFilter === "other" || typeFilter === "growth" || typeFilter === "diaper") continue;
+      if (typeFilter === "feeding") continue;
+      const duration = s.endedAt
+        ? formatDuration(Math.round((new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime()) / 1000))
+        : "en curso";
+      items.push({
+        id: `s-${s.id}`, ts: new Date(s.startedAt), dateKey: toDateKey(s.startedAt),
+        text: `Sueño ${formatTime(s.startedAt)} ${s.notes ?? ""}`,
+        render: () => (
+          <TouchableOpacity
+            onPress={() => router.push(`/logs/sleep/${s.id}`)}
+            style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 8, minHeight: 56 }}
+          >
+            <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: "#4CAF50", backgroundColor: "#E8F5E9", alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ fontSize: 16 }}>😴</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: c.textBody }}>Sueño</Text>
+              <Text style={{ fontSize: 11, color: c.textMuted }}>{formatTime(s.startedAt)} · ⏱ {duration}</Text>
+              {s.notes && <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 2 }}>{s.notes}</Text>}
+            </View>
+          </TouchableOpacity>
+        ),
+      });
+    }
+
+    for (const g of raw.growths) {
+      if (typeFilter === "food" || typeFilter === "other" || typeFilter === "feeding" || typeFilter === "sleep" || typeFilter === "diaper" || typeFilter === "health") continue;
+      const line: string[] = [];
+      if (g.weightGrams) line.push(`⚖️ ${(g.weightGrams / 1000).toFixed(2)} kg`);
+      if (g.heightMm) line.push(`📏 ${(g.heightMm / 10).toFixed(1)} cm`);
+      if (g.headCircMm) line.push(`📐 ${(g.headCircMm / 10).toFixed(1)} cm`);
+      items.push({
+        id: `g-${g.id}`, ts: new Date(g.timestamp), dateKey: toDateKey(g.timestamp),
+        text: `Medición ${line.join(" ")} ${formatTime(g.timestamp)}`,
+        render: () => (
+          <TouchableOpacity
+            onPress={() => router.push(`/logs/growth/${g.id}`)}
+            style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 8, minHeight: 56 }}
+          >
+            <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: "#FF9800", backgroundColor: "#FFF3E0", alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ fontSize: 16 }}>📏</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: c.textBody }}>Medición</Text>
+              <Text style={{ fontSize: 11, color: c.textMuted }}>{formatTime(g.timestamp)}</Text>
+              {line.length > 0 && <Text style={{ fontSize: 12, color: "#F57C00", marginTop: 2 }}>{line.join(" · ")}</Text>}
+            </View>
+          </TouchableOpacity>
+        ),
+      });
+    }
+
+    for (const f of raw.foods) {
+      if (typeFilter === "feeding" || typeFilter === "sleep" || typeFilter === "growth" || typeFilter === "diaper") continue;
+      if (typeFilter === "other") continue;
+      const fFood = foodCatalog?.find((fc) => fc.id === f.foodId);
+      items.push({
+        id: `fo-${f.id}`, ts: new Date(f.timestamp), dateKey: toDateKey(f.timestamp),
+        text: `Comida ${fFood?.name ?? f.foodId} ${f.reaction ?? ""} ${formatTime(f.timestamp)}`,
+        render: () => (
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 8, minHeight: 56 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: "#7CB342", backgroundColor: "#F1F8E9", alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ fontSize: 16 }}>🍽️</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: c.textBody }}>
+                {fFood?.emoji ?? ""} {fFood?.name ?? f.foodId}
+              </Text>
+              <Text style={{ fontSize: 11, color: c.textMuted }}>{formatTime(f.timestamp)}</Text>
+              <View style={{ flexDirection: "row", gap: 4, marginTop: 2 }}>
+                {f.isFirst && <Text style={{ fontSize: 11, fontWeight: "700", color: "#F57C00" }}>🥇 Primera vez</Text>}
+                {f.reaction && <Text style={{ fontSize: 11, color: c.textMuted }}>· 😋 {f.reaction}</Text>}
+              </View>
+            </View>
+          </View>
+        ),
+      });
+    }
+
+    for (const e of raw.events) {
+      const evType = eventTypes?.find((t) => t.id === e.eventTypeId);
+      const cat = evType?.category;
+      if (typeFilter === "feeding" || typeFilter === "sleep") continue;
+      if (typeFilter === "diaper" && e.eventTypeId !== "diaper") continue;
+      if (typeFilter === "health" && cat !== "health") continue;
+      if (typeFilter === "growth" && cat !== "growth") continue;
+      if (typeFilter === "food" && cat !== "feeding") continue;
+      if (typeFilter === "other" && cat !== "other") continue;
+
+      const emoji = evType?.emoji ?? "📝";
+      const label = evType?.label ?? e.eventTypeId;
+      const isAlert = e.eventTypeId === "diaper" && hasDiaperAlert(e.metadata);
+      const dotColor = isAlert ? "#E53935" : e.eventTypeId === "diaper" ? "#AB47BC" : c.accent;
+
+      items.push({
+        id: `e-${e.id}`, ts: new Date(e.timestamp), dateKey: toDateKey(e.timestamp),
+        text: `${label} ${e.notes ?? ""} ${formatTime(e.timestamp)}`,
+        render: () => (
+          <TouchableOpacity
+            onPress={() => router.push(e.eventTypeId === "diaper" ? `/logs/diaper/${e.id}` : `/logs/event/${e.id}`)}
+            style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 8, minHeight: 56 }}
+          >
+            <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: dotColor, backgroundColor: dotColor + "18", alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ fontSize: 16 }}>{emoji}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: c.textBody }}>
+                {label}{isAlert ? <Text style={{ fontSize: 12 }}> 🚨</Text> : null}
+              </Text>
+              <Text style={{ fontSize: 11, color: c.textMuted }}>{formatTime(e.timestamp)}</Text>
+              {cat && (
+                <View style={{ flexDirection: "row", marginTop: 2 }}>
+                  <View style={{ backgroundColor: getCategory(cat).color + "20", borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1 }}>
+                    <Text style={{ fontSize: 9, fontWeight: "800", color: getCategory(cat).color }}>
+                      {getCategory(cat).emoji} {getCategory(cat).label}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+        ),
+      });
+    }
+
+    const filtered = searchText
+      ? items.filter((it) => it.text.toLowerCase().includes(searchText.toLowerCase()))
+      : items;
+
+    return groupByDate(filtered);
+  }, [raw, typeFilter, searchText, eventTypes, foodCatalog, c]);
+
+  const count = useMemo(() => {
+    if (!raw) return 0;
+    return raw.feedings.length + raw.sleeps.length + raw.growths.length + raw.foods.length + raw.events.length;
+  }, [raw]);
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* Search toggle */}
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <Text style={{ fontSize: 11, fontWeight: "700", color: c.textMuted }}>{count} registros</Text>
+        <TouchableOpacity onPress={() => setShowSearch((s) => !s)} style={{ padding: 4 }}>
+          <Text style={{ fontSize: 16, color: c.textMuted }}>{showSearch ? "✕" : "🔍"}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Search */}
+      {showSearch && (
+        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: c.surface, borderRadius: 10, paddingHorizontal: 12, marginBottom: 8 }}>
+          <TextInput
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="Buscar…"
+            placeholderTextColor={c.textMuted}
+            style={{ flex: 1, fontSize: 14, color: c.textBody, paddingVertical: 8 }}
+          />
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchText("")} style={{ padding: 4 }}>
+              <Text style={{ fontSize: 14, color: c.textMuted }}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Type filters */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 8 }}>
+        {TYPE_FILTERS.map((f) => (
+          <TouchableOpacity
+            key={f.key}
+            onPress={() => setTypeFilter(f.key)}
+            style={{
+              paddingHorizontal: 12, paddingVertical: 5, borderRadius: 99,
+              backgroundColor: typeFilter === f.key ? c.accent : c.surface,
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: "700", color: typeFilter === f.key ? "#fff" : c.textMuted }}>
+              {f.emoji} {f.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Date filters */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 8 }}>
+        {DATE_FILTERS.map((f) => (
+          <TouchableOpacity
+            key={f.key}
+            onPress={() => setDateFilter(f.key)}
+            style={{
+              paddingHorizontal: 12, paddingVertical: 4, borderRadius: 99,
+              backgroundColor: dateFilter === f.key ? c.accent + "30" : "transparent",
+              borderWidth: 1, borderColor: dateFilter === f.key ? c.accent : c.elevated,
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: "700", color: dateFilter === f.key ? c.accent : c.textMuted }}>
+              {f.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Range picker */}
+      {dateFilter === "range" && (
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+          <TouchableOpacity
+            onPress={() => setShowDatePicker("start")}
+            style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.surface, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}
+          >
+            <Text style={{ fontSize: 11, color: c.textMuted }}>Desde</Text>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: c.textBody }}>{rangeStart.toLocaleDateString("es-MX")}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowDatePicker("end")}
+            style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.surface, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}
+          >
+            <Text style={{ fontSize: 11, color: c.textMuted }}>Hasta</Text>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: c.textBody }}>{rangeEnd.toLocaleDateString("es-MX")}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {showDatePicker && (
+        <>
+          <DateTimePicker
+            value={showDatePicker === "start" ? rangeStart : rangeEnd}
+            mode="date"
+            display={Platform.OS === "ios" ? "inline" : "default"}
+            onChange={(_event: DateTimePickerEvent, date?: Date) => {
+              if (date) {
+                if (showDatePicker === "start") {
+                  const d = new Date(date); d.setHours(0, 0, 0, 0); setRangeStart(d);
+                } else {
+                  const d = new Date(date); d.setHours(23, 59, 59, 999); setRangeEnd(d);
+                }
+              }
+              if (Platform.OS === "android") setShowDatePicker(null);
+            }}
+          />
+          {Platform.OS === "ios" && (
+            <TouchableOpacity onPress={() => setShowDatePicker(null)} style={{ alignItems: "center", paddingVertical: 6 }}>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: c.accent }}>Listo</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      )}
+
+      {/* List */}
+      {isLoading ? (
+        <ActivityIndicator color={c.accent} style={{ padding: 40 }} />
+      ) : grouped.length === 0 ? (
+        <View style={{ padding: 40, alignItems: "center", gap: 8 }}>
+          <Text style={{ fontSize: 32 }}>🔍</Text>
+          <Text style={{ color: c.textMuted, fontWeight: "600", textAlign: "center" }}>
+            Sin resultados{searchText ? ` para "${searchText}"` : ""}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={grouped}
+          keyExtractor={(item) => item.dateKey}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 12, fontWeight: "800", color: c.textMuted, marginBottom: 8 }}>
+                {formatDateHeader(item.dateKey)}
+              </Text>
+              <View style={{ gap: 2 }}>
+                {item.items.map((it) => (
+                  <View key={it.id}>{it.render()}</View>
+                ))}
+              </View>
+            </View>
+          )}
+          contentContainerStyle={{ paddingBottom: 24 }}
+        />
+      )}
+    </View>
+  );
+}
