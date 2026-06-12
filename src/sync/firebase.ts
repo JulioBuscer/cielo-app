@@ -1,3 +1,4 @@
+import { NativeModules } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 
 const DB_PATH = 'sessions';
@@ -7,9 +8,16 @@ let _dbError = false;
 async function getDb() {
   if (_db) return _db;
   if (_dbError) throw new Error('Firebase no disponible');
+
+  if (!NativeModules.RNFBAppModule) {
+    _dbError = true;
+    throw new Error('Firebase no disponible en Expo Go');
+  }
+
   try {
     const mod = await import('@react-native-firebase/database');
-    _db = typeof mod === 'function' ? mod : mod.default;
+    const dbFn = typeof mod === 'function' ? mod : mod.default;
+    _db = dbFn();
     return _db;
   } catch (e) {
     _dbError = true;

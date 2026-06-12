@@ -167,7 +167,7 @@ export default function SyncScreen() {
       {mode === 'menu' && (
         <ScrollView style={{ flex: 1, backgroundColor: c.surface }} contentContainerStyle={{ padding: 24, gap: 20 }}>
           <Text style={{ color: c.textBody, fontSize: 15, fontWeight: '600', textAlign: 'center', lineHeight: 22 }}>
-            Sincroniza los datos de {`{babyName}`} entre dispositivos.{'\n'}
+            Sincroniza los datos entre dispositivos.{'\n'}
             El cifrado es punto a punto — nadie más puede leer los datos.
           </Text>
 

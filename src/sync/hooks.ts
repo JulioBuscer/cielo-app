@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { AppState } from 'react-native';
+import { NativeModules, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getOrCreateDeviceId } from './device';
 import type { SyncOffer, SyncPayload, SyncMessage, SyncStep, SyncRole, PairedDevice } from './types';
@@ -361,7 +361,9 @@ export function useSync() {
         busy = true;
         addLog(`Señal de sync recibida de ${signal.senderDeviceId.slice(0, 6)}...`);
         await startHost(signal.senderDeviceId);
-        try { (await import('@react-native-firebase/database')).default().ref(`sync_signals/${myId}/${signal.senderDeviceId}`).remove().catch(() => {}); } catch {}
+        if (NativeModules.RNFBAppModule) {
+          try { (await import('@react-native-firebase/database')).default().ref(`sync_signals/${myId}/${signal.senderDeviceId}`).remove().catch(() => {}); } catch {}
+        }
         busy = false;
       });
     })();
