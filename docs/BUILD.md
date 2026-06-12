@@ -15,6 +15,34 @@
 
 ---
 
+## 0. Filosofía del Build (Roadmap)
+
+Cada build es una *negociación* entre tres fuerzas:
+
+```
+Tamaño   ↔   Compatibilidad   ↔   Velocidad de build
+```
+
+| Priorizas        | Sacrificas                     | Para qué                                   |
+|-----------------|--------------------------------|--------------------------------------------|
+| **Tamaño**      | Compatibilidad + build lento   | Distribuir a usuarios finales (release)    |
+| **Compatibilidad** | Tamaño grande + build lento | Development build, pruebas en dispositivo |
+| **Velocidad**   | Tamaño + compatibilidad        | Iteración rápida en desarrollo             |
+
+### Decisiones clave
+
+| Decisión | Efecto | Por qué |
+|---|---|---|
+| `arm64-v8a` **solo** | APK pasa de 237 MB → 40 MB | El 95%+ de dispositivos modernos son ARM64. Las otras ABIs duplican el APK sin beneficio real. |
+| `expo.useLegacyPackaging=true` | Ahorra ~20-30 MB adicionales | Comprime las `.so` nativas dentro del APK en vez de dejarlas sin comprimir. Solo aplica a debug. |
+| `newArchEnabled=true` | Requiere React Native 0.76+ | `react-native-worklets` 0.8.3 exige new architecture. No hay opción. |
+| Deshabilitar native linking de `react-native-worklets` | Evita error `Duplicate class` | Reanimated 3.19.x ya incluye el código nativo de worklets. El paquete debe quedarse instalado (nativewind lo necesita como plugin Babel) pero sin linking nativo. |
+| `-XX:+UseParallelGC` en JVM | Build estable sin SIGSEGV | G1GC (default en JDK 17+) crashea con proyectos grandes. ParallelGC es más predecible. |
+| `debuggableVariants = []` | APK standalone sin Metro | Por defecto debug APK no incluye el JS bundle. Con `[]` se embebe el bundle en el APK. El flag `--no-daemon` evita que el daemon quede colgado. |
+| Google Services plugin en gradle | Firebase funciona en APK standalone | Sin `classpath` + `apply plugin` + `google-services.json` en `android/app/`, el módulo `@react-native-firebase/database` falla silenciosamente. |
+
+---
+
 ## 1. Build APK local (sin EAS)
 
 Compila en tu propia PC, sin subir nada a la nube.
@@ -22,7 +50,7 @@ Compila en tu propia PC, sin subir nada a la nube.
 ### Prerrequisitos
 
 ```bash
-java -version                          # Java 21+
+java -version                          # Java 17+ (recomendado 21)
 npx expo --version                     # Expo CLI
 echo $ANDROID_HOME                     # debe apuntar al SDK
 ```
@@ -62,58 +90,137 @@ sudo /usr/lib/android-sdk/cmdline-tools/13.0/bin/sdkmanager \
   "build-tools;36.0.0"
 ```
 
-> Usa **siempre** cmdline-tools >= 13.0. Versiones anteriores (11.0) no entienden el formato XML v4 de platform 36 y causan el error `BuildToolsApiClasspathEntrySnapshotTransform: IllegalArgumentException`.
+> Usa **siempre** cmdline-tools >= 13.0. Versiones anteriores (11.0) no entienden el formato XML v4 de platform 36.
 
-#### Memoria y JDK
+### Configuración uno por uno
 
-Añade esto a `android/gradle.properties` (ya incluido tras `expo prebuild`):
+#### 1. `android/gradle.properties`
 
 ```properties
+# --- Memoria JVM ---
 org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m -XX:+UseParallelGC
 org.gradle.java.home=/usr/lib/jvm/java-21-openjdk-amd64
+
+# --- New Architecture (obligatorio) ---
+newArchEnabled=true
+
+# --- Optimizaciones de APK ---
+android.abis=arm64-v8a
+expo.useLegacyPackaging=true
 ```
 
-- `-Xmx4096m` evita OOM con AGP 8.11 (el default de 2048m se queda corto).
-- `-XX:+UseParallelGC` evita el crash `SIGSEGV` del garbage collector G1GC con JDK 17.
-- `org.gradle.java.home` fuerza JDK 21 (AGP 8.11 requiere Java 17+; Java 11 da error directo).
+#### 2. `react-native.config.js` (raíz del proyecto)
 
-### Build paso a paso
+```js
+module.exports = {
+  dependencies: {
+    "react-native-worklets": {
+      platforms: {
+        android: null,
+        ios: null,
+      },
+    },
+  },
+};
+```
+
+#### 3. `android/build.gradle` — Google Services + worklets exclusion
+
+```gradle
+buildscript {
+  dependencies {
+    classpath('com.android.tools.build:gradle')
+    classpath('com.facebook.react:react-native-gradle-plugin')
+    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+    classpath('com.google.gms:google-services:4.4.2')  // ← OBLIGATORIO para Firebase
+  }
+}
+```
+
+#### 4. `android/app/build.gradle`
+
+```gradle
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+apply plugin: "com.google.gms.google-services"  // ← OBLIGATORIO para Firebase
+
+react {
+    // ...
+    debuggableVariants = []  // ← embebe JS bundle → APK standalone sin Metro
+    // ...
+}
+
+android {
+    // Doble protección contra worklets duplicados
+    configurations.all {
+        exclude group: 'com.swmansion.worklets', module: 'react-native-worklets'
+    }
+}
+```
+
+#### 5. `google-services.json`
+
+Debe estar en **dos lugares**:
+- `google-services.json` (raíz del proyecto)
+- `android/app/google-services.json` (lo necesita el plugin de Gradle)
 
 ```bash
-# 1. Prebuild (genera android/ si no existe)
-npx expo prebuild --platform android --clean
-
-# 2. Re-crear local.properties (prebuild lo borra)
-echo "sdk.dir=/usr/lib/android-sdk" > android/local.properties
-
-# 3. Compilar
-cd android
-./gradlew assembleDebug
-
-# 4. Release (opcional)
-./gradlew assembleRelease
+cp google-services.json android/app/google-services.json
 ```
 
-### Salida
+### Recipe final: build APK standalone
 
-```text
-android/app/build/outputs/apk/debug/app-debug.apk       # ~237 MB (debug)
-android/app/build/outputs/apk/release/app-release.apk   # ~20-30 MB (minificado)
+```bash
+# 1. Limpiar
+cd android
+./gradlew clean
+
+# 2. Build debug APK (con JS bundle embebido + Firebase + optimizaciones)
+./gradlew assembleDebug --no-daemon
+
+# 3. Build release APK (mismo código, sin banner React Native, firmado)
+./gradlew assembleRelease --no-daemon
+
+# 4. Salida
+ls -lh app/build/outputs/apk/debug/app-debug.apk
+ls -lh app/build/outputs/apk/release/app-release.apk
+```
+
+### Debug vs Release
+
+| Aspecto | Debug | Release |
+|---|---|---|
+| Tamaño | ~44 MB | ~26 MB |
+| JS bundle | ✅ embebido | ✅ embebido |
+| Hermes | ✅ | ✅ |
+| Firebase | ✅ | ✅ |
+| P2P / WebRTC | ✅ | ✅ |
+| Barra roja errores | ✅ visible | ❌ oculta |
+| Banner "React Native" | ✅ visible | ❌ oculto |
+| Minificación ProGuard | ❌ off | ❌ off por defecto |
+| Firma | debug.keystore automática | debug.keystore (cambiar para Play Store) |
+
+> **Para Play Store**: necesitas un keystore propio y habilitar ProGuard con reglas para Firebase y WebRTC (ver sección de problemas). Mientras tanto, el release APK con debug.keystore es 100% representativo del comportamiento en producción.
+
+### Instalación
+
+```bash
+# Con USB conectado
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+adb install -r android/app/build/outputs/apk/release/app-release.apk
+
+# O transfiere el APK y toca en el dispositivo
 ```
 
 ### Instalación
 
-1. Transfiere el APK al dispositivo (USB, Google Drive, WhatsApp, etc.)
-2. En Android: **Ajustes → Seguridad → Instalar apps desconocidas**
-3. Toca el APK → Instalar
+```bash
+# Con USB conectado
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 
-### Notas
-
-- **Primera compilación:** descarga ~2 GB de dependencias (Gradle, NDK, CMake, plataformas). Puede tardar 15-20 min.
-- **Siguientes:** usa caché local, ~1-3 min.
-- APK debug pesa ~237 MB (incluye símbolos y libs sin comprimir). El release es mucho más pequeño.
-- El APK debug muestra "React Native" en el splash y una barra roja de errores en desarrollo.
-- Para **Play Store** necesitas keystore propio y firmar en `android/app/build.gradle`.
+# O transfiere el APK y toca en el dispositivo
+```
 
 ---
 
@@ -121,193 +228,162 @@ android/app/build/outputs/apk/release/app-release.apk   # ~20-30 MB (minificado)
 
 Compila en servidores de Expo en la nube. No requiere Android Studio ni SDK local.
 
-### Prerrequisitos
-
 ```bash
 npm install -g eas-cli
-eas login                            # con tu cuenta Expo
+eas login
 ```
 
-### Build APK (Android)
-
 ```bash
-# APK debug (desarrollo, instala dev-client)
-eas build -p android --profile development
-
-# APK preview (internal distribution, para compartir)
 eas build -p android --profile preview
-
-# AAB para Play Store
-eas build -p android --profile production
 ```
 
-### Build IPA (iOS)
+El APK de EAS funciona igual que el local. Si el QR de sincronización no aparece, verifica que Firebase esté configurado (google-services.json en Secrets del proyecto Expo).
 
+---
+
+## 3. Solución de problemas
+
+### "Native module RNFBAppModule not found" / Firebase no funciona
+
+**Causa:** Falta el plugin Google Services en gradle o el `google-services.json` en `android/app/`.
+
+**Verificar:**
 ```bash
-# Primera vez: configurar credenciales
-eas credentials -p ios
+# 1. ¿Está google-services.json en android/app/?
+ls -la android/app/google-services.json
 
-# Build para TestFlight / distribución interna
-eas build -p ios --profile preview
+# 2. ¿Tiene el classpath en android/build.gradle?
+grep "google-services" android/build.gradle
 
-# Build para App Store
-eas build -p ios --profile production
+# 3. ¿Tiene el apply plugin en android/app/build.gradle?
+grep "google-services" android/app/build.gradle
 ```
 
-### Perfiles en eas.json
+### Daemon JVM crash (SIGSEGV)
 
-| Profile | Android | iOS | Uso |
-|---|---|---|---|
-| `development` | APK + dev-client | IPA + dev-client | Desarrollo en dispositivo |
-| `preview` | APK internal | IPA internal | Compartir con testers |
-| `production` | AAB (Play Store) | IPA (App Store) | Publicación oficial |
+**Causa:** G1GC de Java 17+ crashea con proyectos grandes.
 
-### Descargar el build
+**Solución:** ParallelGC en `android/gradle.properties`:
+```properties
+org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m -XX:+UseParallelGC
+```
 
-1. Ve a https://expo.dev/projects
-2. Selecciona `cielo-app`
-3. Pestaña **Builds** → descarga
-4. Comparte el enlace con otros dispositivos
+### APK pide Metro al abrir ("Cannot connect to Metro")
 
----
+**Causa:** `debuggableVariants` no está configurado. Por defecto `['debug']` excluye el JS bundle del APK debug.
 
-## 3. Perfiles y su propósito
+**Solución:** En `android/app/build.gradle`:
+```gradle
+react {
+    debuggableVariants = []
+}
+```
+Luego rebuild: `./gradlew clean assembleDebug --no-daemon`
 
-| Perfil | Cámara | QR | Sync P2P | Firebase | SQLite |
-|---|---|---|---|---|---|
-| `development` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `preview` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `production` | ✅ | ✅ | ✅ | ✅ | ✅ |
+### "Duplicate class com.swmansion.worklets"
 
-Todos los perfiles incluyen módulos nativos (`react-native-webrtc`, `@react-native-firebase/database`, etc.).
+**Causa:** `react-native-worklets` compite con reanimated (que ya incluye esas clases).
 
----
-
-## 4. Solución de problemas
+**Solución en 2 capas:**
+1. `react-native.config.js`: `platforms: { android: null, ios: null }`
+2. `android/app/build.gradle`: `configurations.all { exclude group: 'com.swmansion.worklets', module: 'react-native-worklets' }`
 
 ### "SDK location not found"
 
 `expo prebuild --clean` borra `android/local.properties`. Recreálo:
-
 ```bash
 echo "sdk.dir=/usr/lib/android-sdk" > android/local.properties
 ```
 
 ### "BuildToolsApiClasspathEntrySnapshotTransform: IllegalArgumentException"
 
-**Causa:** cmdline-tools viejo (11.0) no entiende XML v4 de platform 36. El transform de AGP falla al leer el `android.jar`.
-
-**Solución:**
+Cmdline-tools viejo (11.0). Usa 13.0:
 ```bash
 sudo apt install google-android-cmdline-tools-13.0-installer
-sudo /usr/lib/android-sdk/cmdline-tools/13.0/bin/sdkmanager --uninstall "platforms;android-36"
-sudo /usr/lib/android-sdk/cmdline-tools/13.0/bin/sdkmanager "platforms;android-36"
 ```
 
 ### "Toolchain installation does not provide the required capabilities: [JAVA_COMPILER]"
 
-**Causa:** Tienes solo JRE, no JDK (falta `javac`).
-
-**Solución:**
+Tienes JRE, no JDK:
 ```bash
 sudo apt install openjdk-21-jdk
 ```
 
-Luego en `android/gradle.properties`:
-```properties
-org.gradle.java.home=/usr/lib/jvm/java-21-openjdk-amd64
-```
-
-### "Android Gradle plugin requires Java 17 to run. You are currently using Java 11."
-
-**Causa:** AGP 8.11 requiere Java 17+, Java 11 no es suficiente.
-
-**Solución:** Instalar JDK 21+ y apuntar `org.gradle.java.home` en `gradle.properties`.
-
-### Daemon JVM crash (SIGSEGV)
-
-**Causa:** G1GC de Java 17 crashea con proyectos grandes. Se ve en `hs_err_pid*.log` con crash en `G1CMTask`.
-
-**Solución:** En `android/gradle.properties`:
-```properties
-org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m -XX:+UseParallelGC
-```
-
-### "Native module RNFBAppModule not found"
-
-El módulo nativo de Firebase no está linkeado. Usa un development build:
-```bash
-npx expo prebuild --platform android --clean
-npx expo run:android
-```
-O build por EAS:
-```bash
-eas build -p android --profile development
-```
-
-### "NDK license not accepted"
-
-```bash
-sudo /usr/lib/android-sdk/cmdline-tools/13.0/bin/sdkmanager --licenses
-sudo /usr/lib/android-sdk/cmdline-tools/13.0/bin/sdkmanager "ndk;27.1.12297006"
-```
-
 ### "Reanimated/Worklets version not compatible"
-
-Si ves `[Reanimated] Your installed version of React Native (0.81.5) is not compatible with installed version of Reanimated (4.x)`:
 
 ```bash
 pnpm add react-native-reanimated@^3.19.5
-pnpm remove react-native-worklets
 pnpm install
 npx expo prebuild --platform android --clean
 ```
 
-Reanimated 4.x requiere RN 0.82+. Con RN 0.81.5 usa Reanimated 3.19.x (worklets viene incluido, no necesita el paquete separado).
+Reanimated 3.19.x trae worklets incluido. No elimines el paquete `react-native-worklets` — nativewind lo necesita como plugin Babel. Solo desactiva su linking nativo.
 
 ### "google-services.json not found"
 
-Asegúrate de que el archivo está en la raíz:
+Asegúrate de que el archivo está en la raíz **y** en `android/app/`:
 ```bash
-ls google-services.json
+ls google-services.json android/app/google-services.json
 ```
+
+### `expo prebuild` borra las optimizaciones
+
+`expo prebuild --clean` regenera `android/gradle.properties` y `android/app/build.gradle`. Conserva estos archivos en git y reaplica los cambios después de cada prebuild. No toca `react-native.config.js`.
 
 ### Build falla por espacio en disco
 
-Los módulos nativos ocupan ~10 GB en `~/.gradle`:
 ```bash
 cd android
 ./gradlew clean
 rm -rf ~/.gradle/caches ~/.gradle/daemon
 ```
 
-### "react-native-webrtc" build error
+### ProGuard / R8 rompe Firebase o WebRTC en release (Play Store)
 
-```bash
-pnpm approve-builds @firebase/util protobufjs react-native-webrtc react-native-tcp-socket
+Si habilitas `minifyEnabled = true` en release, ProGuard puede ofuscar clases de Firebase y WebRTC.
+
+**Solución:** Crea `android/app/proguard-rules.pro` con estas reglas:
+
+```proguard
+# Firebase
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**
+
+# React Native Firebase
+-keep class io.invertase.firebase.** { *; }
+-dontwarn io.invertase.firebase.**
+
+# WebRTC
+-keep class org.webrtc.** { *; }
+-dontwarn org.webrtc.**
+
+# React Native
+-keep class com.facebook.react.** { *; }
+-keep class com.facebook.hermes.** { *; }
 ```
 
-### EAS build falla por falta de archivos
+Y en `android/gradle.properties`:
+```properties
+android.enableMinifyInReleaseBuilds=true
+android.enableShrinkResourcesInReleaseBuilds=true
+```
 
-`google-services.json` y `GoogleService-Info.plist` están en `.gitignore`. EAS no los tiene. Súbelos en el dashboard de Expo (project → Secrets) o usa un hook `eas-build-pre-install`.
+> **Importante**: prueba con ProGuard **después** de haber validado Firebase + P2P sin minificar. Si algo se rompe, las reglas de arriba suelen ser suficientes.
 
 ---
 
-## 5. Scripts útiles
+## 4. Scripts útiles
 
 En `package.json`:
 
 ```json
 "scripts": {
-  "build:android:debug": "cd android && ./gradlew assembleDebug",
-  "build:android:release": "cd android && ./gradlew assembleRelease",
+  "build:android:debug": "cd android && ./gradlew clean assembleDebug --no-daemon",
+  "build:android:release": "cd android && ./gradlew clean assembleRelease --no-daemon",
   "build:prebuild": "npx expo prebuild --platform android --clean",
+  "build:full": "npx expo prebuild --platform android --clean && echo 'sdk.dir=/usr/lib/android-sdk' > android/local.properties && cp google-services.json android/app/ && cd android && ./gradlew assembleDebug --no-daemon",
   "build:eas:android": "eas build -p android --profile preview",
-  "build:eas:ios": "eas build -p ios --profile preview"
 }
-```
-
-```bash
-npm run build:prebuild
-npm run build:android:debug
 ```

@@ -144,9 +144,10 @@ export function useSync() {
     } catch (err: any) {
       setStep('error');
       stepRef.current = 'error';
-      setError(err.message);
-      addLog(`Error al fusionar: ${err.message}`);
-      await saveHistoryEntry('received', payload.deviceId, 'error', 0, 0, err.message);
+      const msg = err?.message || String(err) || 'Error desconocido';
+      setError(msg);
+      addLog(`Error al fusionar: ${msg}`);
+      await saveHistoryEntry('received', payload.deviceId, 'error', 0, 0, msg);
     }
   }, [addLog]);
 
@@ -177,7 +178,7 @@ export function useSync() {
       const { sendSyncMessage } = await import('./webrtc');
       sendSyncMessage(channel, { type: 'sync_response', payload });
     } catch (err: any) {
-      addLog(`Error al enviar: ${err.message}`);
+      addLog(`Error al enviar: ${err?.message || err}`);
     }
   }
 
@@ -256,10 +257,10 @@ export function useSync() {
           addLog('Conexión WebRTC establecida');
           await updateSessionStatus(sessionId, 'paired');
         } catch (err: any) {
-          addLog(`Error al conectar: ${err.message}`);
+          addLog(`Error al conectar: ${err?.message || err}`);
         }
       }, (err) => {
-        addLog(`Error de Firebase: ${err.message}`);
+        addLog(`Error de Firebase: ${err?.message || err}`);
       });
       cleanupRef.current.push(unsub);
       cleanupRef.current.push(() => {
@@ -269,8 +270,9 @@ export function useSync() {
     } catch (err: any) {
       setStep('error');
       stepRef.current = 'error';
-      setError(err.message);
-      addLog(`Error: ${err.message}`);
+      const msg = err?.message || String(err) || 'Error desconocido';
+      setError(msg);
+      addLog(`Error: ${msg}`);
     }
   }, [addLog, reset, handleRemotePayload]);
 
@@ -337,8 +339,9 @@ export function useSync() {
     } catch (err: any) {
       setStep('error');
       stepRef.current = 'error';
-      setError(err.message);
-      addLog(`Error: ${err.message}`);
+      const msg = err?.message || String(err) || 'Error desconocido';
+      setError(msg);
+      addLog(`Error: ${msg}`);
     }
   }, [addLog, reset, handleRemotePayload]);
 
