@@ -4,10 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const PRESENCE_PATH = 'presence';
 const SIGNALS_PATH = 'sync_signals';
 const PAIRED_STORAGE = '@sync/paired_devices';
-const PRESENCE_TTL = 60000;
+const PRESENCE_TTL = 120000;
 
 let _db: any = null;
 let _dbError = false;
+
 async function getDb() {
   if (_db) return _db;
   if (_dbError) throw new Error('Firebase no disponible');
@@ -95,27 +96,84 @@ export function listenKnownPeers(
   return () => unsubs.forEach((fn) => fn());
 }
 
-// ─── SYNC SIGNALS ───────────────────────────────────────────────────────────
+// ─── SYNC SIGNALS ───────────────────────────────────────────────────────
 
-export async function sendSyncSignal(targetDeviceId: string, senderDeviceId: string) {
+export async function sendSyncSignal(
+  targetDeviceId: string,
+  senderDeviceId: string,
+  sessionId?: string,
+  key?: string,
+) {
   const db = await getDb();
-  await db.ref(`${SIGNALS_PATH}/${targetDeviceId}/${senderDeviceId}`).set({
+  const data: any = {
     timestamp: Date.now(),
     senderDeviceId,
-  });
+  };
+  if (sessionId) data.sessionId = sessionId;
+  if (key) data.key = key;
+  await db.ref(`${SIGNALS_PATH}/${targetDeviceId}/${senderDeviceId}`).set(data);
 }
 
-export async function signalAllPeers(senderDeviceId: string) {
+export async function signalAllPeers(
+  senderDeviceId: string,
+  sessionId?: string,
+  key?: string,
+) {
   const devices = await getPairedDevices();
   const promises = devices
     .filter((d) => d.deviceId !== senderDeviceId)
-    .map((d) => sendSyncSignal(d.deviceId, senderDeviceId));
+    .map((d) => sendSyncSignal(d.deviceId, senderDeviceId, sessionId, key));
   await Promise.all(promises);
+}
+
+// ─── HOST INFO (auto-sync response) ────────────────────────────────────
+
+export async function writeHostInfo(
+  targetDeviceId: string,
+  senderDeviceId: string,
+  sessionId: string,
+  key: string,
+) {
+  const db = await getDb();
+  await db.ref(`sync_host_info/${targetDeviceId}/${senderDeviceId}`).set({
+    sessionId,
+    key,
+    senderDeviceId,
+    timestamp: Date.now(),
+  });
+}
+
+export function listenHostInfo(
+  deviceId: string,
+  callback: (info: { sessionId: string; key: string; senderDeviceId: string }) => void,
+): () => void {
+  const unsubs: (() => void)[] = [];
+  getDb().then((db) => {
+    const ref = db.ref(`sync_host_info/${deviceId}`);
+    const listener = ref.on('child_added', (snapshot: any) => {
+      const val = snapshot.val();
+      if (val && val.sessionId && val.key && val.senderDeviceId) {
+        callback({
+          sessionId: val.sessionId,
+          key: val.key,
+          senderDeviceId: val.senderDeviceId,
+        });
+        ref.child(snapshot.key).remove().catch(() => {});
+      }
+    });
+    unsubs.push(() => ref.off('child_added', listener));
+  }).catch(() => {});
+  return () => unsubs.forEach((fn) => fn());
 }
 
 export function listenSyncSignals(
   deviceId: string,
-  callback: (signal: { senderDeviceId: string; timestamp: number }) => void,
+  callback: (signal: {
+    senderDeviceId: string;
+    timestamp: number;
+    sessionId?: string;
+    key?: string;
+  }) => void,
 ): () => void {
   const unsubs: (() => void)[] = [];
   getDb().then((db) => {
@@ -123,7 +181,12 @@ export function listenSyncSignals(
     const listener = ref.on('child_added', (snapshot: any) => {
       const val = snapshot.val();
       if (val && val.senderDeviceId && val.timestamp) {
-        callback({ senderDeviceId: val.senderDeviceId, timestamp: val.timestamp });
+        callback({
+          senderDeviceId: val.senderDeviceId,
+          timestamp: val.timestamp,
+          sessionId: val.sessionId,
+          key: val.key,
+        });
       }
     });
     unsubs.push(() => ref.off('child_added', listener));

@@ -372,6 +372,85 @@ android.enableShrinkResourcesInReleaseBuilds=true
 
 > **Importante**: prueba con ProGuard **después** de haber validado Firebase + P2P sin minificar. Si algo se rompe, las reglas de arriba suelen ser suficientes.
 
+### R8 NullPointerException con play-services-auth
+
+**Síntoma:** Build release muere con `R8: NullPointerException, NullPointer thrown while building report` apuntando a `com.google.android.gms.internal.play-services-auth`.
+
+**Causa:** R8 minifier tiene un bug con algunas versiones de `play-services-auth` cuando coexisten Firebase y Google Play Services.
+
+**Solución:** Deshabilitar minification en release (el APK sigue siendo funcional y representativo):
+
+```groovy
+// android/app/build.gradle — bloque release
+release {
+    shrinkResources false
+    minifyEnabled false
+}
+```
+
+Desde `gradle.properties` se controla así (default seguro):
+```properties
+android.enableMinifyInReleaseBuilds=false
+android.enableShrinkResourcesInReleaseBuilds=false
+```
+
+Si **necesitas** minificar para Play Store, actualiza todos los Google Play Services a versions recientes donde R8 8.x+ no tenga el bug.
+
+### `shrinkResources` también crashea con Firebase
+
+**Síntoma:** Build release muere incluso con `minifyEnabled = false` pero `shrinkResources = true`.
+
+**Causa:** Firebase y WebRTC traen recursos que el shrinker interpreta como "no usados" y al eliminarlos rompe referencias nativas en tiempo de ejecución.
+
+**Solución:** Mantener ambos deshabilitados:
+```groovy
+release {
+    shrinkResources false
+    minifyEnabled false
+}
+```
+
+### `expo run:android --variant release` crashea (preferir Gradle directo)
+
+**Síntoma:** `npx expo run:android --variant release` falla con SIGSEGV en clang (C++) durante la compilación de `react-native-screens` o con `jest-worker` crash en Metro.
+
+**Causa:** Expo CLI corre Metro bundler + compilación nativa simultáneamente, compitiendo por memoria y causando crashes en el GC de Java y en procesos C++.
+
+**Solución:** Usar Gradle directamente, que separa el bundleo JS de la compilación nativa:
+```bash
+npx expo prebuild --platform android --clean
+# luego
+cd android && ./gradlew assembleRelease --no-daemon
+```
+
+El flag `--no-daemon` evita que el daemon de Gradle quede en estado inconsistente después de un crash.
+
+### Build release exitoso (receta probada)
+
+Después de iterar con todos los crashes, esta es la receta que **funciona**:
+
+```bash
+# 1. Prebuild limpio
+npx expo prebuild --platform android --clean
+
+# 2. Restaurar configs que prebuild sobreescribe
+echo "sdk.dir=/usr/lib/android-sdk" > android/local.properties
+cp google-services.json android/app/google-services.json
+
+# 3. Verificar android/app/build.gradle:
+#    - shrinkResources false
+#    - minifyEnabled false (o enableMinifyInReleaseBuilds=false en gradle.properties)
+#    - debuggableVariants = []
+
+# 4. Build release directo con Gradle
+cd android
+./gradlew assembleRelease --no-daemon
+
+# 5. APK listo
+ls -lh app/build/outputs/apk/release/app-release.apk
+# ~34 MB
+```
+
 ---
 
 ## 4. Scripts útiles

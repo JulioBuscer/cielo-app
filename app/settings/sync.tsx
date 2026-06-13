@@ -9,6 +9,7 @@ import {
   Alert,
   StatusBar,
   Platform,
+  Share,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -66,15 +67,20 @@ export default function SyncScreen() {
     }
   }, [mode, sync.offer, sync.step]);
 
+  const formatOffer = useCallback((offer: SyncOffer) => {
+    if (offer.v === 1) {
+      return `🌙 Te invito a sincronizar Cielo\n\nHost: ${offer.host}\nPuerto: ${offer.port}\nClave: ${offer.key}`;
+    }
+    const link = `cieloapp://pair/${offer.sessionId}/${offer.key}`;
+    return `🌙 Te invito a sincronizar Cielo\n\nID de sesión: ${offer.sessionId}\nClave: ${offer.key}\n\nO abre este enlace:\n${link}`;
+  }, []);
+
   const handleCopyOffer = useCallback(async () => {
     if (!sync.offer) return;
-    const text = sync.offer.v === 2
-      ? JSON.stringify({ sessionId: sync.offer.sessionId, key: sync.offer.key })
-      : `${sync.offer.host}:${sync.offer.port}`;
-    await Clipboard.setStringAsync(text);
+    await Clipboard.setStringAsync(formatOffer(sync.offer));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }, [sync.offer]);
+  }, [sync.offer, formatOffer]);
 
   const handleStartHost = () => {
     setMode('host');
@@ -337,6 +343,34 @@ export default function SyncScreen() {
                 }} />
               </View>
             </View>
+          )}
+
+          {/* Share button */}
+          {sync.offer && (
+            <TouchableOpacity
+              onPress={async () => {
+                try {
+                  await Share.share({
+                    message: formatOffer(sync.offer!),
+                    title: 'Conectar con Cielo',
+                  });
+                } catch {}
+              }}
+              style={{
+                backgroundColor: c.accentStrong,
+                borderRadius: 14,
+                paddingVertical: 14,
+                paddingHorizontal: 24,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <Text style={{ fontSize: 18 }}>📤</Text>
+              <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>
+                Compartir enlace
+              </Text>
+            </TouchableOpacity>
           )}
 
           {/* Manual connection info */}
