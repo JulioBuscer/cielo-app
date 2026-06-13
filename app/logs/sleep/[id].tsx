@@ -16,6 +16,7 @@ import {
   useSleepSession,
   useSleepStatusEvents,
   useUpdateSleepSession,
+  useDeleteSleepSession,
   useSleepPreciseElapsed,
 } from "@/src/hooks/useSleepSessions";
 import { formatDuration } from "@/src/db/client";
@@ -42,6 +43,7 @@ export default function SleepDetailScreen() {
   const { data: statusEvents } = useSleepStatusEvents(id);
   const { data: profile } = useActiveProfile();
   const updateSleep = useUpdateSleepSession();
+  const deleteSleep = useDeleteSleepSession();
   const preciseElapsed = useSleepPreciseElapsed(session);
   const [editing, setEditing] = useState(false);
   const [editStartedAt, setEditStartedAt] = useState<Date | null>(null);
@@ -245,6 +247,22 @@ export default function SleepDetailScreen() {
             <Text className="font-medium text-sm" style={{ color: c.textBody }}>{session.notes}</Text>
           </View>
         )}
+
+        <TouchableOpacity
+          onPress={() => {
+            Alert.alert("Eliminar sueño", "¿Estás seguro?", [
+              { text: "Cancelar", style: "cancel" },
+              { text: "Eliminar", style: "destructive", onPress: () => {
+                deleteSleep.mutate({ id: session.id, babyId: session.babyId }, {
+                  onSuccess: () => router.back(),
+                });
+              }},
+            ]);
+          }}
+          style={{ paddingVertical: 16, borderRadius: 99, alignItems: "center", borderWidth: 1, borderColor: c.danger, marginTop: 8 }}
+        >
+          <Text style={{ color: c.danger, fontWeight: "900", fontSize: 16 }}>🗑 Eliminar</Text>
+        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>

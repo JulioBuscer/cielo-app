@@ -188,6 +188,29 @@ export function useUpdateTimelineEvent() {
   });
 }
 
+export function useDeleteTimelineEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; babyId: string }) => {
+      await getDb().update(timelineEvents).set({
+        deletedAt: new Date(),
+        deletedBy: await getProfileId(),
+      }).where(eq(timelineEvents.id, input.id));
+      await writeOutbox('timeline_events', input.id, 'delete', { id: input.id });
+      await signalPeers();
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['timeline', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['timeline', 'last', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['timeline_event', 'detail', vars.id] });
+      qc.invalidateQueries({ queryKey: ['growth_last', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['growth_logs', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['calendar', vars.babyId], refetchType: 'all' });
+    },
+    onError: onMutationError("[useDeleteTimelineEvent]"),
+  });
+}
+
 export function useCreateEventType() {
   const qc = useQueryClient();
   return useMutation({

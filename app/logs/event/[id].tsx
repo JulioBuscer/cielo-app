@@ -17,6 +17,7 @@ import {
   useTimelineEvent,
   useEventTypes,
   useUpdateTimelineEvent,
+  useDeleteTimelineEvent,
   useDiaperObservations,
 } from "@/src/hooks/useTimeline";
 import { useActiveProfile } from "@/src/hooks/useProfile";
@@ -62,6 +63,7 @@ export default function EventDetailScreen() {
   const { data: profile } = useActiveProfile();
   const { data: baby } = useActiveBaby();
   const updateEvent = useUpdateTimelineEvent();
+  const deleteEvent = useDeleteTimelineEvent();
   const { data: diaperObs } = useDiaperObservations();
   const { data: catalogItem } = useCatalogItem(event?.eventItemId ?? undefined);
   const { data: rootCatalogItem } = useCatalogItem(
@@ -1164,6 +1166,22 @@ export default function EventDetailScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        <TouchableOpacity
+          onPress={() => {
+            Alert.alert("Eliminar evento", "¿Estás seguro?", [
+              { text: "Cancelar", style: "cancel" },
+              { text: "Eliminar", style: "destructive", onPress: () => {
+                deleteEvent.mutate({ id, babyId: baby!.id }, {
+                  onSuccess: () => router.back(),
+                });
+              }},
+            ]);
+          }}
+          style={{ paddingVertical: 16, borderRadius: 99, alignItems: "center", borderWidth: 1, borderColor: c.danger, marginTop: 8 }}
+        >
+          <Text style={{ color: c.danger, fontWeight: "900", fontSize: 16 }}>🗑 Eliminar</Text>
+        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>

@@ -56,6 +56,23 @@ export const useResumeFeeding        = hooks.useResumeSession;
 export const useFinishFeeding        = hooks.useFinishSession;
 export const useUpdateFeedingSession = hooks.useUpdateSession;
 
+export function useDeleteFeedingSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; babyId: string }) => {
+      const db = getDb();
+      await db.delete(feedingStatusEvents).where(eq(feedingStatusEvents.sessionId, input.id));
+      await db.delete(feedingSessions).where(eq(feedingSessions.id, input.id));
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['feeding_session', 'active', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['feeding_session', 'history', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['timeline'] });
+    },
+    onError: onMutationError("[useDeleteFeedingSession]"),
+  });
+}
+
 // ─── QUERY: Última sesión terminada ───────────────────────────────────────────
 
 export function useLastFeedingSession(babyId?: string) {

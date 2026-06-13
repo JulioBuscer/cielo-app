@@ -16,6 +16,7 @@ import {
   useFeedingSession,
   useFeedingStatusEvents,
   useUpdateFeedingSession,
+  useDeleteFeedingSession,
   FEEDING_LABELS,
   BOTTLE_SUBTYPE_LABELS,
   type FeedingType,
@@ -51,6 +52,7 @@ export default function FeedingDetailScreen() {
   const { data: statusEvents } = useFeedingStatusEvents(id);
   const { data: profile } = useActiveProfile();
   const updateFeeding = useUpdateFeedingSession();
+  const deleteFeeding = useDeleteFeedingSession();
 
   const [editing, setEditing] = useState(false);
   const [editStartedAt, setEditStartedAt] = useState<Date | null>(null);
@@ -258,6 +260,22 @@ export default function FeedingDetailScreen() {
             <Text className="font-medium text-sm" style={{ color: c.textBody }}>{session.notes}</Text>
           </View>
         )}
+
+        <TouchableOpacity
+          onPress={() => {
+            Alert.alert("Eliminar toma", "¿Estás seguro?", [
+              { text: "Cancelar", style: "cancel" },
+              { text: "Eliminar", style: "destructive", onPress: () => {
+                deleteFeeding.mutate({ id: session.id, babyId: session.babyId }, {
+                  onSuccess: () => router.back(),
+                });
+              }},
+            ]);
+          }}
+          style={{ paddingVertical: 16, borderRadius: 99, alignItems: "center", borderWidth: 1, borderColor: c.danger, marginTop: 8 }}
+        >
+          <Text style={{ color: c.danger, fontWeight: "900", fontSize: 16 }}>🗑 Eliminar</Text>
+        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>

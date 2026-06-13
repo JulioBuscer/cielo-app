@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { getDb } from '@/src/db/client';
 import { sleepSessions, sleepStatusEvents } from '@/src/db/schema';
+import { eq } from 'drizzle-orm';
 import { createSessionHooks } from './useSession';
+import { onMutationError } from '@/src/utils/mutationError';
 import type { SleepSession, SleepStatusEvent } from '@/src/db/schema';
 
 // ─── FACTORY HOOKS ───────────────────────────────────────────────────────────
@@ -21,6 +25,23 @@ export const usePauseSleep         = hooks.usePauseSession;
 export const useResumeSleep        = hooks.useResumeSession;
 export const useFinishSleep        = hooks.useFinishSession;
 export const useUpdateSleepSession = hooks.useUpdateSession;
+
+export function useDeleteSleepSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; babyId: string }) => {
+      const db = getDb();
+      await db.delete(sleepStatusEvents).where(eq(sleepStatusEvents.sessionId, input.id));
+      await db.delete(sleepSessions).where(eq(sleepSessions.id, input.id));
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['sleep_session', 'active', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['sleep_session', 'history', vars.babyId] });
+      qc.invalidateQueries({ queryKey: ['timeline'] });
+    },
+    onError: onMutationError("[useDeleteSleepSession]"),
+  });
+}
 
 // ─── HOOK: Timer preciso de sueño ────────────────────────────────────────────
 

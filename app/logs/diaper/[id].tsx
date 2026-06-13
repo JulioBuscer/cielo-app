@@ -19,6 +19,7 @@ import {
   useTimelineEvent,
   useUpdateTimelineEvent,
   useDiaperObservations,
+  useDeleteTimelineEvent,
 } from "@/src/hooks/useTimeline";
 import { useCamera } from "@/src/hooks/useCamera";
 import { safeJsonParse } from "@/src/utils/safeJsonParse";
@@ -52,6 +53,7 @@ export default function DiaperDetailScreen() {
   const { data: profile } = useActiveProfile();
   const { data: observations } = useDiaperObservations();
   const updateEvent = useUpdateTimelineEvent();
+  const deleteEvent = useDeleteTimelineEvent();
   const { uri: camUri, takePhoto, pickImage, discard: discardPhoto } = useCamera();
   const [editing, setEditing] = useState(false);
 
@@ -715,6 +717,22 @@ export default function DiaperDetailScreen() {
           <Text style={{ color: c.textBody, fontWeight: "900", fontSize: 16 }}>
             {saving ? "Guardando..." : "💾 Guardar Cambios"}
           </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => {
+            Alert.alert("Eliminar evento", "¿Estás seguro?", [
+              { text: "Cancelar", style: "cancel" },
+              { text: "Eliminar", style: "destructive", onPress: () => {
+                deleteEvent.mutate({ id, babyId: baby!.id }, {
+                  onSuccess: () => router.back(),
+                });
+              }},
+            ]);
+          }}
+          style={{ paddingVertical: 16, borderRadius: 99, alignItems: "center", borderWidth: 1, borderColor: c.danger }}
+        >
+          <Text style={{ color: c.danger, fontWeight: "900", fontSize: 16 }}>🗑 Eliminar</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
