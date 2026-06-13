@@ -426,6 +426,83 @@ export async function shareSingleRecord(record: AnyShareData): Promise<void> {
 // shareMultipleRecords — compartir N registros en secuencia
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Conversión desde tipos de la BD a AnyShareData
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function feedingToShareData(
+  session: { type: string; bottleSubtype?: string | null; startedAt: Date | number; endedAt?: Date | number | null; durationSec?: number | null; notes?: string | null },
+  babyName: string,
+  profileName?: string,
+): FeedingShareData {
+  return {
+    type: 'feeding',
+    babyName,
+    profileName,
+    feedingType: session.type,
+    bottleSubtype: session.bottleSubtype ?? null,
+    startedAt: session.startedAt,
+    endedAt: session.endedAt ?? null,
+    durationSec: session.durationSec ?? null,
+    notes: session.notes ?? null,
+  };
+}
+
+export function sleepToShareData(
+  session: { startedAt: Date | number; endedAt?: Date | number | null; durationSec?: number | null; notes?: string | null },
+  babyName: string,
+  profileName?: string,
+): SleepShareData {
+  return {
+    type: 'sleep',
+    babyName,
+    profileName,
+    startedAt: session.startedAt,
+    endedAt: session.endedAt ?? null,
+    durationSec: session.durationSec ?? null,
+    notes: session.notes ?? null,
+  };
+}
+
+export function eventToShareData(
+  event: { eventTypeId: string; timestamp: Date | number; metadata?: string | null; notes?: string | null },
+  babyName: string,
+  profileName?: string,
+  eventLabel?: string,
+): AnyShareData {
+  const base = { babyName, profileName, timestamp: event.timestamp, notes: event.notes };
+
+  if (event.eventTypeId === 'diaper' && event.metadata) {
+    let m: any = {};
+    try { m = JSON.parse(event.metadata); } catch {}
+    return {
+      type: 'diaper',
+      ...base,
+      peeIntensity: m.peeIntensity ?? 0,
+      poopIntensity: m.poopIntensity ?? 0,
+      peeHealth: m.peeHealth ?? null,
+      poopHealth: m.poopHealth ?? null,
+      poopConsistency: m.poopConsistency ?? 0,
+      observationIds: m.observationIds ?? [],
+      observationLabels: [],
+      observationValues: m.observationValues ?? null,
+      weightGrams: m.weightGrams ?? null,
+      imageUri: m.imageUri ?? null,
+      duringFeedingType: m.duringFeedingType ?? null,
+      duringFeedingMin: m.duringFeedingMin ?? null,
+      duringSleep: m.duringSleep ?? false,
+    };
+  }
+
+  return {
+    type: 'event',
+    ...base,
+    eventTypeId: event.eventTypeId,
+    eventLabel,
+    metadata: event.metadata,
+  };
+}
+
 export async function shareMultipleRecords(records: AnyShareData[]): Promise<void> {
   for (let i = 0; i < records.length; i++) {
     await shareSingleRecord(records[i]);

@@ -119,6 +119,7 @@ function BubbleFooter({
   timestamp,
   accentColor,
   originLabel,
+  onShare,
 }: {
   isOwn: boolean;
   isFirstInGroup: boolean;
@@ -126,6 +127,7 @@ function BubbleFooter({
   timestamp: Date | string | number;
   accentColor?: string;
   originLabel?: string | null;
+  onShare?: () => void;
 }) {
   const c = useTheme().theme.colors;
   return (
@@ -137,6 +139,11 @@ function BubbleFooter({
         <Text style={{ fontSize: 11, fontWeight: "800", color: accentColor ?? c.accentStrong, marginRight: 2 }}>
           {profile.name}
         </Text>
+      )}
+      {onShare && (
+        <TouchableOpacity onPress={onShare} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginRight: 2 }}>
+          <Text style={{ fontSize: 13, color: c.textMuted }}>📤</Text>
+        </TouchableOpacity>
       )}
       <Text style={{ fontSize: 10, color: c.textMuted, fontWeight: "700" }}>
         {formatTime(timestamp)}
@@ -177,6 +184,7 @@ export function TimelineBubble({
   isFirstInGroup,
   profile,
   onPress,
+  onShare,
 }: {
   event: TimelineEvent;
   eventType?: EventType;
@@ -185,6 +193,7 @@ export function TimelineBubble({
   isFirstInGroup: boolean;
   profile?: Profile;
   onPress?: () => void;
+  onShare?: () => void;
 }) {
   const { theme } = useTheme();
   const { data: observations } = useDiaperObservations();
@@ -439,6 +448,7 @@ export function TimelineBubble({
         profile={profile}
         timestamp={event.timestamp}
         originLabel={originLabel}
+        onShare={onShare}
       />
     </TouchableOpacity>
   );
@@ -462,13 +472,14 @@ export function TimelineBubble({
 }
 
 export function FeedingSessionBubble({
-  session, isOwn, isFirstInGroup, profile, onPress,
+  session, isOwn, isFirstInGroup, profile, onPress, onShare,
 }: {
   session: FeedingSession;
   isOwn: boolean;
   isFirstInGroup: boolean;
   profile?: Profile;
   onPress?: () => void;
+  onShare?: () => void;
 }) {
   const { theme } = useTheme();
   const { emoji, label } = FEEDING_LABELS[session.type as FeedingType] ?? { emoji: "🍼", label: "Toma" };
@@ -524,6 +535,7 @@ export function FeedingSessionBubble({
         isFirstInGroup={isFirstInGroup}
         profile={profile}
         timestamp={session.startedAt}
+        onShare={onShare}
       />
     </TouchableOpacity>
   );
@@ -547,13 +559,14 @@ export function FeedingSessionBubble({
 }
 
 export function SleepSessionBubble({
-  session, isOwn, isFirstInGroup, profile, onPress, prevWakeWindow,
+  session, isOwn, isFirstInGroup, profile, onPress, onShare, prevWakeWindow,
 }: {
   session: SleepSession;
   isOwn: boolean;
   isFirstInGroup: boolean;
   profile?: Profile;
   onPress?: () => void;
+  onShare?: () => void;
   prevWakeWindow?: { durationMs: number; windowIndex: number; expectedMin: number; expectedMax: number } | null;
 }) {
   const { theme } = useTheme();
@@ -635,6 +648,7 @@ export function SleepSessionBubble({
         profile={profile}
         timestamp={session.startedAt}
         accentColor={INDIGO}
+        onShare={onShare}
       />
     </TouchableOpacity>
   );

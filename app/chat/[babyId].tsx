@@ -60,6 +60,12 @@ import { TodaySummary } from "@/src/components/chat/TodaySummary";
 import { QuickActionFAB, type ActionId } from "@/src/components/chat/QuickActionFAB";
 import { StatsSection } from "@/src/components/analisis/StatsSection";
 import { HistorySection } from "@/src/components/analisis/HistorySection";
+import {
+  shareSingleRecord,
+  eventToShareData,
+  feedingToShareData,
+  sleepToShareData,
+} from "@/src/utils/shareReport";
 
 function QuickBtn({
   emoji,
@@ -562,6 +568,7 @@ export default function ChatTimelineScreen() {
     const isFirstInGroup = !prevItem || prevItem.kind === "date" || getProfileId(prevItem) !== itemProfileId;
     const itemProfile = itemProfileId ? profileMap.get(itemProfileId) : undefined;
 
+    const babyName = baby?.name ?? "Bebé";
     if (item.kind === "date") return <DateSeparator date={item.date} />;
     if (item.kind === "session") {
       const isOwn = item.data.profileId === profile?.id;
@@ -572,6 +579,7 @@ export default function ChatTimelineScreen() {
           isFirstInGroup={isFirstInGroup}
           profile={isOwn ? undefined : itemProfile}
           onPress={() => router.push(`/logs/feeding/${item.data.id}`)}
+          onShare={() => shareSingleRecord(feedingToShareData(item.data, babyName, profile?.name))}
         />
       );
     }
@@ -585,6 +593,7 @@ export default function ChatTimelineScreen() {
           isFirstInGroup={isFirstInGroup}
           profile={isOwn ? undefined : itemProfile}
           onPress={() => router.push(`/logs/sleep/${item.data.id}`)}
+          onShare={() => shareSingleRecord(sleepToShareData(item.data, babyName, profile?.name))}
           prevWakeWindow={prevWW ?? null}
         />
       );
@@ -592,6 +601,7 @@ export default function ChatTimelineScreen() {
     const isOwn = item.data.profileId === profile?.id;
     const evType = eventTypes?.find((t) => t.id === item.data.eventTypeId);
     const evCatalogItem = item.data.eventItemId ? catalogItemMap[item.data.eventItemId] : undefined;
+    const evLabel = evType?.label ?? evType?.id ?? item.data.eventTypeId;
 
     return (
       <TimelineBubble
@@ -605,6 +615,7 @@ export default function ChatTimelineScreen() {
           ? router.push(`/logs/diaper/${item.data.id}`)
           : router.push(`/logs/event/${item.data.id}`)
         }
+        onShare={() => shareSingleRecord(eventToShareData(item.data, babyName, profile?.name, evLabel))}
       />
     );
   };
