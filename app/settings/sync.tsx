@@ -450,22 +450,7 @@ export default function SyncScreen() {
             )}
           </View>
 
-          {/* Log */}
-          <View style={{
-            backgroundColor: c.elevated,
-            borderRadius: 12,
-            padding: 12,
-            width: '100%',
-            maxHeight: 200,
-          }}>
-            <ScrollView nestedScrollEnabled>
-              {sync.log.map((entry, i) => (
-                <Text key={i} style={{ color: c.textMuted, fontSize: 12, lineHeight: 18 }}>
-                  {entry}
-                </Text>
-              ))}
-            </ScrollView>
-          </View>
+          <SyncLogViewer log={sync.log} colors={c} />
 
           {countdown === 0 && sync.step === 'waiting_qr' && (
             <TouchableOpacity
@@ -642,21 +627,7 @@ export default function SyncScreen() {
                 )}
               </View>
 
-              <View style={{
-                backgroundColor: c.elevated,
-                borderRadius: 12,
-                padding: 12,
-                width: '100%',
-                maxHeight: 200,
-              }}>
-                <ScrollView nestedScrollEnabled>
-                  {sync.log.map((entry, i) => (
-                    <Text key={i} style={{ color: c.textMuted, fontSize: 12, lineHeight: 18 }}>
-                      {entry}
-                    </Text>
-                  ))}
-                </ScrollView>
-              </View>
+              <SyncLogViewer log={sync.log} colors={c} />
 
               {sync.step === 'done' && (
                 <TouchableOpacity
@@ -678,6 +649,79 @@ export default function SyncScreen() {
         </View>
       )}
     </SafeAreaView>
+  );
+}
+
+function SyncLogViewer({ log, colors }: { log: string[]; colors: any }) {
+  const scrollRef = useRef<ScrollView>(null);
+  const [copiedLog, setCopiedLog] = useState(false);
+
+  const handleCopyLog = useCallback(async () => {
+    const text = log.join('\n');
+    await Clipboard.setStringAsync(text);
+    setCopiedLog(true);
+    setTimeout(() => setCopiedLog(false), 2000);
+  }, [log]);
+
+  // Auto-scroll to bottom on new entries
+  useEffect(() => {
+    if (log.length > 0) {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  }, [log.length]);
+
+  return (
+    <View style={{
+      backgroundColor: colors.elevated,
+      borderRadius: 12,
+      width: '100%',
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: copiedLog ? '#4CAF50' : 'transparent',
+    }}>
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border || 'rgba(128,128,128,0.15)',
+      }}>
+        <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 }}>
+          LOG
+        </Text>
+        {log.length > 0 && (
+          <TouchableOpacity onPress={handleCopyLog} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 }}>
+            <Text style={{
+              color: copiedLog ? '#4CAF50' : colors.accentStrong,
+              fontSize: 12,
+              fontWeight: '700',
+            }}>
+              {copiedLog ? '✓ Copiado' : '📋 Copiar'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      <ScrollView
+        ref={scrollRef}
+        nestedScrollEnabled
+        style={{ maxHeight: 240, minHeight: log.length > 0 ? 80 : 0 }}
+        contentContainerStyle={{ padding: 12 }}
+      >
+        {log.length === 0 ? (
+          <Text style={{ color: colors.textMuted, fontSize: 12, opacity: 0.5, fontStyle: 'italic' }}>
+            Sin registros aún...
+          </Text>
+        ) : (
+          log.map((entry, i) => (
+            <Text key={i} style={{ color: colors.textMuted, fontSize: 12, lineHeight: 18, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>
+              {entry}
+            </Text>
+          ))
+        )}
+      </ScrollView>
+    </View>
   );
 }
 

@@ -120,7 +120,30 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     stepRef.current = 'merging';
 
     try {
-      const result: MergeResult = await mergeSyncPayload(payload);
+      const payloadSummary = `events=${payload.timelineEvents?.length ?? 0} items=${payload.catalogItems?.length ?? 0} tags=${payload.tags?.length ?? 0} profiles=${payload.profiles?.length ?? 0} babies=${payload.babies?.length ?? 0} ops=${payload.operations?.length ?? 0}`;
+      addLog(`Payload recibido: ${payloadSummary}`);
+      console.log('[Sync] Payload recibido:', {
+        deviceId: payload.deviceId?.slice(0,8),
+        timestamp: new Date(payload.timestamp).toISOString(),
+        events: payload.timelineEvents?.length ?? 0,
+        items: payload.catalogItems?.length ?? 0,
+        tags: payload.tags?.length ?? 0,
+        profiles: payload.profiles?.length ?? 0,
+        babies: payload.babies?.length ?? 0,
+        ops: payload.operations?.length ?? 0,
+        hasTimelineEvents: !!payload.timelineEvents,
+        hasCatalogItems: !!payload.catalogItems,
+        hasTags: !!payload.tags,
+        hasProfiles: !!payload.profiles,
+        hasBabies: !!payload.babies,
+        hasOperations: !!payload.operations,
+        sampleIds: {
+          events: payload.timelineEvents?.slice(0,2).map((r: any) => r?.id),
+          items: payload.catalogItems?.slice(0,2).map((r: any) => r?.id),
+          babies: payload.babies?.slice(0,2).map((r: any) => r?.id),
+        },
+      });
+      const result: MergeResult = await mergeSyncPayload(payload, addLog);
       setMergedCount(result.mergedCount);
       setConflictCount(result.conflictCount);
       addLog(`Fusionados ${result.mergedCount} registros${result.conflictCount > 0 ? `, ${result.conflictCount} conflictos` : ''}`);
@@ -162,8 +185,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     const _deviceId = await getOrCreateDeviceId();
     addLog('Recopilando datos...');
     try {
-      const payload = await gatherLocalPayload(await getLastSyncAts(), _deviceId);
-      addLog(`Enviando ${(payload.timelineEvents ?? []).length} eventos, ${(payload.catalogItems ?? []).length} items...`);
+      const payload = await gatherLocalPayload(await getLastSyncAts(), _deviceId, addLog);
       const { sendSyncMessage } = await import('./webrtc');
       sendSyncMessage(channel, { type: 'sync_response', payload });
     } catch (err: any) {
