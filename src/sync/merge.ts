@@ -40,12 +40,18 @@ export async function gatherLocalPayload(
 
   // Incremental sync — send operations since earliest unsynced timestamp
   const earliestUnsynced = Math.min(...Object.values(lastSyncAts));
-  const operations = await readOutbox(earliestUnsynced);
+  const [operations, incrementalBabies, incrementalProfiles] = await Promise.all([
+    readOutbox(earliestUnsynced),
+    db.select().from(babies).where(sql`${babies.deletedAt} IS NULL`).orderBy(asc(babies.createdAt)),
+    db.select().from(profiles).where(sql`${profiles.deletedAt} IS NULL`).orderBy(asc(profiles.createdAt)),
+  ]);
 
   return {
     deviceId: localDeviceId,
     timestamp,
     operations,
+    babies: incrementalBabies,
+    profiles: incrementalProfiles,
   };
 }
 
@@ -68,13 +74,13 @@ function getUpdatedAt(record: any): number {
 }
 
 async function upsertTable<T extends { id: string; createdAt: any }>(
-  tx: any,
+  db: any,
   table: any,
   records: T[],
   counters: { mergedCount: number; conflictCount: number },
 ) {
   for (const record of records) {
-    const existing = await tx
+    const existing = await db
       .select({ createdAt: table.createdAt })
       .from(table)
       .where(eq(table.id, record.id))
@@ -83,13 +89,36 @@ async function upsertTable<T extends { id: string; createdAt: any }>(
     const localTs = existing.length > 0 ? getTimestamp(existing[0]) : 0;
 
     if (existing.length === 0) {
-      await tx.insert(table).values(record as any);
+      // Baby dedup: match by name (case-insensitive) + birthDate
+      if (table === babies) {
+        const dup = await db
+          .select()
+          .from(babies)
+          .where(
+            and(
+              sql`LOWER(${babies.name}) = ${String(record.name).toLowerCase()}`,
+              eq(babies.birthDate, record.birthDate),
+            ),
+          )
+          .limit(1);
+
+        if (dup.length > 0) {
+          await db
+            .update(babies)
+            .set({ ...record, id: dup[0].id, updatedAt: new Date(), updatedBy: 'sync' })
+            .where(eq(babies.id, dup[0].id));
+          counters.mergedCount++;
+          continue;
+        }
+      }
+      await db.insert(table).values(record as any);
       counters.mergedCount++;
     } else if (getTimestamp(record) > localTs) {
-      await tx
-        .insert(table)
-        .values(record as any)
-        .onConflictDoUpdate({ target: table.id, set: record as any });
+      const { id: _id, createdAt: _ca, ...updates } = record;
+      await db
+        .update(table)
+        .set({ ...updates, updatedAt: new Date(), updatedBy: 'sync' })
+        .where(eq(table.id, record.id));
       counters.mergedCount++;
     } else {
       counters.conflictCount++;
@@ -198,20 +227,22 @@ export async function mergeSyncPayload(payload: SyncPayload): Promise<MergeResul
 
   const ops = payload.operations;
   if (ops && ops.length > 0) {
-    await db.transaction(async (tx) => {
-      for (const op of ops) {
-        await processOperation(tx, op, counters, payload.deviceId);
-      }
-    });
+    // Process operations sequentially without a wrapping transaction
+    // to avoid deadlocking with gatherLocalPayload on the other side
+    for (const op of ops) {
+      await processOperation(db, op, counters, payload.deviceId);
+    }
+    // Always upsert full babies and profiles (sent in every incremental sync)
+    // so a reset peer always receives the current state
+    if (payload.babies) await upsertTable(db, babies, payload.babies, counters);
+    if (payload.profiles) await upsertTable(db, profiles, payload.profiles, counters);
   } else {
-    // Legacy format: full-table upsert
-    await db.transaction(async (tx) => {
-      await upsertTable(tx, timelineEvents, payload.timelineEvents ?? [], counters);
-      await upsertTable(tx, catalogItems, payload.catalogItems ?? [], counters);
-      await upsertTable(tx, tags, payload.tags ?? [], counters);
-      await upsertTable(tx, profiles, payload.profiles ?? [], counters);
-      await upsertTable(tx, babies, payload.babies ?? [], counters);
-    });
+    // Full-table upsert (no wrapping transaction to avoid DB lock contention)
+    await upsertTable(db, timelineEvents, payload.timelineEvents ?? [], counters);
+    await upsertTable(db, catalogItems, payload.catalogItems ?? [], counters);
+    await upsertTable(db, tags, payload.tags ?? [], counters);
+    await upsertTable(db, profiles, payload.profiles ?? [], counters);
+    await upsertTable(db, babies, payload.babies ?? [], counters);
   }
 
   return counters;

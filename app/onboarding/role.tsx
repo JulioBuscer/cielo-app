@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BigButton } from '@/src/components/ui/BigButton';
 import { useCreateProfile } from '@/src/hooks/useProfile';
+import { setOnboardingDone } from '@/src/utils/storage';
 import { ROLES, type Role } from '@/src/constants/roles';
 
 export default function RoleSelection() {
@@ -16,7 +17,10 @@ export default function RoleSelection() {
     createProfile.mutate(
       { name: name.trim(), role: roleMode },
       {
-        onSuccess: () => router.push('/onboarding/baby'),
+        onSuccess: async () => {
+          await setOnboardingDone();
+          router.replace('/(tabs)');
+        },
         onError: (e: any) => console.error('createProfile error:', e),
       }
     );

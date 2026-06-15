@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   useActiveBaby,
   useUpdateBaby,
+  useDeleteBaby,
   calcAge,
   SEX_LABELS,
   STATUS_LABELS,
@@ -99,6 +100,7 @@ export default function BabyProfile() {
   const c = theme.colors;
   const { data: baby } = useActiveBaby();
   const update = useUpdateBaby();
+  const deleteBaby = useDeleteBaby();
   const { data: lastGrowth } = useLastGrowthLog(baby?.id);
   const [editing, setEditing] = useState(false);
 
@@ -375,6 +377,27 @@ export default function BabyProfile() {
             {!editing && (
               <View className="mt-8 border-t pt-5" style={{ borderTopColor: c.elevated }}>
                 <Text className="font-black text-[11px] uppercase tracking-[0.5px] mb-3" style={{ color: c.textMuted }}>⚠️ Zona de desarrollo</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert("🗑️ Eliminar bebé", `¿Eliminar a ${baby?.name}? Se borrarán todos sus registros.`, [
+                      { text: "Cancelar", style: "cancel" },
+                      {
+                        text: "🗑️ Eliminar", style: "destructive",
+                        onPress: () => {
+                          if (!baby) return;
+                          deleteBaby.mutate(baby.id, {
+                            onSuccess: () => router.replace("/baby"),
+                            onError: (e: any) => Alert.alert("Error", e?.message),
+                          });
+                        },
+                      },
+                    ]);
+                  }}
+                  style={{ backgroundColor: "#FEE2E2", borderRadius: 14, padding: 14, alignItems: "center", borderWidth: 1, borderColor: "#FECACA", marginBottom: 12 }}
+                >
+                  <Text style={{ color: c.danger, fontWeight: "800", fontSize: 14 }}>🗑️ Eliminar este bebé</Text>
+                  <Text style={{ color: "#EF4444", fontSize: 11, marginTop: 3 }}>Borrar {baby?.name} y todos sus registros</Text>
+                </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
                     Alert.alert("⚠️ Borrar todos los datos", "Se eliminarán todos los registros. Esta acción no se puede deshacer.", [

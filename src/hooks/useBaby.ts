@@ -3,7 +3,8 @@ import { getDb } from '@/src/db/client';
 import { babies } from '@/src/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
-import { setBabyId, setOnboardingDone, getBabyId } from '@/src/utils/storage';
+import { setBabyId, getBabyId, KEYS } from '@/src/utils/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onMutationError } from '@/src/utils/mutationError';
 import { writeOutbox } from '@/src/sync/outbox';
 import { signalPeers } from '@/src/sync/hooks';
@@ -38,7 +39,6 @@ export function useCreateBaby() {
       await writeOutbox('babies', id, 'insert', { id, ...input });
       await signalPeers();
       await setBabyId(id);
-      await setOnboardingDone();
       return id;
     },
     onSuccess: () => {
@@ -109,6 +109,10 @@ export function useDeleteBaby() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      const storedId = await getBabyId();
+      if (storedId === id) {
+        await AsyncStorage.removeItem(KEYS.ACTIVE_BABY_ID);
+      }
       await getDb().delete(babies).where(eq(babies.id, id));
       await writeOutbox('babies', id, 'delete', { id });
       await signalPeers();
