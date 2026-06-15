@@ -211,6 +211,28 @@ export default function ChatsScreen() {
               ➕ Agregar bebé
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push("/settings/sync")}
+            style={{
+              marginTop: 12,
+              borderRadius: 14,
+              paddingHorizontal: 24,
+              paddingVertical: 14,
+              borderWidth: 1.5,
+              borderColor: c.accent,
+              minHeight: 48,
+            }}
+          >
+            <Text
+              style={{
+                color: c.accent,
+                fontWeight: "900",
+                fontSize: 15,
+              }}
+            >
+              🔄 Sincronizar dispositivo
+            </Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
