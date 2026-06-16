@@ -10,7 +10,9 @@ export async function signalPeers() {
     const deviceId = await getOrCreateDeviceId();
     const { signalAllPeers } = await import('./presence');
     await signalAllPeers(deviceId);
-  } catch {} // Firebase no disponible — silencioso
+  } catch (e) {
+    console.warn('[Sync] signalPeers falló:', e);
+  }
 }
 
 export { SyncProvider, useSyncContext } from './SyncProvider';

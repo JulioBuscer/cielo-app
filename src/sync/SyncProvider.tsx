@@ -13,7 +13,7 @@ import { generateId } from '@/src/utils/id';
 const LAST_SYNC_STORAGE = '@sync/last_sync_ats';
 const PEER_NAME_PREFIX = 'Dispositivo';
 const PRESENCE_HEARTBEAT_MS = 30000;
-const PERIODIC_SYNC_MS = 300000;
+const PERIODIC_SYNC_MS = 60000;
 
 interface SyncContextValue {
   step: SyncStep;
@@ -469,6 +469,24 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     })();
     return () => { if (unsub) unsub(); };
   }, [pairedDevices]);
+
+  // Auto-sync when a *new* known peer appears (not on every heartbeat)
+  const prevOnlinePeerIdsRef = useRef<string[]>([]);
+  const lastPeerSyncTsRef = useRef<Record<string, number>>({});
+  useEffect(() => {
+    if (isSyncInProgress()) return;
+    const currentIds = knownPeers.map((p) => p.deviceId);
+    const prevIds = prevOnlinePeerIdsRef.current;
+    // Find newly online peers (present now but not before)
+    const newPeer = knownPeers.find((p) => !prevIds.includes(p.deviceId) && p.sessionId !== 'heartbeat');
+    prevOnlinePeerIdsRef.current = currentIds;
+    if (!newPeer) return;
+    const last = lastPeerSyncTsRef.current[newPeer.deviceId] ?? 0;
+    if (Date.now() - last < PRESENCE_HEARTBEAT_MS) return;
+    lastPeerSyncTsRef.current[newPeer.deviceId] = Date.now();
+    addLog(`Nuevo peer detectado vía presencia: ${newPeer.deviceId.slice(0, 6)}...`);
+    startHost(newPeer.deviceId);
+  }, [knownPeers, startHost, addLog]);
 
   // Listen for host info (when someone responds to our sync signal)
   useEffect(() => {
