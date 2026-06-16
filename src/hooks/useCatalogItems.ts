@@ -216,7 +216,7 @@ export function useQuickSaveCatalogItem() {
     mutationFn: async (input: {
       babyId: string;
       item: CatalogItem;
-      timestamp?: Date;
+      timestamp: Date;
       notes?: string;
     }) => {
       if (!_insertTimelineEvent) {

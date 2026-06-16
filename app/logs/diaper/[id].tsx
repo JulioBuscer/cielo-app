@@ -476,6 +476,22 @@ export default function DiaperDetailScreen() {
               />
             </View>
           )}
+
+          <TouchableOpacity
+            onPress={() => {
+              Alert.alert("Eliminar evento", "¿Estás seguro?", [
+                { text: "Cancelar", style: "cancel" },
+                { text: "Eliminar", style: "destructive", onPress: () => {
+                  deleteEvent.mutate({ id, babyId: baby!.id }, {
+                    onSuccess: () => router.back(),
+                  });
+                }},
+              ]);
+            }}
+            style={{ paddingVertical: 16, borderRadius: 99, alignItems: "center", borderWidth: 1, borderColor: c.danger }}
+          >
+            <Text style={{ color: c.danger, fontWeight: "900", fontSize: 16 }}>🗑 Eliminar</Text>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     );

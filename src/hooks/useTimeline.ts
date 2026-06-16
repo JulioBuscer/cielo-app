@@ -17,7 +17,7 @@ export async function insertTimelineEvent(input: {
   profileId:        string;
   eventTypeId:      string;
   eventItemId?:     string | null;
-  timestamp?:       Date;
+  timestamp:        Date;
   notes?:           string | null;
   values?:          Record<string, unknown>;
   metadata?:        Record<string, unknown> | null;
@@ -33,7 +33,7 @@ export async function insertTimelineEvent(input: {
     sleepSessionId:   input.sleepSessionId ?? null,
     eventTypeId:      input.eventTypeId,
     eventItemId:      input.eventItemId ?? null,
-    timestamp:        input.timestamp ?? new Date(),
+    timestamp:        input.timestamp,
     notes:            input.notes ?? null,
     metadata:         input.metadata ? JSON.stringify(input.metadata) : null,
     values:           input.values ? JSON.stringify(input.values) : '{}',
@@ -120,7 +120,7 @@ export function useSaveTimelineEvent() {
       metadata?: Record<string, unknown>;
       values?: Record<string, unknown>;
       notes?: string;
-      timestamp?: Date;
+      timestamp: Date;
       feedingSessionId?: string;
       sleepSessionId?: string;
     }) => {
@@ -192,11 +192,12 @@ export function useDeleteTimelineEvent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { id: string; babyId: string }) => {
+      const profileId = await getProfileId();
       await getDb().update(timelineEvents).set({
         deletedAt: new Date(),
-        deletedBy: await getProfileId(),
+        deletedBy: profileId,
       }).where(eq(timelineEvents.id, input.id));
-      await writeOutbox('timeline_events', input.id, 'delete', { id: input.id });
+      await writeOutbox('timeline_events', input.id, 'delete', { id: input.id, deletedBy: profileId });
       await signalPeers();
     },
     onSuccess: (_, vars) => {

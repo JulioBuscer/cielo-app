@@ -219,9 +219,9 @@ async function processOperation(
         .update(table)
         .set({
           deletedAt: new Date(op.createdAt),
-          deletedBy: senderDeviceId,
+          deletedBy: op.data?.deletedBy ?? senderDeviceId,
           updatedAt: new Date(op.createdAt),
-          updatedBy: senderDeviceId,
+          updatedBy: op.data?.deletedBy ?? senderDeviceId,
         })
         .where(eq(table.id, op.recordId));
       counters.mergedCount++;
@@ -230,6 +230,11 @@ async function processOperation(
   }
 
   const incoming = coerceRecord({ ...op.data });
+  if (op.tableName === 'timeline_events') {
+    if (incoming.values && typeof incoming.values === 'object') incoming.values = JSON.stringify(incoming.values);
+    if (incoming.metadata && typeof incoming.metadata === 'object') incoming.metadata = JSON.stringify(incoming.metadata);
+    if (!incoming.timestamp) incoming.timestamp = new Date(op.createdAt);
+  }
   const existing = await tx
     .select({ id: table.id, updatedAt: table.updatedAt, createdAt: table.createdAt })
     .from(table)
@@ -263,6 +268,11 @@ async function processOperation(
 
     // New record
     const rawVal = { ...incoming, createdBy: senderDeviceId, createdAt: new Date(op.createdAt) };
+    console.log(`[Sync] processOperation ${op.tableName}/${op.recordId} timestamp=${typeof rawVal.timestamp} createdAt=${typeof rawVal.createdAt} op.createdAt=${typeof op.createdAt}`);
+    if (op.tableName === 'timeline_events' && !rawVal.timestamp) {
+      console.warn(`[Sync] MISSING timestamp for ${op.recordId}, using createdAt ${op.createdAt}`);
+      rawVal.timestamp = new Date(op.createdAt);
+    }
     const opKeys = Object.keys(rawVal).map(k => `${k}=${typeof (rawVal as any)[k]}`).join(', ');
     console.log(`[Sync] processOperation INSERT ${op.tableName}: ${opKeys}`);
     const cleaned = Object.fromEntries(

@@ -185,6 +185,7 @@ export function TimelineBubble({
   profile,
   onPress,
   onShare,
+  onLongPress,
 }: {
   event: TimelineEvent;
   eventType?: EventType;
@@ -194,6 +195,7 @@ export function TimelineBubble({
   profile?: Profile;
   onPress?: () => void;
   onShare?: () => void;
+  onLongPress?: () => void;
 }) {
   const { theme } = useTheme();
   const { data: observations } = useDiaperObservations();
@@ -214,6 +216,8 @@ export function TimelineBubble({
   const bubble = (
     <TouchableOpacity
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={500}
       activeOpacity={0.85}
       style={{
         maxWidth: isOwn || !profile || !isFirstInGroup ? "82%" : "76%",
@@ -472,7 +476,7 @@ export function TimelineBubble({
 }
 
 export function FeedingSessionBubble({
-  session, isOwn, isFirstInGroup, profile, onPress, onShare,
+  session, isOwn, isFirstInGroup, profile, onPress, onShare, onLongPress,
 }: {
   session: FeedingSession;
   isOwn: boolean;
@@ -480,6 +484,7 @@ export function FeedingSessionBubble({
   profile?: Profile;
   onPress?: () => void;
   onShare?: () => void;
+  onLongPress?: () => void;
 }) {
   const { theme } = useTheme();
   const { emoji, label } = FEEDING_LABELS[session.type as FeedingType] ?? { emoji: "🍼", label: "Toma" };
@@ -489,6 +494,8 @@ export function FeedingSessionBubble({
   const bubble = (
     <TouchableOpacity
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={500}
       activeOpacity={0.85}
       style={{
         maxWidth: isOwn || !profile || !isFirstInGroup ? "82%" : "76%",
@@ -559,7 +566,7 @@ export function FeedingSessionBubble({
 }
 
 export function SleepSessionBubble({
-  session, isOwn, isFirstInGroup, profile, onPress, onShare, prevWakeWindow,
+  session, isOwn, isFirstInGroup, profile, onPress, onShare, onLongPress, prevWakeWindow,
 }: {
   session: SleepSession;
   isOwn: boolean;
@@ -567,6 +574,7 @@ export function SleepSessionBubble({
   profile?: Profile;
   onPress?: () => void;
   onShare?: () => void;
+  onLongPress?: () => void;
   prevWakeWindow?: { durationMs: number; windowIndex: number; expectedMin: number; expectedMax: number } | null;
 }) {
   const { theme } = useTheme();
@@ -576,6 +584,8 @@ export function SleepSessionBubble({
   const bubble = (
     <TouchableOpacity
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={500}
       activeOpacity={0.85}
       style={{
         maxWidth: isOwn || !profile || !isFirstInGroup ? "82%" : "76%",

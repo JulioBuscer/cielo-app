@@ -121,6 +121,7 @@ export default function DiaperNewScreen() {
         babyId: baby.id,
         eventTypeId: "diaper",
         feedingSessionId: activeFeeding?.id,
+        timestamp: new Date(),
         metadata: {
           peeIntensity,
           poopIntensity,

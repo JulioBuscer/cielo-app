@@ -7,9 +7,12 @@ import {
   ActivityIndicator,
   StatusBar,
   RefreshControl,
+  Alert,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
 import { desc } from 'drizzle-orm';
 import { useTheme } from '@/src/theme/useTheme';
 import { getDb } from '@/src/db/client';
@@ -22,6 +25,18 @@ function formatTime(ts: Date | number): string {
   const hours = String(d.getHours()).padStart(2, '0');
   const mins = String(d.getMinutes()).padStart(2, '0');
   return `${day}/${month} ${hours}:${mins}`;
+}
+
+function formatEntriesLog(entries: SyncHistory[]): string {
+  const lines = entries.map((e) => {
+    const meta = STATUS_META[e.status] ?? STATUS_META.error;
+    const dir = e.direction === 'sent' ? '📤' : '📥';
+    const time = formatTime(e.createdAt);
+    const conflict = (e.recordsConflicted ?? 0) > 0 ? ` conflictos=${e.recordsConflicted}` : '';
+    const err = e.errorMessage ? ` error=${e.errorMessage}` : '';
+    return `${dir} ${time} ${meta.emoji} ${e.direction} registros=${e.recordsSynced}${conflict}${err}`;
+  });
+  return `Sync History (${entries.length} entries)\n${'='.repeat(40)}\n${lines.join('\n')}`;
 }
 
 const STATUS_META: Record<string, { label: string; color: string; emoji: string }> = {
@@ -58,6 +73,16 @@ export default function SyncHistoryScreen() {
     setRefreshing(false);
   }, [load]);
 
+  const copyLogs = useCallback(async () => {
+    const log = formatEntriesLog(entries);
+    await Clipboard.setStringAsync(log);
+    if (Platform.OS === 'web') {
+      alert('Logs copiados al portapapeles');
+    } else {
+      Alert.alert('📋 Copiado', 'Logs de sincronización copiados al portapapeles');
+    }
+  }, [entries]);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.headerBg }} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={c.headerBg} />
@@ -80,6 +105,14 @@ export default function SyncHistoryScreen() {
         <Text style={{ color: c.headerText, fontWeight: '900', fontSize: 18, flex: 1 }}>
           📋 Historial de sincronización
         </Text>
+        {entries.length > 0 && (
+          <TouchableOpacity
+            onPress={copyLogs}
+            style={{ minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'flex-end' }}
+          >
+            <Text style={{ color: c.headerText, fontSize: 15, fontWeight: '700' }}>📋 Copiar</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView

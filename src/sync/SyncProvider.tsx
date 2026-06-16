@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, createContext, useContext, type ReactNode } from 'react';
 import { NativeModules, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useQueryClient } from '@tanstack/react-query';
 import { getOrCreateDeviceId } from './device';
 import type { SyncOffer, SyncPayload, SyncMessage, SyncStep, SyncRole, PairedDevice } from './types';
 import { generateKey } from './crypto';
@@ -27,6 +28,9 @@ interface SyncContextValue {
   startHost: (targetPeerId?: string) => Promise<void>;
   startJoin: (offer: SyncOffer) => Promise<void>;
   reset: () => Promise<void>;
+  disconnect: () => Promise<void>;
+  checkAndSync: () => Promise<void>;
+  removePairedDevice: (deviceId: string) => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextValue | null>(null);
@@ -53,6 +57,7 @@ function ensureKey(): string {
 }
 
 export function SyncProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [step, setStep] = useState<SyncStep>('idle');
   const [role, setRole] = useState<SyncRole>(null);
   const [offer, setOffer] = useState<SyncOffer | null>(null);
@@ -171,6 +176,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setStep('done');
       stepRef.current = 'done';
       addLog('Sincronización completada');
+      queryClient.invalidateQueries();
     } catch (err: any) {
       setStep('error');
       stepRef.current = 'error';
@@ -195,9 +201,6 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   const reset = useCallback(async () => {
     runCleanup();
-    const id = await getOrCreateDeviceId();
-    const { removePresence } = await import('./presence');
-    await removePresence(id).catch(() => {});
     setStep('idle');
     stepRef.current = 'idle';
     setRole(null);
@@ -409,6 +412,25 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const disconnect = useCallback(async () => {
+    runCleanup();
+    stopHeartbeat();
+    const id = await getOrCreateDeviceId();
+    const { removePresence } = await import('./presence');
+    await removePresence(id).catch(() => {});
+    setStep('idle');
+    stepRef.current = 'idle';
+    setRole(null);
+    setOffer(null);
+    setLog([]);
+    setMergedCount(0);
+    setConflictCount(0);
+    setError(null);
+    channelRef.current = null;
+    pcRef.current = null;
+    sessionIdRef.current = '';
+  }, [stopHeartbeat]);
+
   // ─── BACKGROUND SYNC ────────────────────────────────────────────────────
 
   const checkAndSync = useCallback(async () => {
@@ -534,10 +556,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     };
   }, [checkAndSync]);
 
+  const removePairedDevice = useCallback(async (deviceId: string) => {
+    const { removePairedDevice: remove, cleanupFirebaseDevice } = await import('./presence');
+    await cleanupFirebaseDevice(deviceId);
+    await remove(deviceId);
+    setPairedDevices((prev) => prev.filter((d) => d.deviceId !== deviceId));
+  }, []);
+
   const value: SyncContextValue = {
     step, role, offer, log, mergedCount, conflictCount, error,
     pairedDevices, knownPeers,
-    startHost, startJoin, reset,
+    startHost, startJoin, reset, disconnect, checkAndSync,
+    removePairedDevice,
   };
 
   return (

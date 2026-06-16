@@ -20,7 +20,7 @@ import {
   useDeleteTimelineEvent,
   useDiaperObservations,
 } from "@/src/hooks/useTimeline";
-import { useActiveProfile } from "@/src/hooks/useProfile";
+import { useProfiles, useActiveProfile } from "@/src/hooks/useProfile";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import {
   useActiveFeedingSession,
@@ -61,6 +61,7 @@ export default function EventDetailScreen() {
   const { data: event } = useTimelineEvent(id);
   const { data: eventTypes } = useEventTypes();
   const { data: profile } = useActiveProfile();
+  const { data: allProfiles } = useProfiles();
   const { data: baby } = useActiveBaby();
   const updateEvent = useUpdateTimelineEvent();
   const deleteEvent = useDeleteTimelineEvent();
@@ -100,6 +101,8 @@ export default function EventDetailScreen() {
 
   const evType = eventTypes?.find((t) => t.id === event?.eventTypeId);
   const isOwn = event?.profileId === profile?.id;
+  const creatorProfile = allProfiles?.find((p) => p.id === event?.profileId);
+  const creatorName = creatorProfile?.name ?? (event?.createdBy ? event.createdBy.slice(0, 8) + "..." : "—");
 
   const MEDICAL_KEYS = new Set(["medication", "temperature", "vomit"]);
 
@@ -670,7 +673,7 @@ export default function EventDetailScreen() {
                 <Text className="font-bold text-sm" style={{
                   color: event.createdBy === getCachedDeviceId() ? c.success : c.accent,
                 }}>
-                  {event.createdBy === getCachedDeviceId() ? "Este dispositivo" : event.createdBy.slice(0, 8) + "..."}
+                  {event.createdBy === getCachedDeviceId() ? "Este dispositivo" : creatorName}
                 </Text>
               </View>
             )}

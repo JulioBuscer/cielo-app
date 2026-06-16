@@ -13,6 +13,7 @@ import {
   Image,
   ScrollView,
   Modal,
+  Alert,
 } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { timeOptions } from "@/src/utils/timeFormat";
@@ -24,6 +25,7 @@ import {
   useActiveFeedingSession,
   useFeedingHistory,
   useStartFeeding,
+  useDeleteFeedingSession,
   type FeedingType,
   type BottleSubtype,
 } from "@/src/hooks/useFeedingSessions";
@@ -31,12 +33,14 @@ import {
   useActiveSleepSession,
   useStartSleep,
   useFinishSleep,
+  useDeleteSleepSession,
   useSleepHistory,
 } from "@/src/hooks/useSleepSessions";
 import {
   useTimeline,
   useSaveTimelineEvent,
   useEventTypes,
+  useDeleteTimelineEvent,
 } from "@/src/hooks/useTimeline";
 import { useWakeWindows, getWakeReference } from "@/src/hooks/useWakeWindows";
 import { ActiveFeedingCard } from "@/src/components/ui/ActiveFeedingCard";
@@ -306,9 +310,12 @@ export default function ChatTimelineScreen() {
   }, [allCatalogItems]);
 
   const startFeeding = useStartFeeding();
+  const deleteFeeding = useDeleteFeedingSession();
   const startSleep = useStartSleep();
   const finishSleep = useFinishSleep();
+  const deleteSleep = useDeleteSleepSession();
   const saveEvent = useSaveTimelineEvent();
+  const deleteEvent = useDeleteTimelineEvent();
   const { data: quickItems } = useQuickActionItems();
   const quickSaveItem = useQuickSaveCatalogItem();
 
@@ -487,6 +494,7 @@ export default function ChatTimelineScreen() {
       eventTypeId: "note",
       notes: note.trim(),
       feedingSessionId: activeSession?.id,
+      timestamp: new Date(),
     });
     setNote("");
   };
@@ -580,6 +588,16 @@ export default function ChatTimelineScreen() {
           profile={isOwn ? undefined : itemProfile}
           onPress={() => router.push(`/logs/feeding/${item.data.id}`)}
           onShare={() => shareSingleRecord(feedingToShareData(item.data, babyName, profile?.name))}
+          onLongPress={() => {
+            Alert.alert("Eliminar sesión de toma", "¿Estás seguro?", [
+              { text: "Cancelar", style: "cancel" },
+              { text: "Eliminar", style: "destructive", onPress: () => {
+                deleteFeeding.mutate({ id: item.data.id, babyId }, {
+                  onSuccess: () => {},
+                });
+              }},
+            ]);
+          }}
         />
       );
     }
@@ -595,6 +613,16 @@ export default function ChatTimelineScreen() {
           onPress={() => router.push(`/logs/sleep/${item.data.id}`)}
           onShare={() => shareSingleRecord(sleepToShareData(item.data, babyName, profile?.name))}
           prevWakeWindow={prevWW ?? null}
+          onLongPress={() => {
+            Alert.alert("Eliminar sesión de sueño", "¿Estás seguro?", [
+              { text: "Cancelar", style: "cancel" },
+              { text: "Eliminar", style: "destructive", onPress: () => {
+                deleteSleep.mutate({ id: item.data.id, babyId }, {
+                  onSuccess: () => {},
+                });
+              }},
+            ]);
+          }}
         />
       );
     }
@@ -616,6 +644,16 @@ export default function ChatTimelineScreen() {
           : router.push(`/logs/event/${item.data.id}`)
         }
         onShare={() => shareSingleRecord(eventToShareData(item.data, babyName, profile?.name, evLabel))}
+        onLongPress={() => {
+          Alert.alert("Eliminar evento", "¿Estás seguro?", [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Eliminar", style: "destructive", onPress: () => {
+              deleteEvent.mutate({ id: item.data.id, babyId }, {
+                onSuccess: () => {},
+              });
+            }},
+          ]);
+        }}
       />
     );
   };

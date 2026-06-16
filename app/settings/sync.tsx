@@ -133,11 +133,24 @@ export default function SyncScreen() {
     setManualKey('');
   };
 
-  // Auto-reset after done
+  const handleDisconnect = () => {
+    sync.disconnect();
+    setMode('menu');
+    setScanned(false);
+    setJoinMode('menu');
+    setManualHost('');
+    setManualPort('');
+    setManualKey('');
+  };
+
+  // Auto-reset after done (soft reset — keeps presence alive)
   useEffect(() => {
     if (sync.step === 'done') {
       const timer = setTimeout(() => {
-        handleReset();
+        sync.reset();
+        setMode('menu');
+        setScanned(false);
+        setJoinMode('menu');
       }, 5000);
       return () => clearTimeout(timer);
     }
@@ -158,7 +171,7 @@ export default function SyncScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={mode === 'menu' ? () => router.back() : handleReset}
+          onPress={mode === 'menu' ? () => router.back() : handleDisconnect}
           style={{ paddingRight: 16, minWidth: 44, minHeight: 44, justifyContent: 'center' }}
         >
           <Text style={{ color: c.headerText, fontSize: 26, lineHeight: 28 }}>
@@ -273,33 +286,96 @@ export default function SyncScreen() {
               <Text style={{ color: c.textMuted, fontSize: 12, fontWeight: '600', marginTop: 8 }}>
                 DISPOSITIVOS VINCULADOS
               </Text>
-              {sync.pairedDevices.map((device) => (
-                <View
-                  key={device.deviceId}
-                  style={{
-                    backgroundColor: c.elevated,
-                    borderRadius: 12,
-                    padding: 12,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 10,
-                  }}
-                >
-                  <View style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: sync.knownPeers.some((p) => p.deviceId === device.deviceId) ? '#4CAF50' : '#999',
-                  }} />
-                  <Text style={{ color: c.textBody, fontWeight: '600', fontSize: 14, flex: 1 }}>
-                    {device.name}
-                  </Text>
-                  <Text style={{ color: c.textMuted, fontSize: 11 }}>
-                    {device.sessionCount} sesiones
-                  </Text>
-                </View>
-              ))}
+                {sync.pairedDevices.map((device) => (
+                  <View
+                    key={device.deviceId}
+                    style={{
+                      backgroundColor: c.elevated,
+                      borderRadius: 12,
+                      padding: 12,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                    }}
+                  >
+                    <View style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: sync.knownPeers.some((p) => p.deviceId === device.deviceId) ? '#4CAF50' : '#999',
+                    }} />
+                    <Text style={{ color: c.textBody, fontWeight: '600', fontSize: 14, flex: 1 }}>
+                      {device.name}
+                    </Text>
+                    <Text style={{ color: c.textMuted, fontSize: 11, marginRight: 8 }}>
+                      {device.sessionCount} sesiones
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        Alert.alert(
+                          'Eliminar dispositivo',
+                          `¿Eliminar "${device.name}" de dispositivos vinculados?`,
+                          [
+                            { text: 'Cancelar', style: 'cancel' },
+                            {
+                              text: 'Eliminar',
+                              style: 'destructive',
+                              onPress: () => sync.removePairedDevice(device.deviceId),
+                            },
+                          ],
+                        );
+                      }}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
+                        backgroundColor: c.danger + '20',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ color: c.danger, fontSize: 14, fontWeight: '700' }}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
             </View>
+          )}
+
+          {/* Sincronizar ahora */}
+          {sync.pairedDevices.length > 0 && (
+            <TouchableOpacity
+              onPress={sync.checkAndSync}
+              style={{
+                backgroundColor: c.card,
+                borderRadius: 16,
+                padding: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                borderWidth: 1.5,
+                borderColor: c.accentStrong + '40',
+                borderStyle: 'dashed',
+              }}
+            >
+              <View style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: c.accentStrong + '20',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Text style={{ fontSize: 20 }}>🔄</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: c.textBody, fontWeight: '700', fontSize: 15 }}>
+                  Sincronizar ahora
+                </Text>
+                <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 2 }}>
+                  Buscar dispositivos vinculados
+                </Text>
+              </View>
+            </TouchableOpacity>
           )}
         </ScrollView>
       )}
@@ -451,6 +527,22 @@ export default function SyncScreen() {
           </View>
 
           <SyncLogViewer log={sync.log} colors={c} />
+
+          {sync.step !== 'idle' && sync.step !== 'done' && sync.step !== 'error' && (
+            <TouchableOpacity
+              onPress={handleDisconnect}
+              style={{
+                backgroundColor: '#F44336',
+                borderRadius: 14,
+                paddingVertical: 14,
+                paddingHorizontal: 32,
+              }}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>
+                Desconectar
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {countdown === 0 && sync.step === 'waiting_qr' && (
             <TouchableOpacity
@@ -628,6 +720,22 @@ export default function SyncScreen() {
               </View>
 
               <SyncLogViewer log={sync.log} colors={c} />
+
+              {sync.step !== 'done' && sync.step !== 'error' && (
+                <TouchableOpacity
+                  onPress={handleDisconnect}
+                  style={{
+                    backgroundColor: '#F44336',
+                    borderRadius: 14,
+                    paddingVertical: 14,
+                    paddingHorizontal: 32,
+                  }}
+                >
+                  <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>
+                    Desconectar
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               {sync.step === 'done' && (
                 <TouchableOpacity

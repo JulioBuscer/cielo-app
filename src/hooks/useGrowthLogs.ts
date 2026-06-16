@@ -114,7 +114,7 @@ export function useSaveMeasurement() {
 
       await writeOutbox('timeline_events', timelineEventId, 'insert', {
         id: timelineEventId, babyId: input.babyId, profileId,
-        eventTypeId: 'measurement', timestamp: now.getTime(),
+        eventTypeId: 'measurement', timestamp: now,
         notes: input.notes, values: { weightKg: input.weightKg, heightCm: input.heightCm, headCircCm: input.headCircCm },
       });
       await signalPeers();

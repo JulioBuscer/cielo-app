@@ -71,6 +71,23 @@ export async function removePresence(deviceId: string) {
   await db.ref(`${PRESENCE_PATH}/${deviceId}`).remove();
 }
 
+export async function removePairedDevice(deviceId: string): Promise<void> {
+  const devices = await getPairedDevices();
+  const filtered = devices.filter((d) => d.deviceId !== deviceId);
+  await AsyncStorage.setItem(PAIRED_STORAGE, JSON.stringify(filtered));
+}
+
+export async function cleanupFirebaseDevice(deviceId: string): Promise<void> {
+  try {
+    const db = await getDb();
+    await Promise.allSettled([
+      db.ref(`${PRESENCE_PATH}/${deviceId}`).remove(),
+      db.ref(`${SIGNALS_PATH}/${deviceId}`).remove(),
+      db.ref(`sync_host_info/${deviceId}`).remove(),
+    ]);
+  } catch {}
+}
+
 export function listenKnownPeers(
   knownDeviceIds: string[],
   callback: (online: { deviceId: string; sessionId: string }[]) => void,
