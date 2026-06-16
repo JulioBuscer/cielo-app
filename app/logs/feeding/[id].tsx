@@ -27,6 +27,7 @@ import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { useActiveProfile } from "@/src/hooks/useProfile";
 import { useTheme } from "@/src/theme/useTheme";
+import * as Clipboard from 'expo-clipboard';
 
 function formatTime(ts: Date | string | number | undefined | null): string {
   if (!ts) return "--:--";
@@ -268,13 +269,23 @@ export default function FeedingDetailScreen() {
               { text: "Eliminar", style: "destructive", onPress: () => {
                 deleteFeeding.mutate({ id: session.id, babyId: session.babyId }, {
                   onSuccess: () => router.back(),
+                  onError: (e) => {
+                    const msg = `[Eliminar toma] ${e?.message || e}`;
+                    Alert.alert("Error", "No se pudo eliminar. Intenta de nuevo.", [
+                      { text: "Copiar error", onPress: () => Clipboard.setStringAsync(msg) },
+                      { text: "OK" },
+                    ]);
+                  },
                 });
               }},
             ]);
           }}
-          style={{ paddingVertical: 16, borderRadius: 99, alignItems: "center", borderWidth: 1, borderColor: c.danger, marginTop: 8 }}
+          disabled={deleteFeeding.isPending}
+          style={{ paddingVertical: 16, borderRadius: 99, alignItems: "center", borderWidth: 1, borderColor: c.danger, marginTop: 8, opacity: deleteFeeding.isPending ? 0.5 : 1 }}
         >
-          <Text style={{ color: c.danger, fontWeight: "900", fontSize: 16 }}>🗑 Eliminar</Text>
+          <Text style={{ color: c.danger, fontWeight: "900", fontSize: 16 }}>
+            {deleteFeeding.isPending ? "Eliminando..." : "🗑 Eliminar"}
+          </Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getDb } from '@/src/db/client';
 import { timelineEvents, eventTypes, diaperObservations } from '@/src/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, isNull } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 import { getProfileId } from '@/src/utils/storage';
 import { onMutationError } from '@/src/utils/mutationError';
@@ -54,7 +54,10 @@ export function useTimeline(babyId?: string, limit = 30) {
       return getDb()
         .select()
         .from(timelineEvents)
-        .where(eq(timelineEvents.babyId, babyId))
+        .where(and(
+          eq(timelineEvents.babyId, babyId),
+          isNull(timelineEvents.deletedAt),
+        ))
         .orderBy(desc(timelineEvents.timestamp))
         .limit(limit);
     },
@@ -86,7 +89,10 @@ export function useLastTimelineEventByType(babyId?: string, eventTypeId?: string
       const res = await getDb()
         .select()
         .from(timelineEvents)
-        .where(eq(timelineEvents.babyId, babyId))
+        .where(and(
+          eq(timelineEvents.babyId, babyId),
+          isNull(timelineEvents.deletedAt),
+        ))
         .orderBy(desc(timelineEvents.timestamp))
         .limit(20);
       return res.find(e => e.eventTypeId === eventTypeId) ?? null;

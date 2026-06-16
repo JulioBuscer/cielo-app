@@ -16,6 +16,7 @@ import {
   Alert,
 } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import * as Clipboard from 'expo-clipboard';
 import { timeOptions } from "@/src/utils/timeFormat";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -593,7 +594,13 @@ export default function ChatTimelineScreen() {
               { text: "Cancelar", style: "cancel" },
               { text: "Eliminar", style: "destructive", onPress: () => {
                 deleteFeeding.mutate({ id: item.data.id, babyId }, {
-                  onSuccess: () => {},
+                  onError: (e) => {
+                    const msg = `[Eliminar toma] ${e?.message || e}`;
+                    Alert.alert("Error", "No se pudo eliminar. Intenta de nuevo.", [
+                      { text: "Copiar error", onPress: () => Clipboard.setStringAsync(msg) },
+                      { text: "OK" },
+                    ]);
+                  },
                 });
               }},
             ]);
@@ -618,7 +625,13 @@ export default function ChatTimelineScreen() {
               { text: "Cancelar", style: "cancel" },
               { text: "Eliminar", style: "destructive", onPress: () => {
                 deleteSleep.mutate({ id: item.data.id, babyId }, {
-                  onSuccess: () => {},
+                  onError: (e) => {
+                    const msg = `[Eliminar sueño] ${e?.message || e}`;
+                    Alert.alert("Error", "No se pudo eliminar. Intenta de nuevo.", [
+                      { text: "Copiar error", onPress: () => Clipboard.setStringAsync(msg) },
+                      { text: "OK" },
+                    ]);
+                  },
                 });
               }},
             ]);
@@ -649,7 +662,13 @@ export default function ChatTimelineScreen() {
             { text: "Cancelar", style: "cancel" },
             { text: "Eliminar", style: "destructive", onPress: () => {
               deleteEvent.mutate({ id: item.data.id, babyId }, {
-                onSuccess: () => {},
+                onError: (e) => {
+                  const msg = `[Eliminar evento] ${e?.message || e}`;
+                  Alert.alert("Error", "No se pudo eliminar. Intenta de nuevo.", [
+                    { text: "Copiar error", onPress: () => Clipboard.setStringAsync(msg) },
+                    { text: "OK" },
+                  ]);
+                },
               });
             }},
           ]);

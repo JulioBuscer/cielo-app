@@ -22,6 +22,7 @@ import {
   useDeleteTimelineEvent,
 } from "@/src/hooks/useTimeline";
 import { useCamera } from "@/src/hooks/useCamera";
+import * as Clipboard from 'expo-clipboard';
 import { safeJsonParse } from "@/src/utils/safeJsonParse";
 import { useTheme } from "@/src/theme/useTheme";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
@@ -484,13 +485,23 @@ export default function DiaperDetailScreen() {
                 { text: "Eliminar", style: "destructive", onPress: () => {
                   deleteEvent.mutate({ id, babyId: baby!.id }, {
                     onSuccess: () => router.back(),
+                    onError: (e) => {
+                      const msg = `[Eliminar pañal] ${e?.message || e}`;
+                      Alert.alert("Error", "No se pudo eliminar. Intenta de nuevo.", [
+                        { text: "Copiar error", onPress: () => Clipboard.setStringAsync(msg) },
+                        { text: "OK" },
+                      ]);
+                    },
                   });
                 }},
               ]);
             }}
-            style={{ paddingVertical: 16, borderRadius: 99, alignItems: "center", borderWidth: 1, borderColor: c.danger }}
+            disabled={deleteEvent.isPending}
+            style={{ paddingVertical: 16, borderRadius: 99, alignItems: "center", borderWidth: 1, borderColor: c.danger, opacity: deleteEvent.isPending ? 0.5 : 1 }}
           >
-            <Text style={{ color: c.danger, fontWeight: "900", fontSize: 16 }}>🗑 Eliminar</Text>
+            <Text style={{ color: c.danger, fontWeight: "900", fontSize: 16 }}>
+              {deleteEvent.isPending ? "Eliminando..." : "🗑 Eliminar"}
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
@@ -742,13 +753,23 @@ export default function DiaperDetailScreen() {
               { text: "Eliminar", style: "destructive", onPress: () => {
                 deleteEvent.mutate({ id, babyId: baby!.id }, {
                   onSuccess: () => router.back(),
+                  onError: (e) => {
+                    const msg = `[Eliminar pañal] ${e?.message || e}`;
+                    Alert.alert("Error", "No se pudo eliminar. Intenta de nuevo.", [
+                      { text: "Copiar error", onPress: () => Clipboard.setStringAsync(msg) },
+                      { text: "OK" },
+                    ]);
+                  },
                 });
               }},
             ]);
           }}
-          style={{ paddingVertical: 16, borderRadius: 99, alignItems: "center", borderWidth: 1, borderColor: c.danger }}
+          disabled={deleteEvent.isPending}
+          style={{ paddingVertical: 16, borderRadius: 99, alignItems: "center", borderWidth: 1, borderColor: c.danger, opacity: deleteEvent.isPending ? 0.5 : 1 }}
         >
-          <Text style={{ color: c.danger, fontWeight: "900", fontSize: 16 }}>🗑 Eliminar</Text>
+          <Text style={{ color: c.danger, fontWeight: "900", fontSize: 16 }}>
+            {deleteEvent.isPending ? "Eliminando..." : "🗑 Eliminar"}
+          </Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
