@@ -95,16 +95,23 @@ export function listenKnownPeers(
   if (knownDeviceIds.length === 0) return () => {};
 
   const unsubs: (() => void)[] = [];
+  const onlineMap = new Map<string, string>();
   getDb().then((db) => {
     knownDeviceIds.forEach((deviceId) => {
       const ref = db.ref(`${PRESENCE_PATH}/${deviceId}`);
       const listener = ref.on('value', (snapshot: any) => {
         const val = snapshot.val();
         if (val && val.sessionId && (Date.now() - val.lastSeen) < PRESENCE_TTL) {
-          callback([{ deviceId, sessionId: val.sessionId }]);
+          onlineMap.set(deviceId, val.sessionId);
         } else {
-          callback([]);
+          onlineMap.delete(deviceId);
         }
+        callback(
+          Array.from(onlineMap.entries()).map(([id, sess]) => ({
+            deviceId: id,
+            sessionId: sess,
+          }))
+        );
       });
       unsubs.push(() => ref.off('value', listener));
     });
