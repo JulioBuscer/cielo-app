@@ -10,6 +10,13 @@ import { generateId } from '@/src/utils/id';
 let _db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 let _raw: SQLite.SQLiteDatabase | null = null;
 
+export function getRawDb(): SQLite.SQLiteDatabase {
+  if (!_raw) {
+    throw new Error('[Cielo] getRawDb() llamado antes de runMigrations()');
+  }
+  return _raw;
+}
+
 export function getDb(): ReturnType<typeof drizzle<typeof schema>> {
   if (!_db) {
     throw new Error(

@@ -138,6 +138,12 @@ export default function SettingsScreen() {
           <SectionHeader label="Utilidades" />
           <View style={{ gap: 8 }}>
             <MenuLink
+              emoji="💾"
+              label="Respaldar datos"
+              subtitle="Exportar o importar base de datos"
+              onPress={() => router.push("/settings/backup")}
+            />
+            <MenuLink
               emoji="🥗"
               label="Alimentos OMS"
               subtitle="Catálogo de alimentación complementaria"
