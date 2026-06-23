@@ -17,7 +17,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Usar cámara para escanear QR de sincronización entre dispositivos"
-      }
+      },
+      "bundleIdentifier": "com.buscer.cieloapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -55,6 +56,7 @@
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
             "newArchEnabled": true,
+            "useLegacyPackaging": true,
             "googleServicesFile": "./google-services.json"
           },
           "ios": {

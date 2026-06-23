@@ -1,3 +1,4 @@
+import '@react-native-firebase/app';
 import { NativeModules } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 

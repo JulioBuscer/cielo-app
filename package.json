@@ -1,6 +1,6 @@
 {
   "name": "cielo-app",
-  "version": "0.6.3",
+  "version": "0.6.5",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -24,16 +24,16 @@
     "@react-native-firebase/database": "^24.1.0",
     "@tanstack/react-query": "^5.90.21",
     "drizzle-orm": "^0.36.4",
-    "expo": "~54.0.17",
+    "expo": "~54.0.35",
     "expo-build-properties": "~1.0.10",
     "expo-camera": "~17.0.10",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.9",
-    "expo-file-system": "~19.0.21",
+    "expo-file-system": "~19.0.23",
     "expo-image-picker": "~17.0.10",
     "expo-linking": "~8.0.11",
-    "expo-router": "~6.0.23",
+    "expo-router": "~6.0.24",
     "expo-sharing": "~14.0.8",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
@@ -62,5 +62,21 @@
     "drizzle-kit": "^0.27.2",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "install": {
+      "exclude": [
+        "react-native-reanimated",
+        "react-native-worklets"
+      ]
+    },
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-tcp-socket",
+          "react-native-webrtc"
+        ]
+      }
+    }
+  }
 }

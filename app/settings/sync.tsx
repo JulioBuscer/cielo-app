@@ -19,6 +19,7 @@ import { useTheme } from '@/src/theme/useTheme';
 import { useSync } from '@/src/sync/hooks';
 import type { SyncOffer, SyncStep } from '@/src/sync/types';
 import QRCode from 'react-native-qrcode-svg';
+import packageJson from '@/package.json';
 
 const STEP_LABELS: Record<SyncStep, string> = {
   idle: 'Listo',
@@ -180,6 +181,9 @@ export default function SyncScreen() {
         </TouchableOpacity>
         <Text style={{ color: c.headerText, fontWeight: '900', fontSize: 18, flex: 1 }}>
           🔄 Sincronizar
+        </Text>
+        <Text style={{ color: c.headerText + '99', fontSize: 11, fontWeight: '600' }}>
+          v{packageJson.version}
         </Text>
       </View>
 

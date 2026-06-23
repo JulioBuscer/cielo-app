@@ -78,6 +78,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const heartbeatRef = useRef<ReturnType<typeof setInterval>>(null);
   const periodicSyncRef = useRef<ReturnType<typeof setInterval>>(null);
   const cachedKeyRef = useRef<string | null>(null);
+  const pendingSignalsRef = useRef<any[]>([]);
+  const deviceIdRef = useRef<string>('');
 
   const isSyncInProgress = () => {
     const s = stepRef.current;
@@ -176,7 +178,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setStep('done');
       stepRef.current = 'done';
       addLog('Sincronización completada');
-      queryClient.invalidateQueries();
+      // Invalidar queries específicas sin tocar ['baby'] para evitar salto del ● activo
+      queryClient.invalidateQueries({ queryKey: ['timeline_events'] });
+      queryClient.invalidateQueries({ queryKey: ['babies'] });
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['catalog_items'] });
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
     } catch (err: any) {
       setStep('error');
       stepRef.current = 'error';
@@ -433,6 +440,26 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   // ─── BACKGROUND SYNC ────────────────────────────────────────────────────
 
+  const signalQueueFlush = useCallback(async () => {
+    if (isSyncInProgress()) return;
+    if (pendingSignalsRef.current.length === 0) return;
+
+    const signal = pendingSignalsRef.current.shift();
+    if (!signal) return;
+
+    addLog(`Procesando señal pendiente de ${signal.senderDeviceId.slice(0, 6)}...`);
+    if (signal.sessionId && signal.key) {
+      await startJoin({
+        v: 2,
+        key: signal.key,
+        device: signal.senderDeviceId,
+        sessionId: signal.sessionId,
+      });
+    } else {
+      await startHost(signal.senderDeviceId);
+    }
+  }, [startHost, startJoin, addLog]);
+
   const checkAndSync = useCallback(async () => {
     if (pairedDevices.length === 0) return;
     const { listenKnownPeers } = await import('./presence');
@@ -447,10 +474,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setTimeout(unsub, 5000);
   }, [pairedDevices, startHost]);
 
+  // Flush pending signal queue when sync completes / errors
+  useEffect(() => {
+    signalQueueFlush();
+  }, [step, signalQueueFlush]);
+
   // ─── LISTENERS ─────────────────────────────────────────────────────────
 
-  // Load paired devices on mount
+  // Load paired devices + deviceId on mount
   useEffect(() => {
+    getOrCreateDeviceId().then((id) => { deviceIdRef.current = id; });
     (async () => {
       const { getPairedDevices } = await import('./presence');
       getPairedDevices().then(setPairedDevices);
@@ -470,15 +503,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return () => { if (unsub) unsub(); };
   }, [pairedDevices]);
 
-  // Auto-sync when a *new* known peer appears (not on every heartbeat)
+  // Auto-sync when a *new* known peer appears (tiebreaker: solo inicia el peer con deviceId menor)
   const prevOnlinePeerIdsRef = useRef<string[]>([]);
   const lastPeerSyncTsRef = useRef<Record<string, number>>({});
   useEffect(() => {
     if (isSyncInProgress()) return;
+    if (!deviceIdRef.current) return;
     const currentIds = knownPeers.map((p) => p.deviceId);
     const prevIds = prevOnlinePeerIdsRef.current;
-    // Find newly online peers (present now but not before)
-    const newPeer = knownPeers.find((p) => !prevIds.includes(p.deviceId) && p.sessionId !== 'heartbeat');
+    // El peer con deviceId menor inicia el host para evitar sync duplicados
+    const newPeer = knownPeers.find(
+      (p) => !prevIds.includes(p.deviceId) && p.deviceId > deviceIdRef.current && p.sessionId !== 'heartbeat'
+    );
     prevOnlinePeerIdsRef.current = currentIds;
     if (!newPeer) return;
     const last = lastPeerSyncTsRef.current[newPeer.deviceId] ?? 0;
@@ -525,7 +561,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         const isPaired = pairedDevices.some((d) => d.deviceId === signal.senderDeviceId);
         if (!isPaired) return;
 
-        if (isSyncInProgress()) return;
+        if (isSyncInProgress()) {
+          pendingSignalsRef.current.push(signal);
+          addLog(`Sync en curso, señal encolada de ${signal.senderDeviceId.slice(0, 6)}`);
+          return;
+        }
 
         addLog(`Señal de sync recibida de ${signal.senderDeviceId.slice(0, 6)}...`);
 
