@@ -9,6 +9,7 @@ import { gatherLocalPayload, mergeSyncPayload, type MergeResult } from './merge'
 import { syncHistory } from '@/src/db/schema';
 import { getDb } from '@/src/db/client';
 import { generateId } from '@/src/utils/id';
+import { setActiveChannel, getActiveChannel, getLastOutboxSync, setLastOutboxSync } from './channelState';
 
 const LAST_SYNC_STORAGE = '@sync/last_sync_ats';
 const PEER_NAME_PREFIX = 'Dispositivo';
@@ -91,9 +92,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, []);
 
   function runCleanup() {
+    setActiveChannel(null);
     cleanupRef.current.forEach((fn) => fn());
     cleanupRef.current = [];
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (channelRef.current) {
+      try { channelRef.current.close(); } catch {}
+      channelRef.current = null;
+    }
+    if (pcRef.current) {
+      try { pcRef.current.close(); } catch {}
+      pcRef.current = null;
+    }
   }
 
   async function saveHistoryEntry(
@@ -178,6 +188,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setStep('done');
       stepRef.current = 'done';
       addLog('Sincronización completada');
+      // Mantener canal abierto para operaciones incrementales
+      if (channelRef.current) {
+        setActiveChannel(channelRef.current);
+        addLog('Canal persistente activado');
+      }
       // Invalidar queries específicas sin tocar ['baby'] para evitar salto del ● activo
       queryClient.invalidateQueries({ queryKey: ['timeline_events'] });
       queryClient.invalidateQueries({ queryKey: ['babies'] });
@@ -193,6 +208,25 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       await saveHistoryEntry('received', payload.deviceId, 'error', 0, 0, msg);
     }
   }, [addLog]);
+
+  const handleIncomingOperation = useCallback(async (operation: import('./types').SyncOperation, senderDeviceId: string) => {
+    try {
+      const db = getDb();
+      const counters = { mergedCount: 0, conflictCount: 0 };
+      const { processOperation } = await import('./merge');
+      await processOperation(db, operation, counters, senderDeviceId);
+      if (counters.mergedCount > 0) {
+        addLog(`Op recibida: ${operation.tableName}/${operation.operation} → fusionada`);
+        queryClient.invalidateQueries({ queryKey: ['timeline_events'] });
+        queryClient.invalidateQueries({ queryKey: ['babies'] });
+        queryClient.invalidateQueries({ queryKey: ['profiles'] });
+        queryClient.invalidateQueries({ queryKey: ['catalog_items'] });
+        queryClient.invalidateQueries({ queryKey: ['tags'] });
+      }
+    } catch (err: any) {
+      console.warn('[Sync] Error procesando operación entrante:', err);
+    }
+  }, [addLog, queryClient]);
 
   async function doSendLocalData(channel: any) {
     const _deviceId = await getOrCreateDeviceId();
@@ -263,16 +297,27 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const { createPeerConnection, createDataChannel, setupChannelListeners } = await import('./webrtc');
       const pc = createPeerConnection();
       pcRef.current = pc;
+      (pc as any).onconnectionstatechange = () => {
+        const state = (pc as any).connectionState;
+        if (state === 'disconnected' || state === 'failed') {
+          addLog('Conexión WebRTC perdida');
+          setActiveChannel(null);
+        }
+      };
       const dc = createDataChannel(pc);
       channelRef.current = dc;
 
       setupChannelListeners(dc, (msg) => {
         if (msg.payload) handleRemotePayload(msg.payload);
+        if (msg.type === 'operation' && msg.operation) handleIncomingOperation(msg.operation, msg.deviceId || '');
       }, () => {
         addLog('Canal de datos abierto');
         setStep('syncing');
         stepRef.current = 'syncing';
         doSendLocalData(dc);
+      }, () => {
+        addLog('Canal de datos cerrado');
+        setActiveChannel(null);
       });
 
       const { createOfferSdp } = await import('./webrtc');
@@ -349,17 +394,28 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const { createPeerConnection, setupChannelListeners } = await import('./webrtc');
       const pc = createPeerConnection();
       pcRef.current = pc;
+      (pc as any).onconnectionstatechange = () => {
+        const state = (pc as any).connectionState;
+        if (state === 'disconnected' || state === 'failed') {
+          addLog('Conexión WebRTC perdida');
+          setActiveChannel(null);
+        }
+      };
 
       (pc as any).ondatachannel = (event: any) => {
         const dc = event.channel;
         channelRef.current = dc;
         setupChannelListeners(dc, (msg) => {
           if (msg.payload) handleRemotePayload(msg.payload);
+          if (msg.type === 'operation' && msg.operation) handleIncomingOperation(msg.operation, msg.deviceId || '');
         }, () => {
           addLog('Canal de datos abierto');
           setStep('syncing');
           stepRef.current = 'syncing';
           doSendLocalData(dc);
+        }, () => {
+          addLog('Canal de datos cerrado');
+          setActiveChannel(null);
         });
       };
 
@@ -447,6 +503,25 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     const signal = pendingSignalsRef.current.shift();
     if (!signal) return;
 
+    // Si hay canal persistente, enviar operaciones directamente
+    const activeCh = getActiveChannel();
+    if (activeCh) {
+      addLog(`Canal activo, enviando datos directo a ${signal.senderDeviceId.slice(0, 6)}`);
+      const _deviceId = await getOrCreateDeviceId();
+      const lastSync = getLastOutboxSync();
+      const { readOutbox } = await import('./outbox');
+      const ops = await readOutbox(lastSync);
+      if (ops.length > 0) {
+        const { sendSyncMessage } = await import('./webrtc');
+        for (const op of ops) {
+          sendSyncMessage(activeCh, { type: 'operation', operation: op, deviceId: _deviceId });
+        }
+        setLastOutboxSync(Date.now());
+        addLog(`${ops.length} ops enviadas por canal persistente`);
+      }
+      return;
+    }
+
     addLog(`Procesando señal pendiente de ${signal.senderDeviceId.slice(0, 6)}...`);
     if (signal.sessionId && signal.key) {
       await startJoin({
@@ -455,13 +530,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         device: signal.senderDeviceId,
         sessionId: signal.sessionId,
       });
-    } else {
+    } else if (!deviceIdRef.current || deviceIdRef.current < signal.senderDeviceId) {
       await startHost(signal.senderDeviceId);
+    } else {
+      addLog(`DeviceId mayor, esperando host info en cola de ${signal.senderDeviceId.slice(0, 6)}`);
     }
   }, [startHost, startJoin, addLog]);
 
   const checkAndSync = useCallback(async () => {
     if (pairedDevices.length === 0) return;
+    if (getActiveChannel()) return;
     const { listenKnownPeers } = await import('./presence');
     const ids = pairedDevices.map((d) => d.deviceId);
     let found = false;
@@ -534,8 +612,6 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       unsub = listenHostInfo(myId, async (info) => {
         addLog(`Host info recibida de ${info.senderDeviceId.slice(0, 6)}...`);
 
-        if (isSyncInProgress()) return;
-
         await startJoin({
           v: 2,
           key: info.key,
@@ -567,6 +643,25 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // Si ya hay un canal persistente, enviar operaciones directamente
+        const activeCh = getActiveChannel();
+        if (activeCh) {
+          addLog(`Canal activo, enviando datos directo a ${signal.senderDeviceId.slice(0, 6)}`);
+          const _deviceId = await getOrCreateDeviceId();
+          const lastSync = getLastOutboxSync();
+          const { readOutbox } = await import('./outbox');
+          const ops = await readOutbox(lastSync);
+          if (ops.length > 0) {
+            const { sendSyncMessage } = await import('./webrtc');
+            for (const op of ops) {
+              sendSyncMessage(activeCh, { type: 'operation', operation: op, deviceId: _deviceId });
+            }
+            setLastOutboxSync(Date.now());
+            addLog(`${ops.length} operaciones enviadas por canal persistente`);
+          }
+          return;
+        }
+
         addLog(`Señal de sync recibida de ${signal.senderDeviceId.slice(0, 6)}...`);
 
         if (signal.sessionId && signal.key) {
@@ -577,7 +672,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
             sessionId: signal.sessionId,
           });
         } else {
-          await startHost(signal.senderDeviceId);
+          // Tiebreaker: el dispositivo con deviceId menor actúa como host
+          if (myId < signal.senderDeviceId) {
+            await startHost(signal.senderDeviceId);
+          } else {
+            addLog(`DeviceId mayor, esperando host info de ${signal.senderDeviceId.slice(0, 6)}`);
+          }
         }
 
         if (NativeModules.RNFBAppModule) {

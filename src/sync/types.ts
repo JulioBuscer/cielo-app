@@ -26,11 +26,13 @@ export interface SyncOperation {
   createdAt: number;
 }
 
-export type SyncMessageType = 'sync_request' | 'sync_response' | 'sync_ack' | 'sync_error';
+export type SyncMessageType = 'sync_request' | 'sync_response' | 'sync_ack' | 'sync_error' | 'operation';
 
 export interface SyncMessage {
   type: SyncMessageType;
   payload?: SyncPayload;
+  operation?: SyncOperation;
+  deviceId?: string;
   error?: string;
 }
 
@@ -44,6 +46,7 @@ export type SyncStep =
   | 'syncing'
   | 'merging'
   | 'done'
+  | 'connected'
   | 'error';
 
 export type SyncRole = 'host' | 'join' | null;

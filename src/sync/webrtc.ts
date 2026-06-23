@@ -2,7 +2,7 @@ import {
   RTCPeerConnection,
   RTCSessionDescription,
 } from 'react-native-webrtc';
-import type { SyncMessage } from './types';
+import type { SyncMessage, SyncOperation } from './types';
 
 const STUN_SERVERS = {
   iceServers: [
@@ -95,6 +95,7 @@ export function setupChannelListeners(
   channel: any,
   onMessage: (msg: SyncMessage) => void,
   onOpen: () => void,
+  onClose?: () => void,
 ): void {
   if (!channel) return;
   channel.onopen = () => onOpen();
@@ -106,6 +107,10 @@ export function setupChannelListeners(
   };
   channel.onerror = (err: any) => {
     console.warn('[Sync] DataChannel error:', err?.message ?? err);
+  };
+  channel.onclose = () => {
+    console.warn('[Sync] DataChannel closed');
+    onClose?.();
   };
 }
 

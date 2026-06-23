@@ -48,6 +48,7 @@ android/local.properties
 *.env
 
 # Llaves y certificados de firma
+keystores/
 *.keystore
 google-services.json
 GoogleService-Info.plist

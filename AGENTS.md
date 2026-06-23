@@ -25,7 +25,10 @@ MALLOC_CHECK_=0 ./gradlew assembleRelease
 
 ### Firebase
 - Warning about deprecated Firebase namespace API is harmless
-- "No Firebase App '[DEFAULT]' has been created" — check `google-services.json` presence
+- "No Firebase App '[DEFAULT]' has been called — call firebase.initializeApp()` requiere `apply plugin: "com.google.gms.google-services"` al final de `android/app/build.gradle`
+  - **Importante:** `expo prebuild --clean` borra este cambio manual — hay que re-agregarlo después de regenerar nativos
+  - `google-services.json` va configurado via `expo-build-properties` en `app.json` (android.googleServicesFile)
+- El classpath `com.google.gms:google-services:4.4.2` en `android/build.gradle` también se pierde con prebuild — re-agregar
 
 ---
 
@@ -53,6 +56,9 @@ Aplicación móvil offline-first y colaborativa para el seguimiento de bebés ("
 - **Borrado lógico (`deletedAt` / `deletedBy`)**: Para evitar la pérdida de consistencia en sincronizaciones offline concurrentes, los registros no se eliminan físicamente. Se actualizan con `deletedAt` y `deletedBy` para propagarse a otros dispositivos.
 - **Lógica de timeline unificada**: Los eventos específicos de tomas, sueño, pañales y medicamentos se insertan en `timeline_events`, relacionando sus sesiones correspondientes si existen, y guardando datos variables en la columna `values` en formato JSON.
 - **Flujo de commits y ramas**: Conventional commits, español MX formal/técnico. Trabajar siempre sobre `dev` y hacer merge a `main` al probar.
+- **Versionado antes de rebuild APK**: Antes de ejecutar `./gradlew assembleRelease`, actualizar la versión en **3 lugares**: `package.json` (version), `app.json` (expo.version) y `android/app/build.gradle` (versionCode +1, versionName). Esto permite identificar el build en pruebas. La versión canónica es la de `package.json`; las otras dos deben reflejarla.
+- **Keystore fuera de android/**: El release keystore vive en `keystores/release.keystore` (no en `android/app/`). `expo prebuild --clean` borra todo `android/`, así que el keystore se copia desde `keystores/` después del prebuild via `scripts/build-android-clean.sh`. Esto garantiza que la firma nunca cambie y `adb install -r` funcione sin perder datos.
+- **Build scripts**: Usar `scripts/build-android-v2.sh` (optimizado). El original `scripts/build-android-clean.sh` se mantiene como fallback. Ambos usan `CI=true` para evitar prompts interactivos de prebuild. El script v2 auto-instala el APK via `adb install -r`.
 
 ## Arquitectura
 
@@ -150,6 +156,29 @@ pnpm build:prebuild        # Limpiar y regenerar el directorio nativo android/
 pnpm build:eas:android     # Build de Android en Expo Application Services
 pnpm build:eas:ios         # Build de iOS en Expo Application Services
 ```
+
+# Git workflow
+
+## Ramas
+
+| Rama | Propósito |
+|------|-----------|
+| `main` | Producción — siempre deployable |
+| `dev` | Integración — rama por defecto para features en progreso |
+| `feat/<nombre>` | Features nuevas. Nombre en kebab-case inglés (ej: `feat/cloudflare-r2-upload`) |
+| `fix/<descripcion>` | Bug fixes |
+| `chore/<descripcion>` | Tooling, config, refactors, dependencias |
+
+## Flujo
+
+1. Crear rama desde `dev`: `git checkout dev && git checkout -b feat/<nombre>`
+2. Commits incrementales en la rama feature
+3. Al terminar: merge a `dev`, probar, luego merge a `main`
+4. `main` siempre refleja lo que está en producción
+
+## Tags
+
+- `v<major>.<minor>.<patch>` para releases (se decide al llegar a producción)
 
 ## Convención de commits
 

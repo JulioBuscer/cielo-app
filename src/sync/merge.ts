@@ -51,16 +51,23 @@ export async function gatherLocalPayload(
   }
 
   // Incremental sync — send operations since earliest unsynced timestamp
+  // AND full state of all tables so first-time peers don't miss records
   const earliestUnsynced = Math.min(...Object.values(lastSyncAts));
-  const [operations, incrementalBabies, incrementalProfiles] = await Promise.all([
+  const [operations, incrementalBabies, incrementalProfiles, incrementalEvents, incrementalItems, incrementalTags] = await Promise.all([
     readOutbox(earliestUnsynced),
     db.select().from(babies).where(sql`${babies.deletedAt} IS NULL`).orderBy(asc(babies.createdAt)),
     db.select().from(profiles).where(sql`${profiles.deletedAt} IS NULL`).orderBy(asc(profiles.createdAt)),
+    db.select().from(timelineEvents).where(sql`${timelineEvents.deletedAt} IS NULL`).orderBy(asc(timelineEvents.createdAt)),
+    db.select().from(catalogItems).where(sql`${catalogItems.deletedAt} IS NULL`).orderBy(asc(catalogItems.createdAt)),
+    db.select().from(tags).where(sql`${tags.deletedAt} IS NULL`).orderBy(asc(tags.createdAt)),
   ]);
 
-  onLog?.(`[gather] incremental sync: ops=${operations.length} babies=${incrementalBabies.length} profiles=${incrementalProfiles.length}`);
+  onLog?.(`[gather] incremental sync: ops=${operations.length} events=${incrementalEvents.length} items=${incrementalItems.length} tags=${incrementalTags.length} babies=${incrementalBabies.length} profiles=${incrementalProfiles.length}`);
   console.log('[Sync] gatherLocalPayload (incremental) enviando:', {
     operations: operations.length,
+    timelineEvents: incrementalEvents.length,
+    catalogItems: incrementalItems.length,
+    tags: incrementalTags.length,
     babies: incrementalBabies.length,
     profiles: incrementalProfiles.length,
   });
@@ -69,6 +76,9 @@ export async function gatherLocalPayload(
     deviceId: localDeviceId,
     timestamp,
     operations,
+    timelineEvents: incrementalEvents,
+    catalogItems: incrementalItems,
+    tags: incrementalTags,
     babies: incrementalBabies,
     profiles: incrementalProfiles,
   };
@@ -294,58 +304,49 @@ async function processOperation(
   }
 }
 
+export { processOperation };
+
 export async function mergeSyncPayload(payload: SyncPayload, onLog?: LogFn): Promise<MergeResult> {
   const db = getDb();
   const counters = { mergedCount: 0, conflictCount: 0 };
 
+  // Always upsert full table state first so first-time peers get all data.
+  // Operations are applied on top for incremental changes.
+  const tables: [string, any, any[]][] = [
+    ['babies', babies, payload.babies ?? []],
+    ['profiles', profiles, payload.profiles ?? []],
+    ['catalog_items', catalogItems, payload.catalogItems ?? []],
+    ['tags', tags, payload.tags ?? []],
+    ['timeline_events', timelineEvents, payload.timelineEvents ?? []],
+  ];
+  const errors: string[] = [];
+  for (const [name, table, records] of tables) {
+    if (records.length === 0) continue;
+    try {
+      onLog?.(`[merge] upsertTable(${name}): ${records.length} records`);
+      await upsertTable(db, table, name, records, counters, onLog);
+    } catch (e: any) {
+      onLog?.(`[merge] ERROR ${name}: ${e?.message || e}`);
+      errors.push(`${name}: ${e?.message || e}`);
+    }
+  }
+
   const ops = payload.operations;
   if (ops && ops.length > 0) {
-    onLog?.(`[merge] ${ops.length} operaciones, babies=${payload.babies?.length ?? 0}, profiles=${payload.profiles?.length ?? 0}`);
-    // Upsert babies and profiles FIRST so FK constraints are satisfied
-    // before processing operations that reference them.
-    if (payload.babies) await upsertTable(db, babies, 'babies', payload.babies, counters, onLog);
-    if (payload.profiles) await upsertTable(db, profiles, 'profiles', payload.profiles, counters, onLog);
-    // Process operations sequentially without a wrapping transaction
-    // to avoid deadlocking with gatherLocalPayload on the other side
+    onLog?.(`[merge] ${ops.length} operaciones adicionales (incremental)`);
     for (const op of ops) {
       try {
         await processOperation(db, op, counters, payload.deviceId);
       } catch (err: any) {
         onLog?.(`[merge] ERROR operation: ${op.tableName}/${op.recordId}: ${err?.message || err}`);
-        console.error(`[Sync] processOperation failed: table=${op.tableName}, recordId=${op.recordId}, op=${op.operation}:`, err?.stack || err);
-        throw err;
+        errors.push(`operation ${op.tableName}/${op.recordId}: ${err?.message || err}`);
       }
     }
-  } else {
-    // Full-table upsert (no wrapping transaction to avoid DB lock contention).
-    // Order: tables without FK dependencies first, then dependents.
-    // timeline_events references babies, profiles, eventTypes (seeded at startup).
-    // tags references babies.
-    const errors: string[] = [];
-    const tables = [
-      ['babies', babies, payload.babies ?? []] as const,
-      ['profiles', profiles, payload.profiles ?? []] as const,
-      ['catalog_items', catalogItems, payload.catalogItems ?? []] as const,
-      ['tags', tags, payload.tags ?? []] as const,
-      ['timeline_events', timelineEvents, payload.timelineEvents ?? []] as const,
-    ];
-    for (const [name, table, records] of tables) {
-      try {
-        const preview = `records=${records.length} isArray=${Array.isArray(records)}`;
-        onLog?.(`[merge] upsertTable(${name}): ${preview}`);
-        console.log(`[Sync] upsertTable(${name}): ${preview}`);
-        await upsertTable(db, table, name, records, counters, onLog);
-      } catch (e: any) {
-        onLog?.(`[merge] ERROR ${name}: ${e?.message || e}`);
-        console.error(`[Sync] ERROR en ${name}:`, e?.stack || e);
-        errors.push(`${name}: ${e?.message || e}`);
-      }
-    }
-    if (errors.length > 0) {
-      const msg = `Merge falló: ${errors.join('; ')}`;
-      onLog?.(`[merge] ${msg}`);
-      throw new Error(msg);
-    }
+  }
+
+  if (errors.length > 0) {
+    const msg = `Merge parcial con errores: ${errors.join('; ')}`;
+    onLog?.(`[merge] ${msg}`);
   }
 
   return counters;
