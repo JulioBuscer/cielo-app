@@ -137,6 +137,8 @@ export default function ChatsScreen() {
     return <Redirect href={`/chat/${b.id}`} />;
   }
 
+  const canAddBaby = babies.length > 0;
+
   if (babies.length === 0) {
     return (
       <SafeAreaView
@@ -329,6 +331,31 @@ export default function ChatsScreen() {
           />
         )}
       />
+
+      {canAddBaby && (
+        <TouchableOpacity
+          onPress={() => router.push("/onboarding/baby")}
+          activeOpacity={0.8}
+          style={{
+            position: "absolute",
+            bottom: 24,
+            right: 20,
+            width: 58,
+            height: 58,
+            borderRadius: 29,
+            backgroundColor: c.whatsGreen ?? "#25D366",
+            alignItems: "center",
+            justifyContent: "center",
+            elevation: 6,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.25,
+            shadowRadius: 6,
+          }}
+        >
+          <Text style={{ fontSize: 28, color: "#FFFFFF", lineHeight: 30 }}>+</Text>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
