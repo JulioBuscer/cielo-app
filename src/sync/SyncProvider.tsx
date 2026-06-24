@@ -335,7 +335,6 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const { listenJoinSdp, updateSessionStatus, cleanupSession } = await import('./firebase');
       const unsub = listenJoinSdp(sessionId, async (joinSdp) => {
         addLog('Respuesta recibida');
-        runCleanup();
         try {
           const { setRemoteAnswer } = await import('./webrtc');
           await setRemoteAnswer(pc, joinSdp);

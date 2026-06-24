@@ -69,7 +69,15 @@ else
   echo "  ✓ apply plugin google-services ya existe"
 fi
 
-# 6b. Agregar release signingConfig (prebuild lo borra)
+# 6b. Filtrar ABIs para evitar build de x86_64 (Clang 18 crash en cache frío)
+if ! grep -q "abiFilters" "$APP_BUILD"; then
+  sed -i '/defaultConfig {/a\        ndk {\n            abiFilters "arm64-v8a", "armeabi-v7a"\n        }' "$APP_BUILD"
+  echo "  ✓ abiFilters arm64-v8a, armeabi-v7a agregados"
+else
+  echo "  ✓ abiFilters ya existen"
+fi
+
+# 6c. Agregar release signingConfig (prebuild lo borra)
 if ! grep -q "signingConfigs.release" "$APP_BUILD"; then
   sed -i '/signingConfigs {/a\        release {\n            storeFile file("${projectRoot}\/keystores\/release.keystore")\n            storePassword '\''cieloapp'\''\n            keyAlias '\''cieloapp-release-key'\''\n            keyPassword '\''cieloapp'\''\n        }' "$APP_BUILD"
   echo "  ✓ release signingConfig agregado"
@@ -78,10 +86,10 @@ else
   echo "  ✓ release signingConfig actualizado (ruta absoluta)"
 fi
 
-# 6c. release build type usa release signing
+# 6d. release build type usa release signing
 sed -i '/^[[:space:]]*release {/,/^[[:space:]]*}/s/signingConfig signingConfigs\.debug/signingConfig signingConfigs.release/' "$APP_BUILD"
 
-# 6d. debug build type usa debug signing (por si el sed anterior lo piso)
+# 6e. debug build type usa debug signing (por si el sed anterior lo piso)
 sed -i '/^[[:space:]]*debug {/,/^[[:space:]]*}/s/signingConfig signingConfigs\.release/signingConfig signingConfigs.debug/' "$APP_BUILD"
 echo "  ✓ build types configurados"
 
