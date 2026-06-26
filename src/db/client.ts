@@ -506,6 +506,17 @@ export async function runMigrations() {
     );
   }
 
+  // Heal: mirror any catalog_items missing from event_types (FK compatibility)
+  try {
+    await _raw.execAsync(`
+      INSERT OR IGNORE INTO event_types (id, emoji, label, category, is_system, metrics, created_at)
+      SELECT ci.id, ci.emoji, ci.name, ci.category, 0, ci.metrics, ci.created_at
+      FROM catalog_items ci
+      LEFT JOIN event_types et ON et.id = ci.id
+      WHERE et.id IS NULL
+    `);
+  } catch (e) { console.warn('[Cielo] heal catalog_items → event_types error:', e); }
+
   // Seed food catalog
   const { seedFoodCatalog } = await import('@/src/hooks/useFoodLogs');
   try { seedFoodCatalog(); } catch (e) { console.error('[Cielo] Food seed error:', e); }

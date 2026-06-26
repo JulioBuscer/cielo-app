@@ -1,5 +1,5 @@
-import { getDb } from '@/src/db/client';
-import { timelineEvents, catalogItems, tags, profiles, babies } from '@/src/db/schema';
+import { getDb, getRawDb } from '@/src/db/client';
+import { timelineEvents, catalogItems, tags, profiles, babies, eventTypes } from '@/src/db/schema';
 import { eq, asc, and, sql } from 'drizzle-orm';
 import { readOutbox } from './outbox';
 import type { SyncPayload, SyncOperation } from './types';
@@ -208,6 +208,20 @@ function getTableByName(name: string) {
   }
 }
 
+async function mirrorCatalogItemToEventTypes(tx: any, itemId: string) {
+  try {
+    const raw = getRawDb();
+    raw.execSync(`
+      INSERT OR IGNORE INTO event_types (id, emoji, label, category, is_system, metrics, created_at)
+      SELECT ci.id, ci.emoji, ci.name, ci.category, 0, ci.metrics, ci.created_at
+      FROM catalog_items ci
+      LEFT JOIN event_types et ON et.id = ci.id
+      WHERE ci.id = '${itemId.replace(/'/g, "''")}' AND et.id IS NULL
+    `);
+  } catch {
+  }
+}
+
 async function processOperation(
   tx: any,
   op: SyncOperation,
@@ -290,6 +304,9 @@ async function processOperation(
     );
     await tx.insert(table).values(cleaned as any);
     counters.mergedCount++;
+    if (op.tableName === 'catalog_items') {
+      await mirrorCatalogItemToEventTypes(tx, op.recordId);
+    }
   } else {
     const localUpdatedAt = getUpdatedAt(existing[0]);
     if (op.createdAt > localUpdatedAt) {
@@ -298,6 +315,9 @@ async function processOperation(
         .set({ ...incoming, updatedAt: new Date(op.createdAt), updatedBy: senderDeviceId })
         .where(eq(table.id, op.recordId));
       counters.mergedCount++;
+      if (op.tableName === 'catalog_items') {
+        await mirrorCatalogItemToEventTypes(tx, op.recordId);
+      }
     } else {
       counters.conflictCount++;
     }
@@ -325,6 +345,24 @@ export async function mergeSyncPayload(payload: SyncPayload, onLog?: LogFn): Pro
     try {
       onLog?.(`[merge] upsertTable(${name}): ${records.length} records`);
       await upsertTable(db, table, name, records, counters, onLog);
+
+      // Mirror synced catalog_items → event_types BEFORE timeline_events upsert
+      // to prevent FK failures on timeline_events.event_type_id REFERENCES event_types(id)
+      if (name === 'catalog_items') {
+        try {
+          const raw = getRawDb();
+          const inserted = raw.execSync(`
+            INSERT OR IGNORE INTO event_types (id, emoji, label, category, is_system, metrics, created_at)
+            SELECT ci.id, ci.emoji, ci.name, ci.category, 0, ci.metrics, ci.created_at
+            FROM catalog_items ci
+            LEFT JOIN event_types et ON et.id = ci.id
+            WHERE et.id IS NULL
+          `);
+          onLog?.(`[merge] mirrored catalog_items → event_types`);
+        } catch (e2: any) {
+          onLog?.(`[merge] ERROR mirroring catalog_items → event_types: ${e2?.message || e2}`);
+        }
+      }
     } catch (e: any) {
       onLog?.(`[merge] ERROR ${name}: ${e?.message || e}`);
       errors.push(`${name}: ${e?.message || e}`);
