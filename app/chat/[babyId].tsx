@@ -62,7 +62,7 @@ import { TemperatureSheet } from "@/src/components/health/TemperatureSheet";
 import { FoodSheet } from "@/src/components/food/FoodSheet";
 import { getCategory, getCategoryLabel } from "@/src/utils/categories";
 import { TodaySummary } from "@/src/components/chat/TodaySummary";
-import { QuickActionFAB, type ActionId } from "@/src/components/chat/QuickActionFAB";
+import { ActionPanel, type ActionId } from "@/src/components/chat/QuickActionFAB";
 import { StatsSection } from "@/src/components/analisis/StatsSection";
 import { HistorySection } from "@/src/components/analisis/HistorySection";
 import {
@@ -324,8 +324,9 @@ export default function ChatTimelineScreen() {
   const babyPhotoUri = baby?.photoUri ?? null;
 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [showActionPanel, setShowActionPanel] = useState(false);
   useEffect(() => {
-    const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardVisible(true));
+    const show = Keyboard.addListener("keyboardDidShow", () => { setKeyboardVisible(true); setShowActionPanel(false); });
     const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardVisible(false));
     return () => { show.remove(); hide.remove(); };
   }, []);
@@ -504,6 +505,7 @@ export default function ChatTimelineScreen() {
 
   const handleFABAction = useCallback((action: { id: ActionId; bottleSubtype?: BottleSubtype }) => {
     if (!babyId) return;
+    setShowActionPanel(false);
     switch (action.id) {
       case "breast_left":
       case "breast_right":
@@ -953,18 +955,32 @@ export default function ChatTimelineScreen() {
                 }
               />
 
-              {!keyboardVisible && (
-                <QuickActionFAB
-                  onAction={handleFABAction}
-                  activeSleep={!!activeSleep}
-                  sleepLoading={sleepLoading}
-                  disabled={!!loadingType}
-                />
-              )}
-
               {/* Note input bar */}
               <View style={{ backgroundColor: c.card, paddingHorizontal: 8, paddingVertical: 6, paddingBottom: 8 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      setShowActionPanel((p) => !p);
+                    }}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: showActionPanel ? c.accent : c.surface,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{
+                      fontSize: 22,
+                      fontWeight: "300",
+                      color: showActionPanel ? c.textOnAccent : c.textMuted,
+                      lineHeight: 26,
+                    }}>
+                      +
+                    </Text>
+                  </TouchableOpacity>
                   <TextInput
                     style={{
                       flex: 1,
@@ -1002,6 +1018,15 @@ export default function ChatTimelineScreen() {
               </View>
             </View>
           </KeyboardAvoidingView>
+
+          {showActionPanel && (
+            <ActionPanel
+              onAction={handleFABAction}
+              activeSleep={!!activeSleep}
+              sleepLoading={sleepLoading}
+              disabled={!!loadingType}
+            />
+          )}
         </>
       )}
 
