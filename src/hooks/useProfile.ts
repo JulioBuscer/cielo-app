@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getDb } from '@/src/db/client';
 import { profiles } from '@/src/db/schema';
 import { eq } from 'drizzle-orm';
-import { getProfileId, setProfileId } from '@/src/utils/storage';
+import { resolveProfileId, setProfileId } from '@/src/utils/storage';
 import { onMutationError } from '@/src/utils/mutationError';
 import { writeOutbox } from '@/src/sync/outbox';
 import { signalPeers } from '@/src/sync/hooks';
@@ -31,10 +31,13 @@ export function useActiveProfile() {
   return useQuery({
     queryKey: ['profile'],
     queryFn: async () => {
-      const id = await getProfileId();
-      if (!id) return null;
-      const res = await getDb().select().from(profiles).where(eq(profiles.id, id));
-      return res[0] ?? null;
+      try {
+        const id = await resolveProfileId();
+        const res = await getDb().select().from(profiles).where(eq(profiles.id, id));
+        return res[0] ?? null;
+      } catch {
+        return null;
+      }
     },
   });
 }
