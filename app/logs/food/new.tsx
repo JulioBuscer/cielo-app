@@ -11,14 +11,14 @@ import * as ImagePicker from "expo-image-picker";
 import { captureAndStore, deletePhoto } from "@/src/services/imageStorage";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import {
-  useFoodCatalog, FOOD_GROUPS, SUBGROUPS, BADGE_FILTERS, useCreateFoodCatalogItem, useSaveFoodLog,
+  useFoodCatalog, FOOD_GROUPS, SUBGROUPS, BADGE_FILTERS, useCreateFoodCatalogItem, useSaveFoodLog, useBabyFoodConsumed,
 } from "@/src/hooks/useFoodLogs";
 import { useSaveTimelineEvent } from "@/src/hooks/useTimeline";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { useDebounce } from "@/src/hooks/useDebounce";
 import { FoodDetailModal } from "@/src/components/food/FoodDetailModal";
-import { FoodItemChip } from "@/src/components/food/FoodItemChip";
+import { FoodGridCard } from "@/src/components/food/FoodGridCard";
 
 const GROUP_KEYS = Object.keys(FOOD_GROUPS).sort();
 
@@ -211,6 +211,8 @@ export default function FoodLogNewScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 250);
   const searchRef = useRef<TextInput>(null);
+  const [advanced, setAdvanced] = useState(false);
+  const { data: consumed } = useBabyFoodConsumed(baby?.id);
   const [detailFood, setDetailFood] = useState<any>(null);
 
   const toggleGroup = (group: string) => {
@@ -427,6 +429,26 @@ export default function FoodLogNewScreen() {
               <Text style={{ fontSize: 13, fontWeight: "700", color: c.accent }}>+ Nuevo</Text>
             </TouchableOpacity>
           </View>
+          <View style={{ flexDirection: "row", backgroundColor: c.card, borderRadius: 10, padding: 2, marginBottom: 8 }}>
+            {(["simple", "advanced"] as const).map((mode) => (
+              <TouchableOpacity
+                key={mode}
+                onPress={() => setAdvanced(mode === "advanced")}
+                style={{
+                  flex: 1, paddingVertical: 6, borderRadius: 8,
+                  backgroundColor: (mode === "advanced") === advanced ? c.accent : "transparent",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{
+                  fontSize: 12, fontWeight: "700",
+                  color: (mode === "advanced") === advanced ? c.textOnAccent : c.textMuted,
+                }}>
+                  {mode === "simple" ? "🙂 Simple" : "🔬 Avanzada"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
           {Object.entries(groupedFoods).map(([group, foods]) => {
             const isCollapsed = collapsedGroups[group] ?? false;
             const grpLabel = (FOOD_GROUPS as any)[group] ?? group;
@@ -459,17 +481,19 @@ export default function FoodLogNewScreen() {
                 </View>
               </TouchableOpacity>
               {!isCollapsed && (
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5, paddingLeft: 4 }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", marginHorizontal: -4 }}>
                 {foods.map((f: any) => (
-                  <FoodItemChip
-                    key={f.id}
-                    food={f}
-                    selected={selectedFoodIds.includes(f.id)}
-                    onPress={() => toggleFood(f.id)}
-                    onLongPress={() => setDetailFood(f)}
-                    colors={c}
-                    subgroups={SUBGROUPS}
-                  />
+                  <View key={f.id} style={{ width: "33.33%", padding: 4 }}>
+                    <FoodGridCard
+                      food={f}
+                      selected={selectedFoodIds.includes(f.id)}
+                      consumed={consumed?.has(f.id) ?? false}
+                      onPress={() => toggleFood(f.id)}
+                      onLongPress={() => setDetailFood(f)}
+                      colors={c}
+                      advanced={advanced}
+                    />
+                  </View>
                 ))}
               </View>
               )}
