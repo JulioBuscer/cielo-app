@@ -16,6 +16,7 @@
 - **Commit `7ad9e51`** (v0.7.4): `useActiveProfile()` también usa `resolveProfileId()` — sin esto el guard del chat screen bloqueaba todas las mutaciones porque `getProfileId()` retornaba `''`.
 - **Commit `38d4866`** (v0.7.5): Módulo de perfil del cuidador — pantallas de listado (`/settings/profiles`) y editor (`/settings/profile/[id]`), mutations update/delete con soft-delete, reasignación automática de perfil activo, validación de no eliminar el último perfil.
 - **Commit `ecd3458`** (v0.7.6): Fix deadlock de sincronización — en listenSyncSignals, signalQueueFlush y checkAndSync. El receptor de una señal ahora siempre inicia host, eliminando el tiebreaker que causaba que ambos dispositivos esperaran indefinidamente.
+- **Commit `d39d27c`** (v0.7.7): Sincronización diferencial — `gatherLocalPayload` en modo incremental solo envía registros con `updatedAt`/`createdAt > lastSync`. `sendSyncMessage` captura errores de límite SCTP.
 
 # Build Notes
 

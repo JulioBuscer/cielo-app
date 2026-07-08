@@ -193,8 +193,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         setActiveChannel(channelRef.current);
         addLog('Canal persistente activado');
       }
-      // Invalidar queries específicas sin tocar ['baby'] para evitar salto del ● activo
-      queryClient.invalidateQueries({ queryKey: ['timeline_events'] });
+      // Invalidar queries específicas (['baby'] se auto-refresca por contexto)
+      queryClient.invalidateQueries({ queryKey: ['timeline'] });
+      queryClient.invalidateQueries({ queryKey: ['timeline_event'] });
       queryClient.invalidateQueries({ queryKey: ['babies'] });
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
       queryClient.invalidateQueries({ queryKey: ['catalog_items'] });
@@ -217,7 +218,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       await processOperation(db, operation, counters, senderDeviceId);
       if (counters.mergedCount > 0) {
         addLog(`Op recibida: ${operation.tableName}/${operation.operation} → fusionada`);
-        queryClient.invalidateQueries({ queryKey: ['timeline_events'] });
+        await saveHistoryEntry('received', senderDeviceId, 'success', counters.mergedCount, counters.conflictCount);
+        queryClient.invalidateQueries({ queryKey: ['timeline'] });
+        queryClient.invalidateQueries({ queryKey: ['timeline_event'] });
         queryClient.invalidateQueries({ queryKey: ['babies'] });
         queryClient.invalidateQueries({ queryKey: ['profiles'] });
         queryClient.invalidateQueries({ queryKey: ['catalog_items'] });

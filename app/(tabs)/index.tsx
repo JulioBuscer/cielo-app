@@ -465,9 +465,6 @@ function BabyChatItem({
           >
             {age.label}
           </Text>
-          {isActive && (
-            <Text style={{ fontSize: 12, color: c.accentStrong }}>●</Text>
-          )}
         </View>
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>

@@ -20,7 +20,7 @@ import * as Clipboard from 'expo-clipboard';
 import { timeOptions } from "@/src/utils/timeFormat";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useActiveBaby, useSetActiveBaby, useBaby, calcAge, STATUS_LABELS } from "@/src/hooks/useBaby";
+import { useBaby, calcAge, STATUS_LABELS } from "@/src/hooks/useBaby";
 import { useActiveProfile, useProfiles } from "@/src/hooks/useProfile";
 import {
   useActiveFeedingSession,
@@ -287,7 +287,6 @@ export default function ChatTimelineScreen() {
   });
   const [showHomeDatePicker, setShowHomeDatePicker] = useState<"start" | "end" | null>(null);
   const flatRef = useRef<FlatList>(null);
-  const setActiveBaby = useSetActiveBaby();
 
   const { data: baby } = useBaby(babyId);
   const { data: profile } = useActiveProfile();
@@ -323,14 +322,6 @@ export default function ChatTimelineScreen() {
   const c = theme.colors;
   const babyAvatar = (baby as any)?.avatarEmoji ?? "👶";
   const babyPhotoUri = baby?.photoUri ?? null;
-
-  // Set active baby if different
-  const { data: activeBaby } = useActiveBaby();
-  useEffect(() => {
-    if (babyId && activeBaby && activeBaby.id !== babyId) {
-      setActiveBaby.mutate(babyId);
-    }
-  }, [babyId, activeBaby?.id]);
 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   useEffect(() => {

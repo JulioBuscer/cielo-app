@@ -1,18 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getDb } from '@/src/db/client';
 import { babies } from '@/src/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, isNull, ne, and } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
-import { setBabyId, getBabyId, KEYS } from '@/src/utils/storage';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onMutationError } from '@/src/utils/mutationError';
 import { writeOutbox } from '@/src/sync/outbox';
 import { signalPeers } from '@/src/sync/hooks';
 import { getCachedDeviceId } from '@/src/sync/device';
+import { useActiveBabyCtx } from './ActiveBabyProvider';
 import type { Baby } from '@/src/db/schema';
 
 export function useCreateBaby() {
   const qc = useQueryClient();
+  const { setActiveBabyId } = useActiveBabyCtx();
   return useMutation({
     mutationFn: async (input: {
       name: string;
@@ -38,7 +38,7 @@ export function useCreateBaby() {
       } as any);
       await writeOutbox('babies', id, 'insert', { id, ...input });
       await signalPeers();
-      await setBabyId(id);
+      setActiveBabyId(id);
       return id;
     },
     onSuccess: () => {
@@ -50,12 +50,12 @@ export function useCreateBaby() {
 }
 
 export function useActiveBaby() {
+  const { activeBabyId } = useActiveBabyCtx();
   return useQuery({
-    queryKey: ['baby'],
+    queryKey: ['baby', activeBabyId],
     queryFn: async () => {
-      const id = await getBabyId();
-      if (!id) return null;
-      const res = await getDb().select().from(babies).where(eq(babies.id, id));
+      if (!activeBabyId) return null;
+      const res = await getDb().select().from(babies).where(eq(babies.id, activeBabyId));
       return res[0] ?? null;
     },
   });
@@ -64,7 +64,9 @@ export function useActiveBaby() {
 export function useBabies() {
   return useQuery({
     queryKey: ['babies'],
-    queryFn: () => getDb().select().from(babies).orderBy(desc(babies.createdAt)),
+    queryFn: () => getDb().select().from(babies)
+      .where(isNull(babies.deletedAt))
+      .orderBy(desc(babies.createdAt)),
   });
 }
 
@@ -81,12 +83,11 @@ export function useBaby(babyId?: string) {
 }
 
 export function useSetActiveBaby() {
-  const qc = useQueryClient();
+  const { setActiveBabyId } = useActiveBabyCtx();
   return useMutation({
     mutationFn: async (id: string) => {
-      await setBabyId(id);
+      setActiveBabyId(id);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['baby'] }),
   });
 }
 
@@ -107,11 +108,16 @@ export function useUpdateBaby() {
 
 export function useDeleteBaby() {
   const qc = useQueryClient();
+  const { activeBabyId, setActiveBabyId } = useActiveBabyCtx();
   return useMutation({
     mutationFn: async (id: string) => {
-      const storedId = await getBabyId();
-      if (storedId === id) {
-        await AsyncStorage.removeItem(KEYS.ACTIVE_BABY_ID);
+      if (activeBabyId === id) {
+        const others = await getDb().select({ id: babies.id })
+          .from(babies)
+          .where(and(ne(babies.id, id), isNull(babies.deletedAt)))
+          .limit(1);
+        if (others.length > 0) setActiveBabyId(others[0].id);
+        else setActiveBabyId(null);
       }
       await getDb().delete(babies).where(eq(babies.id, id));
       await writeOutbox('babies', id, 'delete', { id });

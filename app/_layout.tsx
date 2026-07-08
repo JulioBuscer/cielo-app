@@ -7,6 +7,7 @@ import { runMigrations } from "@/src/db/client";
 import { ThemeProvider } from "@/src/theme/ThemeProvider";
 import { ErrorBoundary } from "@/src/components/ErrorBoundary";
 import { SyncProvider } from "@/src/sync/hooks";
+import { ActiveBabyProvider } from "@/src/hooks/ActiveBabyProvider";
 import packageJson from "@/package.json";
 
 const queryClient = new QueryClient();
@@ -100,13 +101,15 @@ export default function RootLayout() {
   // QueryClientProvider solo se monta DESPUÉS de que la DB está lista
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <SyncProvider>
-          <ErrorBoundary>
-            <Stack screenOptions={{ headerShown: false }} />
-          </ErrorBoundary>
-        </SyncProvider>
-      </ThemeProvider>
+      <ActiveBabyProvider>
+        <ThemeProvider>
+          <SyncProvider>
+            <ErrorBoundary>
+              <Stack screenOptions={{ headerShown: false }} />
+            </ErrorBoundary>
+          </SyncProvider>
+        </ThemeProvider>
+      </ActiveBabyProvider>
     </QueryClientProvider>
   );
 }

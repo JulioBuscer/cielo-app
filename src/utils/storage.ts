@@ -5,7 +5,6 @@ import { eq } from 'drizzle-orm';
 
 export const KEYS = {
   ACTIVE_PROFILE_ID: 'active_profile_id',
-  ACTIVE_BABY_ID: 'active_baby_id',
   ONBOARDING_DONE: 'onboarding_done',
   MIGRATION_MEASUREMENT_DONE: 'migration_measurement_done',
   PEE_INTENSITY_CONFIG: 'pee_intensity_config',
@@ -27,7 +26,6 @@ export const DIAPER_CONFIG_KEYS = [
 
 export const SESSION_KEYS = [
   KEYS.ACTIVE_PROFILE_ID,
-  KEYS.ACTIVE_BABY_ID,
   KEYS.ONBOARDING_DONE,
 ] as const;
 
@@ -58,14 +56,6 @@ export async function resolveProfileId(): Promise<string> {
 
 export function setProfileId(id: string): Promise<void> {
   return AsyncStorage.setItem(KEYS.ACTIVE_PROFILE_ID, id);
-}
-
-export function getBabyId(): Promise<string | null> {
-  return AsyncStorage.getItem(KEYS.ACTIVE_BABY_ID);
-}
-
-export function setBabyId(id: string): Promise<void> {
-  return AsyncStorage.setItem(KEYS.ACTIVE_BABY_ID, id);
 }
 
 export function getOnboardingDone(): Promise<string | null> {
