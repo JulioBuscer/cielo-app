@@ -7,7 +7,7 @@ import { useTheme } from "@/src/theme/useTheme";
 import { BigButton } from "@/src/components/ui/BigButton";
 import { DateTimePicker } from "@/src/components/ui/DateTimePicker";
 import { FoodDetailModal } from "@/src/components/food/FoodDetailModal";
-import { FoodItemChip } from "@/src/components/food/FoodItemChip";
+import { FoodGridCard } from "@/src/components/food/FoodGridCard";
 import { useActiveBaby } from "@/src/hooks/useBaby";
 import {
   useFoodCatalog,
@@ -15,6 +15,7 @@ import {
   SUBGROUPS,
   BADGE_FILTERS,
   useSaveFoodLog,
+  useBabyFoodConsumed,
 } from "@/src/hooks/useFoodLogs";
 import { useSaveTimelineEvent } from "@/src/hooks/useTimeline";
 import { useCamera } from "@/src/hooks/useCamera";
@@ -47,9 +48,11 @@ export function FoodSheet({
   const [reaction, setReaction] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const { data: consumed } = useBabyFoodConsumed(baby?.id);
   const debouncedSearch = useDebounce(searchQuery, 250);
   const searchRef = useRef<TextInput>(null);
 
@@ -109,6 +112,7 @@ export function FoodSheet({
       setIsFirst(false);
       setReaction("");
       setNotes("");
+      setAdvanced(false);
       setShowDetails(false);
       setImageUri(null);
       setSearchQuery("");
@@ -265,6 +269,27 @@ export function FoodSheet({
               </ScrollView>
             )}
 
+            <View style={{ flexDirection: "row", backgroundColor: c.card, borderRadius: 10, padding: 2 }}>
+              {(["simple", "advanced"] as const).map((mode) => (
+                <TouchableOpacity
+                  key={mode}
+                  onPress={() => setAdvanced(mode === "advanced")}
+                  style={{
+                    flex: 1, paddingVertical: 6, borderRadius: 8,
+                    backgroundColor: (mode === "advanced") === advanced ? c.accent : "transparent",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 12, fontWeight: "700",
+                    color: (mode === "advanced") === advanced ? c.textOnAccent : c.textMuted,
+                  }}>
+                    {mode === "simple" ? "🙂 Simple" : "🔬 Avanzada"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             {filtered.length === 0 ? (
               <View style={{ padding: 24, alignItems: "center" }}>
                 <Text style={{ color: c.textMuted, fontSize: 14 }}>No hay alimentos</Text>
@@ -289,17 +314,19 @@ export function FoodSheet({
                         {emoji} {label}
                         <Text style={{ color: c.textMuted, fontWeight: "400" }}> ({foods.length})</Text>
                       </Text>
-                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", marginHorizontal: -4 }}>
                         {foods.map((f: any) => (
-                          <FoodItemChip
-                            key={f.id}
-                            food={f}
-                            selected={selectedFoodIds.includes(f.id)}
-                            onPress={() => toggleFood(f.id)}
-                            onLongPress={() => setDetailFood(f)}
-                            colors={c}
-                            subgroups={SUBGROUPS}
-                          />
+                          <View key={f.id} style={{ width: "33.33%", padding: 4 }}>
+                            <FoodGridCard
+                              food={f}
+                              selected={selectedFoodIds.includes(f.id)}
+                              consumed={consumed?.has(f.id) ?? false}
+                              onPress={() => toggleFood(f.id)}
+                              onLongPress={() => setDetailFood(f)}
+                              colors={c}
+                              advanced={advanced}
+                            />
+                          </View>
                         ))}
                       </View>
                     </View>

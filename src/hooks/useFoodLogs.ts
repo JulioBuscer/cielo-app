@@ -146,6 +146,22 @@ export function useDeleteFoodCatalog() {
   });
 }
 
+export function useBabyFoodConsumed(babyId?: string) {
+  return useQuery({
+    queryKey: ["food_consumed", babyId],
+    enabled: !!babyId,
+    queryFn: async () => {
+      if (!babyId) return new Set<string>();
+      const rows = await getDb()
+        .select({ foodId: foodLogs.foodId })
+        .from(foodLogs)
+        .where(eq(foodLogs.babyId, babyId));
+      return new Set(rows.map((r) => r.foodId));
+    },
+    staleTime: 60_000,
+  });
+}
+
 export function useSaveFoodLog() {
   const qc = useQueryClient();
   return useMutation({
