@@ -18,6 +18,7 @@ export default function ProfileEditorScreen() {
   const updateProfile = useUpdateProfile();
 
   const existing = !isNew ? profiles?.find(p => p.id === id) : undefined;
+  const isOwner = !isNew && id === activeProfile?.id;
 
   const [name, setName] = useState(existing?.name ?? "");
   const [role, setRole] = useState<Role>(existing?.role as Role ?? "mama");
@@ -40,7 +41,7 @@ export default function ProfileEditorScreen() {
     try {
       if (isNew) {
         await createProfile.mutateAsync({ name: trimmed, role });
-      } else if (id) {
+      } else if (isOwner && id) {
         await updateProfile.mutateAsync({ id, name: trimmed, role });
       }
       router.back();
@@ -58,6 +59,8 @@ export default function ProfileEditorScreen() {
       </SafeAreaView>
     );
   }
+
+  const canEdit = isNew || isOwner;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.headerBg }} edges={["top"]}>
@@ -77,7 +80,7 @@ export default function ProfileEditorScreen() {
           <Text style={{ color: c.headerText, fontSize: 26, lineHeight: 28 }}>←</Text>
         </TouchableOpacity>
         <Text style={{ color: c.headerText, fontWeight: "900", fontSize: 18, flex: 1 }}>
-          {isNew ? "👤 Nuevo perfil" : "✏️ Editar perfil"}
+          {isNew ? "👤 Nuevo perfil" : canEdit ? "✏️ Editar perfil" : "👤 Perfil"}
         </Text>
       </View>
 
@@ -90,7 +93,8 @@ export default function ProfileEditorScreen() {
         </Text>
         <TextInput
           value={name}
-          onChangeText={setName}
+          onChangeText={canEdit ? setName : undefined}
+          editable={canEdit}
           placeholder="Nombre del cuidador"
           placeholderTextColor={c.textDim}
           style={{
@@ -99,6 +103,7 @@ export default function ProfileEditorScreen() {
             padding: 14,
             color: c.textBody,
             fontSize: 16,
+            opacity: canEdit ? 1 : 0.7,
           }}
         />
 
@@ -111,7 +116,8 @@ export default function ProfileEditorScreen() {
             return (
               <TouchableOpacity
                 key={r.id}
-                onPress={() => setRole(r.id)}
+                onPress={canEdit ? () => setRole(r.id) : undefined}
+                activeOpacity={canEdit ? 0.7 : 1}
                 style={{
                   paddingHorizontal: 16,
                   paddingVertical: 10,
@@ -122,6 +128,7 @@ export default function ProfileEditorScreen() {
                   gap: 6,
                   backgroundColor: isSelected ? c.accent + "1A" : c.card,
                   borderColor: isSelected ? c.accent : c.elevated,
+                  opacity: canEdit ? 1 : 0.7,
                 }}
               >
                 <Text style={{ fontSize: 18 }}>{r.emoji}</Text>
@@ -137,22 +144,39 @@ export default function ProfileEditorScreen() {
           })}
         </View>
 
-        <TouchableOpacity
-          onPress={handleSave}
-          disabled={saving}
-          style={{
-            backgroundColor: c.accent,
+        {!canEdit && existing && (
+          <View style={{
+            backgroundColor: c.card,
             borderRadius: 14,
             padding: 16,
-            alignItems: "center",
-            opacity: saving ? 0.6 : 1,
-            marginTop: 12,
-          }}
-        >
-          <Text style={{ color: "#FFF", fontSize: 16, fontWeight: "800" }}>
-            {saving ? "Guardando…" : "Guardar perfil"}
-          </Text>
-        </TouchableOpacity>
+            borderWidth: 1,
+            borderColor: c.elevated,
+            marginTop: 4,
+          }}>
+            <Text style={{ fontSize: 13, color: c.textMuted, textAlign: "center" }}>
+              Este perfil pertenece a otro cuidador. Solo puedes editar tu perfil activo.
+            </Text>
+          </View>
+        )}
+
+        {canEdit && (
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={saving}
+            style={{
+              backgroundColor: c.accent,
+              borderRadius: 14,
+              padding: 16,
+              alignItems: "center",
+              opacity: saving ? 0.6 : 1,
+              marginTop: 12,
+            }}
+          >
+            <Text style={{ color: "#FFF", fontSize: 16, fontWeight: "800" }}>
+              {saving ? "Guardando…" : "Guardar perfil"}
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

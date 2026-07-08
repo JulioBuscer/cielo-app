@@ -23,9 +23,13 @@ export default function ProfilesScreen() {
   const { data: activeProfile } = useActiveProfile();
   const deleteProfile = useDeleteProfile();
 
-  const handleEdit = (id: string) => router.push(`/settings/profile/${id}`);
+  const handleEdit = (id: string) => {
+    if (id !== activeProfile?.id) return;
+    router.push(`/settings/profile/${id}`);
+  };
 
   const handleDelete = (id: string, name: string) => {
+    if (id !== activeProfile?.id) return;
     if ((profiles?.length ?? 0) <= 1) {
       Alert.alert("No se puede eliminar", "Debe haber al menos un perfil de cuidador.");
       return;
@@ -84,7 +88,8 @@ export default function ProfilesScreen() {
               <TouchableOpacity
                 key={p.id}
                 onPress={() => handleEdit(p.id)}
-                onLongPress={() => handleDelete(p.id, p.name)}
+                onLongPress={() => isActive && handleDelete(p.id, p.name)}
+                activeOpacity={isActive ? 0.7 : 1}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -117,7 +122,7 @@ export default function ProfilesScreen() {
                   </View>
                   <RoleChip roleId={p.role} />
                 </View>
-                <Text style={{ fontSize: 18, color: c.textMuted }}>›</Text>
+                {isActive && <Text style={{ fontSize: 18, color: c.textMuted }}>›</Text>}
               </TouchableOpacity>
             );
           })

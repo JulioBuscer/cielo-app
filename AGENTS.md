@@ -14,10 +14,10 @@
 - **Commit `f6a9d55`**: Mirror catalog_items → event_types en sync (FK healing migration en `runMigrations()`)
 - **Commit `be7ebe2`** (v0.7.3): `resolveProfileId()` en storage.ts — valida `ACTIVE_PROFILE_ID` contra DB y fallback al primer perfil. Reemplaza `getProfileId()` en hooks de timeline, sesiones, food/growth logs. Guards `!profile` en chat screen.
 - **Commit `7ad9e51`** (v0.7.4): `useActiveProfile()` también usa `resolveProfileId()` — sin esto el guard del chat screen bloqueaba todas las mutaciones porque `getProfileId()` retornaba `''`.
+- **Commit `38d4866`** (v0.7.5): Módulo de perfil del cuidador — pantallas de listado (`/settings/profiles`) y editor (`/settings/profile/[id]`), mutations update/delete con soft-delete, reasignación automática de perfil activo, validación de no eliminar el último perfil.
 
 ### Pending
-- Módulo de perfil del cuidador (editar nombre/rol, validar existencia)
-- Verificar que mensajes/eventos se registren y aparezcan correctamente tras fix v0.7.4
+- Diagnosticar sync no funcional (dispositivos se ven online pero no intercambian datos)
 
 # Build Notes
 
