@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StatusBar } from "react-native";
-import { router, Stack } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/src/theme/useTheme";
 import { FoodGridCard } from "@/src/components/food/FoodGridCard";
@@ -26,9 +26,10 @@ const FILTER_TABS: { key: FilterTab; label: string }[] = [
 export default function FoodDashboardScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
+  const params = useLocalSearchParams<{ babyId?: string }>();
   const { data: activeBaby } = useActiveBaby();
   const { data: babies } = useBabies();
-  const [selectedBabyId, setSelectedBabyId] = useState<string | undefined>(activeBaby?.id);
+  const [selectedBabyId, setSelectedBabyId] = useState<string | undefined>(params.babyId ?? activeBaby?.id);
   const baby = babies?.find((b: any) => b.id === selectedBabyId) ?? activeBaby;
   const { data: catalog } = useFoodCatalog();
   const { data: consumed } = useBabyFoodConsumed(baby?.id);

@@ -1072,6 +1072,7 @@ export default function ChatTimelineScreen() {
               { emoji: "📈", label: "Curvas OMS", route: "/logs/growth/history" },
               { emoji: "📋", label: "Historial completo", route: "/history" },
               { emoji: "🍽️", label: "Historial de comidas", route: "/logs/food/history" },
+              { emoji: "🥗", label: "Tablero de alimentos", route: `/food/dashboard?babyId=${baby.id}` },
               { emoji: "🌡️", label: "Salud", route: "/logs/health/new" },
               { emoji: "🥜", label: "Alérgenos", route: "/food/allergens" },
               { emoji: "📅", label: "Plan semanal", route: `/food/plan?babyId=${baby.id}` },
