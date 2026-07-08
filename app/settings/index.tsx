@@ -162,6 +162,12 @@ export default function SettingsScreen() {
               onPress={() => router.push("/catalog/food")}
             />
             <MenuLink
+              emoji="🥗"
+              label="Tablero de alimentos"
+              subtitle="Seguimiento de introducidos y pendientes"
+              onPress={() => router.push("/food/dashboard")}
+            />
+            <MenuLink
               emoji="📖"
               label="Recursos"
               subtitle="Guía de colores, consistencias y sueño"

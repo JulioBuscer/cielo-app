@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { eq, desc, asc, and, gte, lte, count as drizzleCount } from "drizzle-orm";
 import { getDb } from "@/src/db/client";
-import { foodCatalog, foodLogs } from "@/src/db/schema";
+import { foodCatalog, foodLogs, foodWatchlist } from "@/src/db/schema";
 import { generateId } from "@/src/utils/id";
 import { resolveProfileId } from "@/src/utils/storage";
 import { onMutationError } from "@/src/utils/mutationError";
@@ -159,6 +159,52 @@ export function useBabyFoodConsumed(babyId?: string) {
       return new Set(rows.map((r) => r.foodId));
     },
     staleTime: 60_000,
+  });
+}
+
+export function useBabyFoodWatchlist(babyId?: string) {
+  return useQuery({
+    queryKey: ["food_watchlist", babyId],
+    enabled: !!babyId,
+    queryFn: async () => {
+      if (!babyId) return new Set<string>();
+      const rows = await getDb()
+        .select()
+        .from(foodWatchlist)
+        .where(eq(foodWatchlist.babyId, babyId));
+      return new Set(rows.map((r) => r.foodId));
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useToggleFoodPending() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { babyId: string; foodId: string }) => {
+      const db = getDb();
+      const existing = await db
+        .select()
+        .from(foodWatchlist)
+        .where(and(eq(foodWatchlist.babyId, input.babyId), eq(foodWatchlist.foodId, input.foodId)))
+        .limit(1);
+      if (existing.length > 0) {
+        await db.delete(foodWatchlist)
+          .where(and(eq(foodWatchlist.babyId, input.babyId), eq(foodWatchlist.foodId, input.foodId)))
+          .run();
+      } else {
+        await db.insert(foodWatchlist).values({
+          id: generateId(),
+          babyId: input.babyId,
+          foodId: input.foodId,
+          createdAt: new Date(),
+        }).run();
+      }
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["food_watchlist", vars.babyId] });
+    },
+    onError: onMutationError("[useToggleFoodPending]"),
   });
 }
 

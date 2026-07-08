@@ -405,6 +405,14 @@ export const foodLogs = sqliteTable('food_logs', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
+// ─── LISTA DE SEGUIMIENTO DE ALIMENTOS (pendientes por probar) ──────────────────
+export const foodWatchlist = sqliteTable('food_watchlist', {
+  id:        text('id').primaryKey(),
+  babyId:    text('baby_id').notNull(),
+  foodId:    text('food_id').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
 export interface FoodItem {
   id: string;
   name: string;
