@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/src/theme/useTheme";
 import { FoodGridCard } from "@/src/components/food/FoodGridCard";
 import { FoodDetailModal } from "@/src/components/food/FoodDetailModal";
-import { useActiveBaby } from "@/src/hooks/useBaby";
+import { useActiveBaby, useBabies } from "@/src/hooks/useBaby";
 import {
   useFoodCatalog, FOOD_GROUPS, BADGE_FILTERS,
   useBabyFoodConsumed, useBabyFoodWatchlist, useToggleFoodPending,
@@ -26,7 +26,10 @@ const FILTER_TABS: { key: FilterTab; label: string }[] = [
 export default function FoodDashboardScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
-  const { data: baby } = useActiveBaby();
+  const { data: activeBaby } = useActiveBaby();
+  const { data: babies } = useBabies();
+  const [selectedBabyId, setSelectedBabyId] = useState<string | undefined>(activeBaby?.id);
+  const baby = babies?.find((b: any) => b.id === selectedBabyId) ?? activeBaby;
   const { data: catalog } = useFoodCatalog();
   const { data: consumed } = useBabyFoodConsumed(baby?.id);
   const { data: pending } = useBabyFoodWatchlist(baby?.id);
@@ -100,6 +103,32 @@ export default function FoodDashboardScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
+        {/* Baby selector */}
+        {babies && babies.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+            {babies.map((b: any) => {
+              const isSelected = b.id === (baby?.id ?? '');
+              return (
+                <TouchableOpacity
+                  key={b.id}
+                  onPress={() => setSelectedBabyId(b.id)}
+                  style={{
+                    flexDirection: "row", alignItems: "center", gap: 4,
+                    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99,
+                    backgroundColor: isSelected ? c.accent : c.card,
+                  }}
+                >
+                  <Text style={{ fontSize: 16 }}>{b.avatarEmoji ?? "👶"}</Text>
+                  <Text style={{
+                    fontSize: 13, fontWeight: "700",
+                    color: isSelected ? c.textOnAccent : c.textBody,
+                  }}>{b.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+
         {/* Filter tabs */}
         <View style={{ flexDirection: "row", gap: 4 }}>
           {FILTER_TABS.map((tab) => (
