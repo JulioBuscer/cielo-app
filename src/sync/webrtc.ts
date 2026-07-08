@@ -114,8 +114,15 @@ export function setupChannelListeners(
   };
 }
 
-export function sendSyncMessage(channel: any, msg: SyncMessage): void {
+export function sendSyncMessage(channel: any, msg: SyncMessage): boolean {
   if (channel?.readyState === 'open') {
-    channel.send(JSON.stringify(msg));
+    try {
+      channel.send(JSON.stringify(msg));
+      return true;
+    } catch (e: any) {
+      console.warn('[Sync] sendSyncMessage error:', e?.message || e);
+      return false;
+    }
   }
+  return false;
 }

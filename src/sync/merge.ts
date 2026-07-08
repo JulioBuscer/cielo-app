@@ -50,16 +50,26 @@ export async function gatherLocalPayload(
     };
   }
 
-  // Incremental sync — send operations since earliest unsynced timestamp
-  // AND full state of all tables so first-time peers don't miss records
+  // Incremental sync — solo enviar registros nuevos o modificados desde el último sync
   const earliestUnsynced = Math.min(...Object.values(lastSyncAts));
+  const since = new Date(earliestUnsynced).toISOString();
   const [operations, incrementalBabies, incrementalProfiles, incrementalEvents, incrementalItems, incrementalTags] = await Promise.all([
     readOutbox(earliestUnsynced),
-    db.select().from(babies).where(sql`${babies.deletedAt} IS NULL`).orderBy(asc(babies.createdAt)),
-    db.select().from(profiles).where(sql`${profiles.deletedAt} IS NULL`).orderBy(asc(profiles.createdAt)),
-    db.select().from(timelineEvents).where(sql`${timelineEvents.deletedAt} IS NULL`).orderBy(asc(timelineEvents.createdAt)),
-    db.select().from(catalogItems).where(sql`${catalogItems.deletedAt} IS NULL`).orderBy(asc(catalogItems.createdAt)),
-    db.select().from(tags).where(sql`${tags.deletedAt} IS NULL`).orderBy(asc(tags.createdAt)),
+    db.select().from(babies).where(
+      sql`${babies.deletedAt} IS NULL AND COALESCE(${babies.updatedAt}, ${babies.createdAt}) > ${since}`
+    ).orderBy(asc(babies.createdAt)),
+    db.select().from(profiles).where(
+      sql`${profiles.deletedAt} IS NULL AND COALESCE(${profiles.updatedAt}, ${profiles.createdAt}) > ${since}`
+    ).orderBy(asc(profiles.createdAt)),
+    db.select().from(timelineEvents).where(
+      sql`${timelineEvents.deletedAt} IS NULL AND COALESCE(${timelineEvents.updatedAt}, ${timelineEvents.createdAt}) > ${since}`
+    ).orderBy(asc(timelineEvents.createdAt)),
+    db.select().from(catalogItems).where(
+      sql`${catalogItems.deletedAt} IS NULL AND COALESCE(${catalogItems.updatedAt}, ${catalogItems.createdAt}) > ${since}`
+    ).orderBy(asc(catalogItems.createdAt)),
+    db.select().from(tags).where(
+      sql`${tags.deletedAt} IS NULL AND COALESCE(${tags.updatedAt}, ${tags.createdAt}) > ${since}`
+    ).orderBy(asc(tags.createdAt)),
   ]);
 
   onLog?.(`[gather] incremental sync: ops=${operations.length} events=${incrementalEvents.length} items=${incrementalItems.length} tags=${incrementalTags.length} babies=${incrementalBabies.length} profiles=${incrementalProfiles.length}`);

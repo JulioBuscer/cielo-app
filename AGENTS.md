@@ -15,9 +15,7 @@
 - **Commit `be7ebe2`** (v0.7.3): `resolveProfileId()` en storage.ts — valida `ACTIVE_PROFILE_ID` contra DB y fallback al primer perfil. Reemplaza `getProfileId()` en hooks de timeline, sesiones, food/growth logs. Guards `!profile` en chat screen.
 - **Commit `7ad9e51`** (v0.7.4): `useActiveProfile()` también usa `resolveProfileId()` — sin esto el guard del chat screen bloqueaba todas las mutaciones porque `getProfileId()` retornaba `''`.
 - **Commit `38d4866`** (v0.7.5): Módulo de perfil del cuidador — pantallas de listado (`/settings/profiles`) y editor (`/settings/profile/[id]`), mutations update/delete con soft-delete, reasignación automática de perfil activo, validación de no eliminar el último perfil.
-
-### Pending
-- Diagnosticar sync no funcional (dispositivos se ven online pero no intercambian datos)
+- **Commit `ecd3458`** (v0.7.6): Fix deadlock de sincronización — en listenSyncSignals, signalQueueFlush y checkAndSync. El receptor de una señal ahora siempre inicia host, eliminando el tiebreaker que causaba que ambos dispositivos esperaran indefinidamente.
 
 # Build Notes
 
