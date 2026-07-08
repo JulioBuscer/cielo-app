@@ -529,23 +529,25 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         device: signal.senderDeviceId,
         sessionId: signal.sessionId,
       });
-    } else if (!deviceIdRef.current || deviceIdRef.current < signal.senderDeviceId) {
-      await startHost(signal.senderDeviceId);
     } else {
-      addLog(`DeviceId mayor, esperando host info en cola de ${signal.senderDeviceId.slice(0, 6)}`);
+      await startHost(signal.senderDeviceId);
     }
   }, [startHost, startJoin, addLog]);
 
   const checkAndSync = useCallback(async () => {
     if (pairedDevices.length === 0) return;
     if (getActiveChannel()) return;
+    const myId = await getOrCreateDeviceId();
     const { listenKnownPeers } = await import('./presence');
     const ids = pairedDevices.map((d) => d.deviceId);
     let found = false;
     const unsub = listenKnownPeers(ids, (online) => {
       if (online.length > 0 && !found) {
         found = true;
-        startHost(online[0].deviceId);
+        const target = online.find((p) => p.deviceId > myId);
+        if (target) {
+          startHost(target.deviceId);
+        }
       }
     });
     setTimeout(unsub, 5000);
@@ -671,12 +673,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
             sessionId: signal.sessionId,
           });
         } else {
-          // Tiebreaker: el dispositivo con deviceId menor actúa como host
-          if (myId < signal.senderDeviceId) {
-            await startHost(signal.senderDeviceId);
-          } else {
-            addLog(`DeviceId mayor, esperando host info de ${signal.senderDeviceId.slice(0, 6)}`);
-          }
+          await startHost(signal.senderDeviceId);
         }
 
         if (NativeModules.RNFBAppModule) {
