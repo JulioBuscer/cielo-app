@@ -168,6 +168,12 @@ export default function SettingsScreen() {
               onPress={() => router.push("/food/dashboard")}
             />
             <MenuLink
+              emoji="📅"
+              label="Plan semanal"
+              subtitle="Planea la semana de alimentación"
+              onPress={() => router.push("/food/plan")}
+            />
+            <MenuLink
               emoji="📖"
               label="Recursos"
               subtitle="Guía de colores, consistencias y sueño"

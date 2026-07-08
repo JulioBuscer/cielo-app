@@ -1074,6 +1074,7 @@ export default function ChatTimelineScreen() {
               { emoji: "🍽️", label: "Historial de comidas", route: "/logs/food/history" },
               { emoji: "🌡️", label: "Salud", route: "/logs/health/new" },
               { emoji: "🥜", label: "Alérgenos", route: "/food/allergens" },
+              { emoji: "📅", label: "Plan semanal", route: `/food/plan?babyId=${baby.id}` },
               { emoji: "⏳", label: "Ventanas de sueño", route: "/wake-windows" },
             ].map((item) => (
               <TouchableOpacity

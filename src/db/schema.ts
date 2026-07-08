@@ -413,6 +413,16 @@ export const foodWatchlist = sqliteTable('food_watchlist', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
+// ─── PLAN SEMANAL DE ALIMENTOS ────────────────────────────────────────────────
+export const foodMealPlans = sqliteTable('food_meal_plans', {
+  id:        text('id').primaryKey(),
+  babyId:    text('baby_id').notNull(),
+  foodId:    text('food_id').notNull(),
+  weekStart: integer('week_start', { mode: 'timestamp' }).notNull(),
+  dayOfWeek: integer('day_of_week').notNull(), // 0=Mon .. 6=Sun
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
 export interface FoodItem {
   id: string;
   name: string;

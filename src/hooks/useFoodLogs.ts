@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { eq, desc, asc, and, gte, lte, count as drizzleCount } from "drizzle-orm";
 import { getDb } from "@/src/db/client";
-import { foodCatalog, foodLogs, foodWatchlist } from "@/src/db/schema";
+import { foodCatalog, foodLogs, foodWatchlist, foodMealPlans } from "@/src/db/schema";
 import { generateId } from "@/src/utils/id";
 import { resolveProfileId } from "@/src/utils/storage";
 import { onMutationError } from "@/src/utils/mutationError";
@@ -205,6 +205,77 @@ export function useToggleFoodPending() {
       qc.invalidateQueries({ queryKey: ["food_watchlist", vars.babyId] });
     },
     onError: onMutationError("[useToggleFoodPending]"),
+  });
+}
+
+export function getWeekStart(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export function useMealPlans(babyId?: string, weekStart?: Date) {
+  return useQuery({
+    queryKey: ["food_meal_plans", babyId, weekStart?.getTime()],
+    enabled: !!babyId && !!weekStart,
+    queryFn: async () => {
+      if (!babyId || !weekStart) return [];
+      const end = new Date(weekStart);
+      end.setDate(end.getDate() + 7);
+      return getDb()
+        .select()
+        .from(foodMealPlans)
+        .where(
+          and(
+            eq(foodMealPlans.babyId, babyId),
+            gte(foodMealPlans.weekStart, weekStart),
+            lte(foodMealPlans.weekStart, end),
+          )
+        )
+        .orderBy(foodMealPlans.dayOfWeek);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useAddMealPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      babyId: string;
+      foodId: string;
+      weekStart: Date;
+      dayOfWeek: number;
+    }) => {
+      await getDb().insert(foodMealPlans).values({
+        id: generateId(),
+        babyId: input.babyId,
+        foodId: input.foodId,
+        weekStart: input.weekStart,
+        dayOfWeek: input.dayOfWeek,
+        createdAt: new Date(),
+      }).run();
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["food_meal_plans", vars.babyId] });
+    },
+    onError: onMutationError("[useAddMealPlan]"),
+  });
+}
+
+export function useRemoveMealPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; babyId: string }) => {
+      await getDb().delete(foodMealPlans).where(eq(foodMealPlans.id, input.id)).run();
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["food_meal_plans", vars.babyId] });
+    },
+    onError: onMutationError("[useRemoveMealPlan]"),
   });
 }
 
