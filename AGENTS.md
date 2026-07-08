@@ -1,23 +1,23 @@
 ## Session Progress
 
 ### Goal
-- Diagnosticar y corregir sync no funcional y error "FOREIGN KEY constraint failed" en `useSaveTimelineEvent` tras build v0.7.2
+- Diagnosticar y corregir error "FOREIGN KEY constraint failed" en `useSaveTimelineEvent` y `useStartSleep` tras importar backup de datos
 
 ### Constraints & Preferences
 - Conventional commits en español MX formal/técnico
-- Build con `scripts/build-android-v2.sh` (two-pass, keystore estable, ABI filters)
+- Build manual con `MALLOC_CHECK_=0 ./gradlew assembleRelease`
 - Commit solo si build exitoso
 
 ### Done
-- **Bug WebRTC corregido**: `runCleanup()` dentro de `listenJoinSdp` cerraba `pcRef.current` antes de `setRemoteAnswer` → conexión nunca se establecía
-- **ABI filter agregado**: `ndk { abiFilters "arm64-v8a", "armeabi-v7a" }` en `defaultConfig` del `app/build.gradle` para evitar crash de Clang 18 (NDK 27.1) en x86_64
-- **Bump v0.7.1 → 0.7.2** en `app.json` y `package.json`
-- **Build exitoso** con ABI fix, APK instalado
-- **Commit `f6a9d55`**: Mirror catalog_items → event_types durante sync para evitar FK constraint fail
+- **Bug WebRTC corregido**: `runCleanup()` en `listenJoinSdp` cerraba `pcRef.current` antes de `setRemoteAnswer` → commit `df9e756`
+- **ABI filter**: `ndk { abiFilters "arm64-v8a", "armeabi-v7a" }` en `app/build.gradle`
+- **Commit `f6a9d55`**: Mirror catalog_items → event_types en sync (FK healing migration en `runMigrations()`)
+- **Commit `be7ebe2`** (v0.7.3): `resolveProfileId()` en storage.ts — valida `ACTIVE_PROFILE_ID` contra DB y fallback al primer perfil. Reemplaza `getProfileId()` en hooks de timeline, sesiones, food/growth logs. Guards `!profile` en chat screen.
+- **Commit `7ad9e51`** (v0.7.4): `useActiveProfile()` también usa `resolveProfileId()` — sin esto el guard del chat screen bloqueaba todas las mutaciones porque `getProfileId()` retornaba `''`.
 
 ### Pending
-- Build APK con el fix de FK y probar en físico
-- Diagnosticar sync unidireccional restante si persiste (descartar error de FK como causa)
+- Módulo de perfil del cuidador (editar nombre/rol, validar existencia)
+- Verificar que mensajes/eventos se registren y aparezcan correctamente tras fix v0.7.4
 
 # Build Notes
 

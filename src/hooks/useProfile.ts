@@ -48,3 +48,49 @@ export function useProfiles() {
     queryFn: () => getDb().select().from(profiles),
   });
 }
+
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; name: string; role: Role }) => {
+      await getDb().update(profiles).set({
+        name: input.name,
+        role: input.role,
+        updatedAt: new Date(),
+      }).where(eq(profiles.id, input.id));
+      await writeOutbox('profiles', input.id, 'update', input);
+      await signalPeers();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['profile'] });
+      qc.invalidateQueries({ queryKey: ['profiles'] });
+    },
+    onError: onMutationError("[useUpdateProfile]"),
+  });
+}
+
+export function useDeleteProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; deletedBy: string }) => {
+      await getDb().update(profiles).set({
+        deletedAt: new Date(),
+        deletedBy: input.deletedBy,
+      }).where(eq(profiles.id, input.id));
+      await writeOutbox('profiles', input.id, 'delete', { id: input.id, deletedBy: input.deletedBy });
+      await signalPeers();
+      if (input.id === await resolveProfileId()) {
+        const all = await getDb().select({ id: profiles.id }).from(profiles);
+        const remaining = all.filter(p => p.id !== input.id);
+        if (remaining.length > 0) {
+          await setProfileId(remaining[0].id);
+        }
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['profile'] });
+      qc.invalidateQueries({ queryKey: ['profiles'] });
+    },
+    onError: onMutationError("[useDeleteProfile]"),
+  });
+}

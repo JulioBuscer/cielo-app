@@ -117,6 +117,18 @@ export default function SettingsScreen() {
         </View>
 
         <View style={{ gap: 8 }}>
+          <SectionHeader label="Cuenta" />
+          <View style={{ gap: 8 }}>
+            <MenuLink
+              emoji="👤"
+              label="Mi Perfil"
+              subtitle="Editar nombre, rol o agregar cuidadores"
+              onPress={() => router.push("/settings/profiles")}
+            />
+          </View>
+        </View>
+
+        <View style={{ gap: 8 }}>
           <SectionHeader label="Personalización" />
           <View style={{ gap: 8 }}>
             <MenuLink
