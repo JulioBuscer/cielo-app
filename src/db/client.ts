@@ -256,6 +256,12 @@ export async function runMigrations() {
       sort_order INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS food_watchlist (
+      id TEXT PRIMARY KEY NOT NULL,
+      baby_id TEXT NOT NULL REFERENCES babies(id),
+      food_id TEXT NOT NULL REFERENCES food_catalog(id),
+      created_at INTEGER NOT NULL
+    )`,
     `CREATE TABLE IF NOT EXISTS sync_outbox (
       id TEXT PRIMARY KEY NOT NULL,
       table_name TEXT NOT NULL,
