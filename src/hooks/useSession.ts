@@ -3,7 +3,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { getDb, calcDurationSec } from '@/src/db/client';
 import { eq, and, inArray, desc } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
-import { getProfileId } from '@/src/utils/storage';
+import { resolveProfileId } from '@/src/utils/storage';
 import { onMutationError } from '@/src/utils/mutationError';
 
 type Row = { id: string; babyId: string; profileId: string; status: string; startedAt: Date; endedAt: Date | null; durationSec: number | null; notes: string | null; createdAt: Date };
@@ -97,7 +97,7 @@ export function createSessionHooks<TRow extends Row, TStatusRow extends StatusRo
     return useMutation({
       mutationFn: async (input: any) => {
         const db = getDb();
-        const profileId = await getProfileId();
+        const profileId = await resolveProfileId();
         const now = new Date();
 
         const existing = await db
@@ -150,7 +150,7 @@ export function createSessionHooks<TRow extends Row, TStatusRow extends StatusRo
     return useMutation({
       mutationFn: async (session: any) => {
         const db = getDb();
-        const profileId = await getProfileId();
+        const profileId = await resolveProfileId();
         const now = new Date();
         await db.insert(statusEventsTable).values({
           id: generateId(), sessionId: session.id,
@@ -173,7 +173,7 @@ export function createSessionHooks<TRow extends Row, TStatusRow extends StatusRo
     return useMutation({
       mutationFn: async (session: any) => {
         const db = getDb();
-        const profileId = await getProfileId();
+        const profileId = await resolveProfileId();
         const now = new Date();
         await db.insert(statusEventsTable).values({
           id: generateId(), sessionId: session.id,
@@ -195,7 +195,7 @@ export function createSessionHooks<TRow extends Row, TStatusRow extends StatusRo
     const qc = useQueryClient();
     return useMutation({
       mutationFn: async (session: any) => {
-        const profileId = await getProfileId();
+        const profileId = await resolveProfileId();
         await _finishSession(session.id, profileId, new Date());
       },
       onSuccess: (_: any, session: any) => {

@@ -465,7 +465,7 @@ export default function ChatTimelineScreen() {
   const items = buildItems();
 
   const handleStartFeeding = async (type: FeedingType, bottleSubtype?: BottleSubtype) => {
-    if (!babyId) return;
+    if (!babyId || !profile) return;
     setLoadingType(type);
     try {
       await startFeeding.mutateAsync({ babyId, type, bottleSubtype });
@@ -475,7 +475,7 @@ export default function ChatTimelineScreen() {
   };
 
   const handleToggleSleep = async () => {
-    if (!babyId) return;
+    if (!babyId || !profile) return;
     setSleepLoading(true);
     try {
       if (activeSleep) {
@@ -489,7 +489,7 @@ export default function ChatTimelineScreen() {
   };
 
   const handleSendNote = () => {
-    if (!note.trim() || !babyId) return;
+    if (!note.trim() || !babyId || !profile) return;
     saveEvent.mutate({
       babyId,
       eventTypeId: "note",
@@ -544,7 +544,7 @@ export default function ChatTimelineScreen() {
 
   const savingTapRef = useRef(false);
   const handleItemTap = (item: CatalogItem) => {
-    if (!babyId || savingTapRef.current) return;
+    if (!babyId || !profile || savingTapRef.current) return;
     savingTapRef.current = true;
     quickSaveItem.mutate(
       { babyId, item, timestamp: new Date() },

@@ -3,7 +3,7 @@ import { getDb } from '@/src/db/client';
 import { growthLogs, timelineEvents } from '@/src/db/schema';
 import { desc, eq, inArray, and } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
-import { getProfileId } from '@/src/utils/storage';
+import { resolveProfileId } from '@/src/utils/storage';
 import { onMutationError } from '@/src/utils/mutationError';
 import { writeOutbox } from '@/src/sync/outbox';
 import { signalPeers } from '@/src/sync/hooks';
@@ -38,7 +38,7 @@ export function useSaveGrowthLog() {
       timestamp?:  Date;
       photoUris?:  string[];
     }) => {
-      const profileId = await getProfileId();
+      const profileId = await resolveProfileId();
       await getDb().insert(growthLogs).values({
         id:          generateId(),
         babyId:      input.babyId,
@@ -74,7 +74,7 @@ export function useSaveMeasurement() {
       timestamp?:  Date;
       photoUris?:  string[];
     }) => {
-      const profileId = await getProfileId();
+      const profileId = await resolveProfileId();
       const now = input.timestamp ?? new Date();
       const db = getDb();
       let timelineEventId = '';

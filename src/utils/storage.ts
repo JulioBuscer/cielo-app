@@ -1,4 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getDb } from '@/src/db/client';
+import { profiles } from '@/src/db/schema';
+import { eq } from 'drizzle-orm';
 
 export const KEYS = {
   ACTIVE_PROFILE_ID: 'active_profile_id',
@@ -30,6 +33,27 @@ export const SESSION_KEYS = [
 
 export function getProfileId(): Promise<string> {
   return AsyncStorage.getItem(KEYS.ACTIVE_PROFILE_ID).then(r => r ?? '');
+}
+
+export async function resolveProfileId(): Promise<string> {
+  const stored = await AsyncStorage.getItem(KEYS.ACTIVE_PROFILE_ID);
+  if (stored) {
+    const exists = await getDb()
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(eq(profiles.id, stored))
+      .limit(1);
+    if (exists.length > 0) return stored;
+  }
+  const fallback = await getDb()
+    .select({ id: profiles.id })
+    .from(profiles)
+    .limit(1);
+  if (fallback.length > 0) {
+    await AsyncStorage.setItem(KEYS.ACTIVE_PROFILE_ID, fallback[0].id);
+    return fallback[0].id;
+  }
+  throw new Error('No hay perfiles disponibles');
 }
 
 export function setProfileId(id: string): Promise<void> {

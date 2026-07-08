@@ -3,7 +3,7 @@ import { getDb } from '@/src/db/client';
 import { timelineEvents, eventTypes, diaperObservations } from '@/src/db/schema';
 import { eq, desc, and, isNull } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
-import { getProfileId } from '@/src/utils/storage';
+import { resolveProfileId } from '@/src/utils/storage';
 import { onMutationError } from '@/src/utils/mutationError';
 import { writeOutbox } from '@/src/sync/outbox';
 import { signalPeers } from '@/src/sync/hooks';
@@ -130,7 +130,7 @@ export function useSaveTimelineEvent() {
       feedingSessionId?: string;
       sleepSessionId?: string;
     }) => {
-      const profileId = await getProfileId();
+      const profileId = await resolveProfileId();
       await insertTimelineEvent({
         babyId:           input.babyId,
         profileId,
@@ -198,7 +198,7 @@ export function useDeleteTimelineEvent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { id: string; babyId: string }) => {
-      const profileId = await getProfileId();
+      const profileId = await resolveProfileId();
       await getDb().update(timelineEvents).set({
         deletedAt: new Date(),
         deletedBy: profileId,

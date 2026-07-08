@@ -1,3 +1,24 @@
+## Session Progress
+
+### Goal
+- Diagnosticar y corregir sync no funcional y error "FOREIGN KEY constraint failed" en `useSaveTimelineEvent` tras build v0.7.2
+
+### Constraints & Preferences
+- Conventional commits en español MX formal/técnico
+- Build con `scripts/build-android-v2.sh` (two-pass, keystore estable, ABI filters)
+- Commit solo si build exitoso
+
+### Done
+- **Bug WebRTC corregido**: `runCleanup()` dentro de `listenJoinSdp` cerraba `pcRef.current` antes de `setRemoteAnswer` → conexión nunca se establecía
+- **ABI filter agregado**: `ndk { abiFilters "arm64-v8a", "armeabi-v7a" }` en `defaultConfig` del `app/build.gradle` para evitar crash de Clang 18 (NDK 27.1) en x86_64
+- **Bump v0.7.1 → 0.7.2** en `app.json` y `package.json`
+- **Build exitoso** con ABI fix, APK instalado
+- **Commit `f6a9d55`**: Mirror catalog_items → event_types durante sync para evitar FK constraint fail
+
+### Pending
+- Build APK con el fix de FK y probar en físico
+- Diagnosticar sync unidireccional restante si persiste (descartar error de FK como causa)
+
 # Build Notes
 
 ## Android Release Build
@@ -207,3 +228,4 @@ pnpm build:eas:ios         # Build de iOS en Expo Application Services
 - [x] Migración robusta de datos antiguos de peso y altura al modelo unificado `measurement`.
 - [x] Workaround de `MALLOC_CHECK_=0` documentado e integrado para NDK 27.1 / Clang 18 en compilación release.
 - [x] Integración de guardado y lectura de imágenes en la base de datos de pañales usando el FileSystem nativo.
+- [x] Corrección de FK constraint fail en sync: mirror automático de catalog_items → event_types durante merge y migración de curación para DBs existentes.

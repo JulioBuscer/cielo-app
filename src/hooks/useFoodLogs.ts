@@ -3,7 +3,7 @@ import { eq, desc, asc, and, gte, lte, count as drizzleCount } from "drizzle-orm
 import { getDb } from "@/src/db/client";
 import { foodCatalog, foodLogs } from "@/src/db/schema";
 import { generateId } from "@/src/utils/id";
-import { getProfileId } from "@/src/utils/storage";
+import { resolveProfileId } from "@/src/utils/storage";
 import { onMutationError } from "@/src/utils/mutationError";
 
 export function useFoodCatalog() {
@@ -158,7 +158,7 @@ export function useSaveFoodLog() {
       photoUri?: string;
       notes?: string;
     }) => {
-      const profileId = await getProfileId();
+      const profileId = await resolveProfileId();
       await getDb().insert(foodLogs).values({
         id: generateId(),
         babyId: input.babyId,
