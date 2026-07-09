@@ -3,7 +3,7 @@
     "name": "Cielo App",
     "slug": "cielo-app",
     "scheme": "cieloapp",
-    "version": "0.7.11",
+    "version": "0.8.0",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
