@@ -9,7 +9,7 @@ import { useActiveBaby, useBabies } from "@/src/hooks/useBaby";
 import {
   useFoodCatalog, FOOD_GROUPS,
   useBabyFoodConsumed,
-  useMealPlans, useAddMealPlan, useRemoveMealPlan, useBatchAddMealPlan,
+  useMealPlans, useAddMealPlan, useRemoveMealPlan, useBatchAddMealPlan, useClearMealPlans,
   useFoodFrequency, useToggleLockMealPlan, useLockedMealPlans,
   getWeekStart, BADGE_FILTERS, SUBGROUPS,
 } from "@/src/hooks/useFoodLogs";
@@ -42,6 +42,7 @@ export default function FoodPlanScreen() {
   const addMeal = useAddMealPlan();
   const removeMeal = useRemoveMealPlan();
   const batchAddMeal = useBatchAddMealPlan();
+  const clearMealPlans = useClearMealPlans();
   const toggleLockMeal = useToggleLockMealPlan();
 
   const [selectedBabyId, setSelectedBabyId] = useState<string | undefined>(params.babyId ?? activeBaby?.id);
@@ -60,6 +61,7 @@ export default function FoodPlanScreen() {
   // ─── Generator / Detail state ───────────────────────────────────────
   const [detailFood, setDetailFood] = useState<any>(null);
   const [showGenerator, setShowGenerator] = useState(false);
+  const [keepStrategy, setKeepStrategy] = useState<'locked' | 'all' | 'none'>('all');
 
   // ─── Modal grid state ────────────────────────────────────────────────
   const [addingDay, setAddingDay] = useState<number | null>(null);
@@ -211,43 +213,47 @@ export default function FoodPlanScreen() {
     const suggestions = generateMealPlan({
       mode: generatingMode,
       targetDay: generatingMode === 'day' ? generatingDay ?? undefined : undefined,
-      keepExisting: false,
+      keepExisting: keepStrategy === 'all',
       foods: generatorFoods,
       consumed: consumed as Set<string>,
       frequency: freqMap,
       watchlist: new Set<string>(),
       existingPlans: existingItems,
     });
-    if (suggestions.length === 0) {
-      Alert.alert("Sin cambios", "No se encontraron sugerencias para generar.");
+    const toInsert = suggestions.filter((s) => s.reason !== 'locked' && s.reason !== 'existing');
+    if (toInsert.length === 0) {
+      Alert.alert("Sin cambios", "El plan ya está completo. No se requieren cambios.");
       setShowGenerator(false);
       return;
     }
-    const newCount = suggestions.filter((s) => s.reason === 'new_food').length;
-    const lockCount = suggestions.filter((s) => s.reason === 'locked').length;
-    const fillCount = suggestions.filter((s) => s.reason === 'group_fill' || s.reason === 'tendency').length;
+    const newCount = toInsert.filter((s) => s.reason === 'new_food').length;
+    const fillCount = toInsert.filter((s) => s.reason === 'group_fill' || s.reason === 'tendency').length;
     Alert.alert(
       "Generar plan",
-      `Se agregarán ${suggestions.length} alimentos al plan:\n• ${newCount} nuevos\n• ${fillCount} de relleno\n• ${lockCount} bloqueados (conservados)`,
+      `Se agregarán ${toInsert.length} alimentos:\n• ${newCount} nuevos\n• ${fillCount} de relleno`,
       [
         { text: "Cancelar", style: "cancel", onPress: () => setShowGenerator(false) },
         {
           text: "Aplicar", onPress: async () => {
+            if (keepStrategy === 'none') {
+              await clearMealPlans.mutateAsync({ babyId, weekStart, keepLocked: false });
+            } else if (keepStrategy === 'locked') {
+              await clearMealPlans.mutateAsync({ babyId, weekStart, keepLocked: true });
+            }
             await batchAddMeal.mutateAsync({
               babyId,
               weekStart,
-              items: suggestions
-                .filter((s) => s.reason !== 'locked')
-                .map((s) => ({ foodId: s.foodId, dayOfWeek: s.dayOfWeek })),
+              items: toInsert.map((s) => ({ foodId: s.foodId, dayOfWeek: s.dayOfWeek })),
             });
             setShowGenerator(false);
           },
         },
       ],
     );
-  }, [baby, catalog, consumed, frequency, plans, lockedPlans, weekStart, generatingMode, generatingDay, batchAddMeal]);
+  }, [baby, catalog, consumed, frequency, plans, lockedPlans, weekStart, generatingMode, generatingDay, keepStrategy, batchAddMeal, clearMealPlans]);
 
-  const openGenerator = useCallback((mode: 'day' | 'week', day?: number) => {
+  const openGeneratorWithStrategy = useCallback((mode: 'day' | 'week', strategy: 'locked' | 'all' | 'none', day?: number) => {
+    setKeepStrategy(strategy);
     setGeneratingMode(mode);
     setGeneratingDay(day ?? null);
     setShowGenerator(true);
@@ -280,9 +286,32 @@ export default function FoodPlanScreen() {
         </Text>
         <TouchableOpacity onPress={() => {
           if (!baby) return;
+          const hasPlans = (plans?.length ?? 0) > 0;
+          if (!hasPlans) {
+            Alert.alert("✨ Generar plan", "¿Cómo quieres generar?", [
+              { text: "Solo hoy", onPress: () => openGeneratorWithStrategy('day', 'none', 0) },
+              { text: "Semana completa", onPress: () => openGeneratorWithStrategy('week', 'none') },
+              { text: "Cancelar", style: "cancel" },
+            ]);
+            return;
+          }
           Alert.alert("✨ Generar plan", "¿Cómo quieres generar?", [
-            { text: "Solo hoy", onPress: () => openGenerator('day', 0) },
-            { text: "Semana completa", onPress: () => openGenerator('week') },
+            { text: "Solo hoy", onPress: () => {
+              Alert.alert("Estrategia", "¿Qué hacer con los alimentos existentes?", [
+                { text: "🔒 Solo bloqueados", onPress: () => openGeneratorWithStrategy('day', 'locked', 0) },
+                { text: "📋 Conservar todo", onPress: () => openGeneratorWithStrategy('day', 'all', 0) },
+                { text: "🗑️ Reemplazar todo", onPress: () => openGeneratorWithStrategy('day', 'none', 0) },
+                { text: "Cancelar", style: "cancel" },
+              ]);
+            }},
+            { text: "Semana completa", onPress: () => {
+              Alert.alert("Estrategia", "¿Qué hacer con los alimentos existentes?", [
+                { text: "🔒 Solo bloqueados", onPress: () => openGeneratorWithStrategy('week', 'locked') },
+                { text: "📋 Conservar todo", onPress: () => openGeneratorWithStrategy('week', 'all') },
+                { text: "🗑️ Reemplazar todo", onPress: () => openGeneratorWithStrategy('week', 'none') },
+                { text: "Cancelar", style: "cancel" },
+              ]);
+            }},
             { text: "Cancelar", style: "cancel" },
           ]);
         }} style={{ minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "center" }}>
@@ -395,9 +424,27 @@ export default function FoodPlanScreen() {
                     </View>
                   )}
                 </View>
-                <Text style={{ fontSize: 12, color: c.textMuted }}>
-                  {count} alimento{count !== 1 ? "s" : ""}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <Text style={{ fontSize: 12, color: c.textMuted }}>
+                    {count} alimento{count !== 1 ? "s" : ""}
+                  </Text>
+                  <TouchableOpacity hitSlop={8} onPress={() => {
+                    if (!baby) return;
+                    const hasPlans = count > 0;
+                    if (!hasPlans) {
+                      openGeneratorWithStrategy('day', 'none', dayIndex);
+                      return;
+                    }
+                    Alert.alert("✨ Generar para este día", "¿Qué hacer con los existentes?", [
+                      { text: "🔒 Solo bloqueados", onPress: () => openGeneratorWithStrategy('day', 'locked', dayIndex) },
+                      { text: "📋 Conservar todo", onPress: () => openGeneratorWithStrategy('day', 'all', dayIndex) },
+                      { text: "🗑️ Reemplazar todo", onPress: () => openGeneratorWithStrategy('day', 'none', dayIndex) },
+                      { text: "Cancelar", style: "cancel" },
+                    ]);
+                  }}>
+                    <Text style={{ fontSize: 14, color: c.accent }}>✨</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {count === 0 ? (

@@ -391,6 +391,39 @@ export function useBatchAddMealPlan() {
   });
 }
 
+export function useClearMealPlans() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      babyId: string;
+      weekStart: Date;
+      keepLocked?: boolean;
+      dayOfWeek?: number;
+    }) => {
+      const db = getDb();
+      const conditions: any[] = [
+        eq(foodMealPlans.babyId, input.babyId),
+        gte(foodMealPlans.weekStart, input.weekStart),
+      ];
+      const end = new Date(input.weekStart);
+      end.setDate(end.getDate() + 7);
+      conditions.push(lte(foodMealPlans.weekStart, end));
+      if (input.dayOfWeek != null) {
+        conditions.push(eq(foodMealPlans.dayOfWeek, input.dayOfWeek));
+      }
+      if (input.keepLocked) {
+        conditions.push(eq(foodMealPlans.locked, false as any));
+      }
+      await db.delete(foodMealPlans).where(and(...conditions)).run();
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["food_meal_plans", vars.babyId] });
+      qc.invalidateQueries({ queryKey: ["food_meal_plans_locked", vars.babyId] });
+    },
+    onError: onMutationError("[useClearMealPlans]"),
+  });
+}
+
 export function useSaveFoodLog() {
   const qc = useQueryClient();
   return useMutation({
