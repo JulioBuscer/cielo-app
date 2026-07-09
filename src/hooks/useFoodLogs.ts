@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { eq, desc, asc, and, gte, lte, count as drizzleCount } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte, isNull, count as drizzleCount } from "drizzle-orm";
 import { getDb } from "@/src/db/client";
 import { foodCatalog, foodLogs, foodWatchlist, foodMealPlans } from "@/src/db/schema";
 import { generateId } from "@/src/utils/id";
@@ -276,6 +276,118 @@ export function useRemoveMealPlan() {
       qc.invalidateQueries({ queryKey: ["food_meal_plans", vars.babyId] });
     },
     onError: onMutationError("[useRemoveMealPlan]"),
+  });
+}
+
+export function useFoodFrequency(babyId?: string) {
+  return useQuery({
+    queryKey: ["food_frequency", babyId],
+    enabled: !!babyId,
+    queryFn: async () => {
+      if (!babyId) return new Map<string, { count: number; lastEaten: number; score: number }>();
+      const rows = await getDb()
+        .select({
+          foodId: foodLogs.foodId,
+          createdAt: foodLogs.createdAt,
+        })
+        .from(foodLogs)
+        .where(and(eq(foodLogs.babyId, babyId), isNull(foodLogs.deletedAt)))
+        .orderBy(desc(foodLogs.createdAt));
+      const freq = new Map<string, { count: number; lastEaten: number; score: number }>();
+      const now = Date.now();
+      for (const row of rows) {
+        const existing = freq.get(row.foodId);
+        if (existing) {
+          existing.count++;
+        } else {
+          freq.set(row.foodId, {
+            count: 1,
+            lastEaten: new Date(row.createdAt).getTime(),
+            score: 0,
+          });
+        }
+      }
+      const maxCount = Math.max(...Array.from(freq.values()).map((v) => v.count), 1);
+      const maxRecency = Math.max(...Array.from(freq.values()).map((v) => now - v.lastEaten), 1);
+      for (const [, v] of freq) {
+        const normFreq = v.count / maxCount;
+        const normRecency = 1 - (now - v.lastEaten) / maxRecency;
+        v.score = normFreq * 0.6 + normRecency * 0.4;
+      }
+      return freq;
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useLockedMealPlans(babyId?: string, weekStart?: Date) {
+  return useQuery({
+    queryKey: ["food_meal_plans_locked", babyId, weekStart?.getTime()],
+    enabled: !!babyId && !!weekStart,
+    queryFn: async () => {
+      if (!babyId || !weekStart) return new Set<string>();
+      const end = new Date(weekStart);
+      end.setDate(end.getDate() + 7);
+      const rows = await getDb()
+        .select({ id: foodMealPlans.id, foodId: foodMealPlans.foodId, dayOfWeek: foodMealPlans.dayOfWeek })
+        .from(foodMealPlans)
+        .where(
+          and(
+            eq(foodMealPlans.babyId, babyId),
+            eq(foodMealPlans.locked, true as any),
+            gte(foodMealPlans.weekStart, weekStart),
+            lte(foodMealPlans.weekStart, end),
+          )
+        );
+      return new Map(rows.map((r) => [r.foodId, r]));
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useToggleLockMealPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; babyId: string; locked: boolean }) => {
+      await getDb().update(foodMealPlans)
+        .set({ locked: input.locked as any })
+        .where(eq(foodMealPlans.id, input.id))
+        .run();
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["food_meal_plans", vars.babyId] });
+      qc.invalidateQueries({ queryKey: ["food_meal_plans_locked", vars.babyId] });
+    },
+    onError: onMutationError("[useToggleLockMealPlan]"),
+  });
+}
+
+export function useBatchAddMealPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      babyId: string;
+      weekStart: Date;
+      items: Array<{ foodId: string; dayOfWeek: number; locked?: boolean }>;
+    }) => {
+      const db = getDb();
+      for (const item of input.items) {
+        await db.insert(foodMealPlans).values({
+          id: generateId(),
+          babyId: input.babyId,
+          foodId: item.foodId,
+          weekStart: input.weekStart,
+          dayOfWeek: item.dayOfWeek,
+          locked: item.locked ?? false,
+          createdAt: new Date(),
+        }).run();
+      }
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["food_meal_plans", vars.babyId] });
+      qc.invalidateQueries({ queryKey: ["food_meal_plans_locked", vars.babyId] });
+    },
+    onError: onMutationError("[useBatchAddMealPlan]"),
   });
 }
 
