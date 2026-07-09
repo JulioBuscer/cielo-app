@@ -8,6 +8,7 @@ import { writeOutbox } from '@/src/sync/outbox';
 import { signalPeers } from '@/src/sync/hooks';
 import { getCachedDeviceId } from '@/src/sync/device';
 import { useActiveBabyCtx } from './ActiveBabyProvider';
+import { resolveProfileId } from '@/src/utils/storage';
 import type { Baby } from '@/src/db/schema';
 
 export function useCreateBaby() {
@@ -119,8 +120,11 @@ export function useDeleteBaby() {
         if (others.length > 0) setActiveBabyId(others[0].id);
         else setActiveBabyId(null);
       }
-      await getDb().delete(babies).where(eq(babies.id, id));
-      await writeOutbox('babies', id, 'delete', { id });
+      const deletedBy = await resolveProfileId();
+      await getDb().update(babies)
+        .set({ deletedAt: new Date(), deletedBy })
+        .where(eq(babies.id, id));
+      await writeOutbox('babies', id, 'delete', { id, deletedAt: Date.now(), deletedBy });
       await signalPeers();
     },
     onSuccess: () => {
