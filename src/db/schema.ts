@@ -432,6 +432,7 @@ export const foodMealPlans = sqliteTable('food_meal_plans', {
   foodId:    text('food_id').notNull(),
   weekStart: integer('week_start', { mode: 'timestamp' }).notNull(),
   dayOfWeek: integer('day_of_week').notNull(), // 0=Mon .. 6=Sun
+  locked:    integer('locked', { mode: 'boolean' }).default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   deletedAt: integer('deleted_at', { mode: 'timestamp' }),
   deletedBy: text('deleted_by'),

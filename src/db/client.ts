@@ -262,6 +262,7 @@ export async function runMigrations() {
       food_id TEXT NOT NULL REFERENCES food_catalog(id),
       week_start INTEGER NOT NULL,
       day_of_week INTEGER NOT NULL,
+      locked INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL
     )`,
     `CREATE TABLE IF NOT EXISTS food_watchlist (
@@ -400,6 +401,8 @@ export async function runMigrations() {
     // soft-delete: food_meal_plans
     `ALTER TABLE food_meal_plans ADD COLUMN deleted_at INTEGER`,
     `ALTER TABLE food_meal_plans ADD COLUMN deleted_by TEXT`,
+    // lock de alimentos en plan semanal
+    `ALTER TABLE food_meal_plans ADD COLUMN locked INTEGER DEFAULT 0`,
     // soft-delete: food_watchlist
     `ALTER TABLE food_watchlist ADD COLUMN deleted_at INTEGER`,
     `ALTER TABLE food_watchlist ADD COLUMN deleted_by TEXT`,

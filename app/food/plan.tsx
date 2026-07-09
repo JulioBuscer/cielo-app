@@ -4,12 +4,16 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/src/theme/useTheme";
 import { FoodGridCard } from "@/src/components/food/FoodGridCard";
+import { FoodDetailModal } from "@/src/components/food/FoodDetailModal";
 import { useActiveBaby, useBabies } from "@/src/hooks/useBaby";
 import {
   useFoodCatalog, FOOD_GROUPS,
   useBabyFoodConsumed,
-  useMealPlans, useAddMealPlan, useRemoveMealPlan, getWeekStart, BADGE_FILTERS, SUBGROUPS,
+  useMealPlans, useAddMealPlan, useRemoveMealPlan, useBatchAddMealPlan,
+  useFoodFrequency, useToggleLockMealPlan, useLockedMealPlans,
+  getWeekStart, BADGE_FILTERS, SUBGROUPS,
 } from "@/src/hooks/useFoodLogs";
+import { generateMealPlan, computeBalanceStats, type GeneratorFood, type PlanSuggestion } from "@/src/services/mealPlanGenerator";
 import { useDebounce } from "@/src/hooks/useDebounce";
 
 const GROUP_KEYS = Object.keys(FOOD_GROUPS);
@@ -34,8 +38,11 @@ export default function FoodPlanScreen() {
   const { data: babies } = useBabies();
   const { data: catalog } = useFoodCatalog();
   const { data: consumed } = useBabyFoodConsumed(params.babyId ?? activeBaby?.id);
+  const { data: frequency } = useFoodFrequency(params.babyId ?? activeBaby?.id);
   const addMeal = useAddMealPlan();
   const removeMeal = useRemoveMealPlan();
+  const batchAddMeal = useBatchAddMealPlan();
+  const toggleLockMeal = useToggleLockMealPlan();
 
   const [selectedBabyId, setSelectedBabyId] = useState<string | undefined>(params.babyId ?? activeBaby?.id);
   const baby = babies?.find((b: any) => b.id === selectedBabyId) ?? activeBaby;
@@ -48,6 +55,11 @@ export default function FoodPlanScreen() {
   }, [weekOffset]);
 
   const { data: plans } = useMealPlans(baby?.id, weekStart);
+  const { data: lockedPlans } = useLockedMealPlans(baby?.id, weekStart);
+
+  // ─── Generator / Detail state ───────────────────────────────────────
+  const [detailFood, setDetailFood] = useState<any>(null);
+  const [showGenerator, setShowGenerator] = useState(false);
 
   // ─── Modal grid state ────────────────────────────────────────────────
   const [addingDay, setAddingDay] = useState<number | null>(null);
@@ -145,11 +157,14 @@ export default function FoodPlanScreen() {
   const handleAddFood = useCallback(async (foodId: string) => {
     if (!baby || addingDay == null) return;
     if (weekPlanIds.has(foodId)) {
-      // Already in plan this week → remove from this day
-      const existing = plans?.find((p) => p.foodId === foodId && p.dayOfWeek === addingDay);
-      if (existing) {
-        removeMeal.mutate({ id: existing.id, babyId: baby.id });
+      const existingOnDay = plans?.find((p) => p.foodId === foodId && p.dayOfWeek === addingDay);
+      if (existingOnDay) {
+        removeMeal.mutate({ id: existingOnDay.id, babyId: baby.id });
         return;
+      }
+      const existingOtherDay = plans?.find((p) => p.foodId === foodId && p.dayOfWeek !== addingDay);
+      if (existingOtherDay) {
+        removeMeal.mutate({ id: existingOtherDay.id, babyId: baby.id });
       }
     }
     try {
@@ -167,6 +182,80 @@ export default function FoodPlanScreen() {
       },
     ]);
   }, [baby, removeMeal]);
+
+  const handleToggleLock = useCallback((planId: string, currentlyLocked: boolean) => {
+    if (!baby) return;
+    toggleLockMeal.mutate({ id: planId, babyId: baby.id, locked: !currentlyLocked });
+  }, [baby, toggleLockMeal]);
+
+  // ─── Generator ──────────────────────────────────────────────────────
+  const [generatingMode, setGeneratingMode] = useState<'day' | 'week' | null>(null);
+  const [generatingDay, setGeneratingDay] = useState<number | null>(null);
+
+  const handleGenerate = useCallback(async () => {
+    if (!baby || !catalog || !consumed || !frequency || !generatingMode) return;
+    const babyId = baby.id;
+    const existingItems: Array<{ foodId: string; dayOfWeek: number; locked: boolean }> =
+      (plans ?? []).map((p) => ({
+        foodId: p.foodId,
+        dayOfWeek: p.dayOfWeek,
+        locked: lockedPlans?.has(p.foodId) ?? false,
+      }));
+    const generatorFoods: GeneratorFood[] = catalog.map((f: any) => ({
+      id: f.id, name: f.name, group: f.group,
+      property: f.property ?? 'neutral',
+      effect: f.effect ?? null,
+    }));
+    const freqMap = new Map<string, number>();
+    if (frequency) for (const [k, v] of frequency) freqMap.set(k, v.score);
+    const suggestions = generateMealPlan({
+      mode: generatingMode,
+      targetDay: generatingMode === 'day' ? generatingDay ?? undefined : undefined,
+      keepExisting: false,
+      foods: generatorFoods,
+      consumed: consumed as Set<string>,
+      frequency: freqMap,
+      watchlist: new Set<string>(),
+      existingPlans: existingItems,
+    });
+    if (suggestions.length === 0) {
+      Alert.alert("Sin cambios", "No se encontraron sugerencias para generar.");
+      setShowGenerator(false);
+      return;
+    }
+    const newCount = suggestions.filter((s) => s.reason === 'new_food').length;
+    const lockCount = suggestions.filter((s) => s.reason === 'locked').length;
+    const fillCount = suggestions.filter((s) => s.reason === 'group_fill' || s.reason === 'tendency').length;
+    Alert.alert(
+      "Generar plan",
+      `Se agregarán ${suggestions.length} alimentos al plan:\n• ${newCount} nuevos\n• ${fillCount} de relleno\n• ${lockCount} bloqueados (conservados)`,
+      [
+        { text: "Cancelar", style: "cancel", onPress: () => setShowGenerator(false) },
+        {
+          text: "Aplicar", onPress: async () => {
+            await batchAddMeal.mutateAsync({
+              babyId,
+              weekStart,
+              items: suggestions
+                .filter((s) => s.reason !== 'locked')
+                .map((s) => ({ foodId: s.foodId, dayOfWeek: s.dayOfWeek })),
+            });
+            setShowGenerator(false);
+          },
+        },
+      ],
+    );
+  }, [baby, catalog, consumed, frequency, plans, lockedPlans, weekStart, generatingMode, generatingDay, batchAddMeal]);
+
+  const openGenerator = useCallback((mode: 'day' | 'week', day?: number) => {
+    setGeneratingMode(mode);
+    setGeneratingDay(day ?? null);
+    setShowGenerator(true);
+  }, []);
+
+  useEffect(() => {
+    if (showGenerator && generatingMode) handleGenerate();
+  }, [showGenerator, generatingMode]);
 
   const totalCoverage = useMemo(() => {
     const days = [0, 1, 2, 3, 4, 5, 6];
@@ -189,7 +278,16 @@ export default function FoodPlanScreen() {
         <Text style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: "900", color: c.textBody }}>
           📅 Plan semanal
         </Text>
-        <View style={{ width: 44 }} />
+        <TouchableOpacity onPress={() => {
+          if (!baby) return;
+          Alert.alert("✨ Generar plan", "¿Cómo quieres generar?", [
+            { text: "Solo hoy", onPress: () => openGenerator('day', 0) },
+            { text: "Semana completa", onPress: () => openGenerator('week') },
+            { text: "Cancelar", style: "cancel" },
+          ]);
+        }} style={{ minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "center" }}>
+          <Text style={{ fontSize: 20 }}>✨</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
@@ -230,25 +328,46 @@ export default function FoodPlanScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={{
-          backgroundColor: c.card, borderRadius: 12, padding: 12,
-          flexDirection: "row", justifyContent: "space-around",
-          borderLeftWidth: 3, borderLeftColor: c.accent,
-        }}>
-          <View style={{ alignItems: "center" }}>
-            <Text style={{ fontSize: 20, fontWeight: "900", color: c.textBody }}>{totalCoverage.fullDays}/7</Text>
-            <Text style={{ fontSize: 11, color: c.textMuted }}>Días completos</Text>
-          </View>
-          <View style={{ alignItems: "center" }}>
-            <Text style={{ fontSize: 20, fontWeight: "900", color: c.textBody }}>
-              {GROUP_KEYS.map((g) => {
-                const allCovered = totalCoverage.stats.every((s) => s.covered.has(g));
-                return allCovered ? "✅" : "⬜";
-              }).join(" ")}
-            </Text>
-            <Text style={{ fontSize: 11, color: c.textMuted }}>Grupos por día</Text>
-          </View>
-        </View>
+        {(() => {
+          const allDayFoods: any[] = [];
+          for (let d = 0; d < 7; d++) {
+            const dayPlans = planByDay[d] ?? [];
+            for (const p of dayPlans) {
+              const food = catalogMap[p.foodId];
+              if (food) allDayFoods.push(food);
+            }
+          }
+          const weekBalance = computeBalanceStats(allDayFoods);
+          return (
+            <View style={{
+              backgroundColor: c.card, borderRadius: 12, padding: 12,
+              flexDirection: "row", justifyContent: "space-around",
+              borderLeftWidth: 3, borderLeftColor: c.accent,
+            }}>
+              <View style={{ alignItems: "center" }}>
+                <Text style={{ fontSize: 20, fontWeight: "900", color: c.textBody }}>{totalCoverage.fullDays}/7</Text>
+                <Text style={{ fontSize: 11, color: c.textMuted }}>Días completos</Text>
+              </View>
+              <View style={{ alignItems: "center" }}>
+                <Text style={{ fontSize: 16, fontWeight: "900", color: c.textBody }}>
+                  {weekBalance.label}
+                </Text>
+                <Text style={{ fontSize: 11, color: c.textMuted }}>
+                  Lax {weekBalance.laxRatio > 0 ? `${Math.round(weekBalance.laxRatio * 100)}%` : '—'}
+                </Text>
+              </View>
+              <View style={{ alignItems: "center" }}>
+                <Text style={{ fontSize: 20, fontWeight: "900", color: c.textBody }}>
+                  {GROUP_KEYS.map((g) => {
+                    const allCovered = totalCoverage.stats.every((s) => s.covered.has(g));
+                    return allCovered ? "✅" : "⬜";
+                  }).join(" ")}
+                </Text>
+                <Text style={{ fontSize: 11, color: c.textMuted }}>Grupos por día</Text>
+              </View>
+            </View>
+          );
+        })()}
 
         {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
           const dayPlans = planByDay[dayIndex] ?? [];
@@ -290,10 +409,12 @@ export default function FoodPlanScreen() {
                   {dayPlans.map((p) => {
                     const food = catalogMap[p.foodId];
                     if (!food) return null;
+                    const isLocked = lockedPlans?.has(p.foodId) ?? false;
                     return (
                       <TouchableOpacity
                         key={p.id}
-                        onPress={() => handleRemoveFood(p.id)}
+                        onPress={() => handleToggleLock(p.id, isLocked)}
+                        onLongPress={() => setDetailFood(food)}
                         style={{
                           flexDirection: "row", alignItems: "center", gap: 3,
                           backgroundColor: c.card, borderRadius: 8,
@@ -302,7 +423,13 @@ export default function FoodPlanScreen() {
                       >
                         <Text style={{ fontSize: 14 }}>{food.emoji ?? "🍽️"}</Text>
                         <Text style={{ fontSize: 12, fontWeight: "600", color: c.textBody }}>{food.name}</Text>
-                        <Text style={{ fontSize: 10, color: c.textMuted }}>✕</Text>
+                        {isLocked ? (
+                          <Text style={{ fontSize: 10, color: c.accent }}>🔒</Text>
+                        ) : (
+                          <TouchableOpacity hitSlop={8} onPress={() => handleRemoveFood(p.id)}>
+                            <Text style={{ fontSize: 10, color: c.textMuted }}>✕</Text>
+                          </TouchableOpacity>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
@@ -340,6 +467,21 @@ export default function FoodPlanScreen() {
                   );
                 })}
               </View>
+              {count > 0 && (() => {
+                const dayFoods = dayPlans.map((p) => catalogMap[p.foodId]).filter(Boolean);
+                const balance = computeBalanceStats(dayFoods);
+                return (
+                  <View style={{ flexDirection: "row", gap: 8, marginTop: 6, alignItems: "center" }}>
+                    <Text style={{ fontSize: 10, color: c.textMuted }}>Balance:</Text>
+                    <Text style={{ fontSize: 11 }}>{balance.label}</Text>
+                    {balance.astRatio > 0.15 && (
+                      <Text style={{ fontSize: 9, color: '#E65100', fontWeight: '600' }}>
+                        ⚠️ Mucho astringente
+                      </Text>
+                    )}
+                  </View>
+                );
+              })()}
             </View>
           );
         })}
@@ -349,7 +491,7 @@ export default function FoodPlanScreen() {
           borderLeftWidth: 3, borderLeftColor: c.accent,
         }}>
           <Text style={{ fontSize: 12, color: c.textMuted, lineHeight: 18 }}>
-            💡 Toca un alimento para quitarlo del plan. Usa las flechas ◀ ▶ para cambiar de semana. El objetivo es cubrir al menos un alimento de cada grupo por día.
+            💡 Tap 🔒 para bloquear (no se quita al regenerar), long-press para ver detalle, ✕ para quitar. Usa ✨ para generar plan automático.
           </Text>
         </View>
       </ScrollView>
@@ -466,8 +608,14 @@ export default function FoodPlanScreen() {
                 </View>
               ) : (
                 (() => {
-                  const grouped: Record<string, typeof modalFiltered> = {};
-                  for (const f of modalFiltered) {
+                  const sorted = [...modalFiltered].sort((a: any, b: any) => {
+                    const aScore = frequency?.get(a.id)?.score ?? 0;
+                    const bScore = frequency?.get(b.id)?.score ?? 0;
+                    if (bScore !== aScore) return bScore - aScore;
+                    return a.name.localeCompare(b.name);
+                  });
+                  const grouped: Record<string, typeof sorted> = {};
+                  for (const f of sorted) {
                     const g = f.group || "other";
                     if (!grouped[g]) grouped[g] = [];
                     grouped[g].push(f);
@@ -510,13 +658,18 @@ export default function FoodPlanScreen() {
 
               <View style={{ paddingVertical: 8 }}>
                 <Text style={{ fontSize: 11, color: c.textMuted, textAlign: "center", lineHeight: 16 }}>
-                  💡 Toca un alimento para agregarlo al plan. Si ya está en otro día, se moverá al día seleccionado. Los alimentos ya planeados esta semana se muestran seleccionados.
+                  💡 Toca un alimento para agregarlo al plan. Si ya está en otro día, se moverá al actual. Los alimentos se ordenan por frecuencia de consumo.
                 </Text>
               </View>
             </ScrollView>
           </View>
         </View>
       </Modal>
+      <FoodDetailModal
+        visible={detailFood != null}
+        food={detailFood}
+        onClose={() => setDetailFood(null)}
+      />
     </SafeAreaView>
   );
 }
