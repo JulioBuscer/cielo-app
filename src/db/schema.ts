@@ -101,6 +101,8 @@ export const feedingSessions = sqliteTable('feeding_sessions', {
   durationSec:    integer('duration_sec'),
   notes:          text('notes'),
   createdAt:      integer('created_at', { mode: 'timestamp' }).notNull(),
+  deletedAt:      integer('deleted_at', { mode: 'timestamp' }),
+  deletedBy:      text('deleted_by'),
 });
 
 // ─── EVENTOS DE ESTADO DE TOMA ────────────────────────────────────────────────
@@ -126,6 +128,8 @@ export const growthLogs = sqliteTable('growth_logs', {
   notes:       text('notes'),
   photoUris:   text('photo_uris'),
   createdAt:   integer('created_at', { mode: 'timestamp' }).notNull(),
+  deletedAt:   integer('deleted_at', { mode: 'timestamp' }),
+  deletedBy:   text('deleted_by'),
 });
 
 // ─── SESIONES DE SUEÑO ────────────────────────────────────────────────────────
@@ -143,6 +147,8 @@ export const sleepSessions = sqliteTable('sleep_sessions', {
   durationSec: integer('duration_sec'),
   notes:       text('notes'),
   createdAt:   integer('created_at', { mode: 'timestamp' }).notNull(),
+  deletedAt:   integer('deleted_at', { mode: 'timestamp' }),
+  deletedBy:   text('deleted_by'),
 });
 
 // ─── EVENTOS DE ESTADO DE SUEÑO ───────────────────────────────────────────────
@@ -311,7 +317,9 @@ export const eventPresets = sqliteTable('event_presets', {
   defaultTags:         text('default_tags').default('[]'), // JSON: string[]
   sortOrder:           integer('sort_order').default(0),
   isQuickAction:       integer('is_quick_action', { mode: 'boolean' }).default(false),
-  createdAt:           integer('created_at', { mode: 'timestamp' }).notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  deletedAt: integer('deleted_at', { mode: 'timestamp' }),
+  deletedBy: text('deleted_by'),
 });
 
 export type EventPreset = typeof eventPresets.$inferSelect;
@@ -403,6 +411,8 @@ export const foodLogs = sqliteTable('food_logs', {
   photoUri:  text('photo_uri'),
   notes:     text('notes'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  deletedAt: integer('deleted_at', { mode: 'timestamp' }),
+  deletedBy: text('deleted_by'),
 });
 
 // ─── LISTA DE SEGUIMIENTO DE ALIMENTOS (pendientes por probar) ──────────────────
@@ -411,6 +421,8 @@ export const foodWatchlist = sqliteTable('food_watchlist', {
   babyId:    text('baby_id').notNull(),
   foodId:    text('food_id').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  deletedAt: integer('deleted_at', { mode: 'timestamp' }),
+  deletedBy: text('deleted_by'),
 });
 
 // ─── PLAN SEMANAL DE ALIMENTOS ────────────────────────────────────────────────
@@ -421,6 +433,8 @@ export const foodMealPlans = sqliteTable('food_meal_plans', {
   weekStart: integer('week_start', { mode: 'timestamp' }).notNull(),
   dayOfWeek: integer('day_of_week').notNull(), // 0=Mon .. 6=Sun
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  deletedAt: integer('deleted_at', { mode: 'timestamp' }),
+  deletedBy: text('deleted_by'),
 });
 
 export interface FoodItem {

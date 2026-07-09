@@ -1,6 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getDb } from '@/src/db/client';
-import { babies } from '@/src/db/schema';
+import {
+  babies,
+  timelineEvents,
+  feedingSessions,
+  sleepSessions,
+  growthLogs,
+  foodLogs,
+  foodMealPlans,
+  foodWatchlist,
+} from '@/src/db/schema';
 import { eq, desc, isNull, ne, and } from 'drizzle-orm';
 import { generateId } from '@/src/utils/id';
 import { onMutationError } from '@/src/utils/mutationError';
@@ -120,9 +129,44 @@ export function useDeleteBaby() {
         if (others.length > 0) setActiveBabyId(others[0].id);
         else setActiveBabyId(null);
       }
+      const now = new Date();
       const deletedBy = await resolveProfileId();
+
+      // Cascade soft-delete a tablas hijas
+      await getDb().update(feedingSessions)
+        .set({ deletedAt: now, deletedBy })
+        .where(eq(feedingSessions.babyId, id));
+      await getDb().update(sleepSessions)
+        .set({ deletedAt: now, deletedBy })
+        .where(eq(sleepSessions.babyId, id));
+      await getDb().update(growthLogs)
+        .set({ deletedAt: now, deletedBy })
+        .where(eq(growthLogs.babyId, id));
+      await getDb().update(foodLogs)
+        .set({ deletedAt: now, deletedBy })
+        .where(eq(foodLogs.babyId, id));
+      await getDb().update(foodMealPlans)
+        .set({ deletedAt: now, deletedBy })
+        .where(eq(foodMealPlans.babyId, id));
+      await getDb().update(foodWatchlist)
+        .set({ deletedAt: now, deletedBy })
+        .where(eq(foodWatchlist.babyId, id));
+
+      // timeline_events se sincroniza → outbox por registro
+      const evts = await getDb().select({ id: timelineEvents.id })
+        .from(timelineEvents)
+        .where(and(eq(timelineEvents.babyId, id), isNull(timelineEvents.deletedAt)));
+      if (evts.length > 0) {
+        await getDb().update(timelineEvents)
+          .set({ deletedAt: now, deletedBy })
+          .where(eq(timelineEvents.babyId, id));
+        for (const ev of evts) {
+          await writeOutbox('timeline_events', ev.id, 'delete', { id: ev.id, deletedAt: Date.now(), deletedBy });
+        }
+      }
+
       await getDb().update(babies)
-        .set({ deletedAt: new Date(), deletedBy })
+        .set({ deletedAt: now, deletedBy })
         .where(eq(babies.id, id));
       await writeOutbox('babies', id, 'delete', { id, deletedAt: Date.now(), deletedBy });
       await signalPeers();

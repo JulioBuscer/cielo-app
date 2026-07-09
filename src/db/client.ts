@@ -385,6 +385,24 @@ export async function runMigrations() {
     `ALTER TABLE tags ADD COLUMN updated_by TEXT`,
     `ALTER TABLE tags ADD COLUMN deleted_at INTEGER`,
     `ALTER TABLE tags ADD COLUMN deleted_by TEXT`,
+    // soft-delete: feeding_sessions
+    `ALTER TABLE feeding_sessions ADD COLUMN deleted_at INTEGER`,
+    `ALTER TABLE feeding_sessions ADD COLUMN deleted_by TEXT`,
+    // soft-delete: sleep_sessions
+    `ALTER TABLE sleep_sessions ADD COLUMN deleted_at INTEGER`,
+    `ALTER TABLE sleep_sessions ADD COLUMN deleted_by TEXT`,
+    // soft-delete: growth_logs
+    `ALTER TABLE growth_logs ADD COLUMN deleted_at INTEGER`,
+    `ALTER TABLE growth_logs ADD COLUMN deleted_by TEXT`,
+    // soft-delete: food_logs
+    `ALTER TABLE food_logs ADD COLUMN deleted_at INTEGER`,
+    `ALTER TABLE food_logs ADD COLUMN deleted_by TEXT`,
+    // soft-delete: food_meal_plans
+    `ALTER TABLE food_meal_plans ADD COLUMN deleted_at INTEGER`,
+    `ALTER TABLE food_meal_plans ADD COLUMN deleted_by TEXT`,
+    // soft-delete: food_watchlist
+    `ALTER TABLE food_watchlist ADD COLUMN deleted_at INTEGER`,
+    `ALTER TABLE food_watchlist ADD COLUMN deleted_by TEXT`,
   ]) {
     try { await _raw.execAsync(sql); } catch { /* columna ya existe, ok */ }
   }
