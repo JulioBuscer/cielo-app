@@ -164,32 +164,26 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
     const missingGroups = FOOD_GROUPS.filter((g) => !dayGroups.has(g));
     if (missingGroups.length === 0) continue;
 
-    let pickedNew: GeneratorFood | null = null;
     const sortedGroups = [...missingGroups].sort((a, b) => (groupCount.get(a) ?? 0) - (groupCount.get(b) ?? 0));
     for (const group of sortedGroups) {
       const candidates = newCandidates.filter(
         (f) => f.group === group && !usedNewFoodIds.has(f.id) && !dayFoodIds.includes(f.id),
       );
-      if (candidates.length > 0) {
-        pickedNew = candidates[0];
-        break;
+      const picked = candidates.length > 0
+        ? candidates[0]
+        : null;
+      if (picked) {
+        usedNewFoodIds.add(picked.id);
+        newFoodAssignedDays.set(picked.id, day);
+        dayFoodIds.push(picked.id);
+        groupCount.set(picked.group, (groupCount.get(picked.group) ?? 0) + 1);
+        result.push({
+          foodId: picked.id,
+          dayOfWeek: day,
+          isNew: true,
+          reason: 'new_food',
+        });
       }
-    }
-    if (!pickedNew) {
-      const fallback = newCandidates.find((f) => !usedNewFoodIds.has(f.id) && !dayFoodIds.includes(f.id));
-      if (fallback) pickedNew = fallback;
-    }
-    if (pickedNew) {
-      usedNewFoodIds.add(pickedNew.id);
-      newFoodAssignedDays.set(pickedNew.id, day);
-      assigned.get(day)!.push(pickedNew.id);
-      groupCount.set(pickedNew.group, (groupCount.get(pickedNew.group) ?? 0) + 1);
-      result.push({
-        foodId: pickedNew.id,
-        dayOfWeek: day,
-        isNew: true,
-        reason: 'new_food',
-      });
     }
   }
 
@@ -201,23 +195,31 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
     if (missingGroups.length === 0) continue;
 
     for (const group of missingGroups) {
-      const pool = fillCandidates.filter(
+      let pool = fillCandidates.filter(
         (f) =>
           f.group === group &&
           !dayFoodIds.includes(f.id) &&
           gapScore(f.id, day, assigned) > -100,
       );
       if (pool.length === 0) {
-        const anyGroup = fillCandidates.filter(
+        pool = foods.filter(
+          (f) =>
+            f.group === group &&
+            !dayFoodIds.includes(f.id) &&
+            gapScore(f.id, day, assigned) > -100,
+        );
+      }
+      if (pool.length === 0) {
+        const anyGroup = [fillCandidates, newCandidates, foods].flat().filter(
           (f) => !dayFoodIds.includes(f.id) && gapScore(f.id, day, assigned) > -100,
         );
         const best = pickBestFill(anyGroup, day, assigned, frequency, dayFoods);
         if (best) {
-          assigned.get(day)!.push(best.id);
+          dayFoodIds.push(best.id);
           result.push({
             foodId: best.id,
             dayOfWeek: day,
-            isNew: false,
+            isNew: !consumed.has(best.id),
             reason: best.effect === 'regulator' || best.property === 'neutral' ? 'tendency' : 'group_fill',
           });
         }
@@ -225,11 +227,11 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
       }
       const best = pickBestFill(pool, day, assigned, frequency, dayFoods);
       if (best) {
-        assigned.get(day)!.push(best.id);
+        dayFoodIds.push(best.id);
         result.push({
           foodId: best.id,
           dayOfWeek: day,
-          isNew: false,
+          isNew: !consumed.has(best.id),
           reason: best.effect === 'regulator' || best.property === 'neutral' ? 'tendency' : 'group_fill',
         });
       }
