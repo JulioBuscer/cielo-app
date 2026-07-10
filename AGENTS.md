@@ -1,22 +1,25 @@
 ## Session Progress
 
 ### Goal
-- Diagnosticar y corregir error "FOREIGN KEY constraint failed" en `useSaveTimelineEvent` y `useStartSleep` tras importar backup de datos
+Implementar generador inteligente de plan semanal de alimentos v0.8.x
 
 ### Constraints & Preferences
 - Conventional commits en español MX formal/técnico
-- Build manual con `MALLOC_CHECK_=0 ./gradlew assembleRelease`
+- Build manual con `CI=true MALLOC_CHECK_=0 bash scripts/build-android-v2.sh`
 - Commit solo si build exitoso
+- Flujo: rama desde `dev` → cambios → version bump → build → merge a `dev` → `main`
 
 ### Done
-- **Bug WebRTC corregido**: `runCleanup()` en `listenJoinSdp` cerraba `pcRef.current` antes de `setRemoteAnswer` → commit `df9e756`
-- **ABI filter**: `ndk { abiFilters "arm64-v8a", "armeabi-v7a" }` en `app/build.gradle`
-- **Commit `f6a9d55`**: Mirror catalog_items → event_types en sync (FK healing migration en `runMigrations()`)
-- **Commit `be7ebe2`** (v0.7.3): `resolveProfileId()` en storage.ts — valida `ACTIVE_PROFILE_ID` contra DB y fallback al primer perfil. Reemplaza `getProfileId()` en hooks de timeline, sesiones, food/growth logs. Guards `!profile` en chat screen.
-- **Commit `7ad9e51`** (v0.7.4): `useActiveProfile()` también usa `resolveProfileId()` — sin esto el guard del chat screen bloqueaba todas las mutaciones porque `getProfileId()` retornaba `''`.
-- **Commit `38d4866`** (v0.7.5): Módulo de perfil del cuidador — pantallas de listado (`/settings/profiles`) y editor (`/settings/profile/[id]`), mutations update/delete con soft-delete, reasignación automática de perfil activo, validación de no eliminar el último perfil.
-- **Commit `ecd3458`** (v0.7.6): Fix deadlock de sincronización — en listenSyncSignals, signalQueueFlush y checkAndSync. El receptor de una señal ahora siempre inicia host, eliminando el tiebreaker que causaba que ambos dispositivos esperaran indefinidamente.
-- **Commit `d39d27c`** (v0.7.7): Sincronización diferencial — `gatherLocalPayload` en modo incremental solo envía registros con `updatedAt`/`createdAt > lastSync`. `sendSyncMessage` captura errores de límite SCTP.
+- **Build v0.8.7** (commit pending): prioridad 3 niveles para new_food — watchlist > catálogo > complemento con boost. `pickBestFill` recibe watchlist para preferir alimentos marcados en relleno. `pickNewFood` implementa: (1) watchlist sin consumidos → aleatorio, (2) catálogo completo sin consumidos → aleatorio, (3) null → group_fill con boost watchlist.
+- **Build v0.8.6** (commit pending): fix per-day Regenerar (pasa dayOfWeek a clearMealPlans). Mayor aleatoriedad en sugerencias (shuffle + noise ±5, penalización -50 si ≥3 días, -10 si ≥2).
+- **Build v0.8.5** (commit pending): fix caché de `useBabyFoodConsumed` con invalidación en `useSaveFoodLog.onSuccess` y filtro `deletedAt` en query. Consumidos ahora se leen de `timeline_events.metadata` en vez de `food_logs`.
+- **Build v0.8.4** (no commit): fix caché de `useBabyFoodConsumed` — invalidación en `useSaveFoodLog.onSuccess` y filtro `deletedAt` en query. Consumidos visibles inmediatamente en el Plan.
+- **Build v0.8.3** (no commit, segunda iteración): aleatoriedad en pickBestFill (shuffle+noise), group_fill solo con consumidos (eliminados fallbacks a no-consumidos), máx 1 new_food por día. Botón 🐛 debug copia plan+consumidos+catalogo al portapapeles.
+- **Build v0.8.3** (no commit, primera iteración): fix Reemplazar todo (solo locked en existingItems, borra unlocked al aplicar), renombrado "Complementar", estrategia "Solo bloqueados" eliminada. Botones 🗑️ por día y semana (confirma, locked incluido). "Días completos" touchable → limpiar semana.
+- **Commit `64e9021`** (v0.8.2): UI completa de plan semanal — botón ✨ generar plan, ActionSheet día/semana, confirmación, batch insert. Tap toggle lock 🔒, long-press FoodDetailModal, ✕ para quitar. Barra de balance laxante/astringente por día y semana. Modal ordenado por frecuencia. handleAddFood mueve entre días.
+- **Schema**: columna `locked` agregada a `foodMealPlans` en schema.ts y client.ts
+- **Generator engine**: `src/services/mealPlanGenerator.ts` con `generateMealPlan()`, `computeBalanceStats()`, algoritmo de group_fill, gap rule, balance
+- **Hooks**: `useFoodFrequency`, `useLockedMealPlans`, `useToggleLockMealPlan`, `useBatchAddMealPlan`, `useClearMealPlans` en `useFoodLogs.ts`
 
 # Build Notes
 

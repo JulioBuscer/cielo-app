@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { eq, desc, asc, and, gte, lte, isNull, count as drizzleCount } from "drizzle-orm";
 import { getDb } from "@/src/db/client";
-import { foodCatalog, foodLogs, foodWatchlist, foodMealPlans } from "@/src/db/schema";
+import { foodCatalog, foodLogs, foodWatchlist, foodMealPlans, timelineEvents } from "@/src/db/schema";
 import { generateId } from "@/src/utils/id";
 import { resolveProfileId } from "@/src/utils/storage";
 import { onMutationError } from "@/src/utils/mutationError";
@@ -153,10 +153,24 @@ export function useBabyFoodConsumed(babyId?: string) {
     queryFn: async () => {
       if (!babyId) return new Set<string>();
       const rows = await getDb()
-        .select({ foodId: foodLogs.foodId })
-        .from(foodLogs)
-        .where(eq(foodLogs.babyId, babyId));
-      return new Set(rows.map((r) => r.foodId));
+        .select({ metadata: timelineEvents.metadata })
+        .from(timelineEvents)
+        .where(and(
+          eq(timelineEvents.babyId, babyId),
+          eq(timelineEvents.eventTypeId, "food"),
+          isNull(timelineEvents.deletedAt),
+        ));
+      const foodIds = new Set<string>();
+      for (const row of rows) {
+        if (!row.metadata) continue;
+        try {
+          const parsed = JSON.parse(row.metadata);
+          for (const f of parsed.foods ?? []) {
+            foodIds.add(f.id);
+          }
+        } catch {}
+      }
+      return foodIds;
     },
     staleTime: 60_000,
   });
@@ -452,6 +466,7 @@ export function useSaveFoodLog() {
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["food_logs", vars.babyId] });
+      qc.invalidateQueries({ queryKey: ["food_consumed", vars.babyId] });
     },
     onError: onMutationError("[useSaveFoodLog]"),
   });
