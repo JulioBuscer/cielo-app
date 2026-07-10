@@ -129,7 +129,7 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
   const foodMap = new Map<string, GeneratorFood>();
   for (const f of foods) foodMap.set(f.id, f);
 
-  const fillCandidates = foods.filter((f) => consumed.has(f.id));
+  const planIntroduced = new Set<string>();
 
   const assigned = new Map<number, string[]>();
   for (const day of days) assigned.set(day, []);
@@ -159,7 +159,7 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
   }
 
   function pickNewFood(group: FoodGroup, day: number, dayFoodIds: string[]): GeneratorFood | null {
-    const alreadyUsed = (f: GeneratorFood) => usedNewFoodIds.has(f.id) || dayFoodIds.includes(f.id);
+    const alreadyUsed = (f: GeneratorFood) => usedNewFoodIds.has(f.id) || dayFoodIds.includes(f.id) || planIntroduced.has(f.id);
     const gapOk = (f: GeneratorFood) => gapScore(f.id, day, assigned) > -10;
     const pick = (pool: GeneratorFood[]) => {
       const shuffled = [...pool].sort(() => Math.random() - 0.5);
@@ -188,6 +188,7 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
       const picked = pickNewFood(group, day, dayFoodIds);
       if (picked) {
         usedNewFoodIds.add(picked.id);
+        planIntroduced.add(picked.id);
         newFoodsPerDay.set(day, (newFoodsPerDay.get(day) ?? 0) + 1);
         dayFoodIds.push(picked.id);
         groupCount.set(picked.group, (groupCount.get(picked.group) ?? 0) + 1);
@@ -209,20 +210,23 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
     if (missingGroups.length === 0) continue;
 
     for (const group of missingGroups) {
-      const pool = fillCandidates.filter(
+      const pool = foods.filter(
         (f) =>
           f.group === group &&
           !dayFoodIds.includes(f.id) &&
-          gapScore(f.id, day, assigned) > -100,
+          gapScore(f.id, day, assigned) > -100 &&
+          (consumed.has(f.id) || planIntroduced.has(f.id)),
       );
       if (pool.length === 0) continue;
       const best = pickBestFill(pool, day, assigned, frequency, dayFoods, watchlist);
       if (best) {
+        const isNew = !consumed.has(best.id) && !planIntroduced.has(best.id);
+        planIntroduced.add(best.id);
         dayFoodIds.push(best.id);
         result.push({
           foodId: best.id,
           dayOfWeek: day,
-          isNew: !consumed.has(best.id),
+          isNew,
           reason: best.effect === 'regulator' || best.property === 'neutral' ? 'tendency' : 'group_fill',
         });
       }

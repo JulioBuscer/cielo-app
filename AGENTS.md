@@ -10,6 +10,7 @@ Implementar generador inteligente de plan semanal de alimentos v0.8.x
 - Flujo: rama desde `dev` → cambios → version bump → build → merge a `dev` → `main`
 
 ### Done
+- **Build v0.8.8** (commit pending): `planIntroduced` — new_food/grupo asignado hoy se considera "introducido" para días siguientes durante la misma generación. Pool de group_fill incluye planIntroduced para re-uso. `isNew` refleja si ya se planificó antes en la semana.
 - **Build v0.8.7** (commit pending): prioridad 3 niveles para new_food — watchlist > catálogo > complemento con boost. `pickBestFill` recibe watchlist para preferir alimentos marcados en relleno. `pickNewFood` implementa: (1) watchlist sin consumidos → aleatorio, (2) catálogo completo sin consumidos → aleatorio, (3) null → group_fill con boost watchlist.
 - **Build v0.8.6** (commit pending): fix per-day Regenerar (pasa dayOfWeek a clearMealPlans). Mayor aleatoriedad en sugerencias (shuffle + noise ±5, penalización -50 si ≥3 días, -10 si ≥2).
 - **Build v0.8.5** (commit pending): fix caché de `useBabyFoodConsumed` con invalidación en `useSaveFoodLog.onSuccess` y filtro `deletedAt` en query. Consumidos ahora se leen de `timeline_events.metadata` en vez de `food_logs`.
