@@ -95,8 +95,8 @@ android {
         applicationId 'com.buscer.cieloapp'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 808
-        versionName "0.8.8"
+        versionCode 809
+        versionName "0.8.9"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }

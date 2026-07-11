@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { eq, desc, asc, and, gte, lte, isNull, count as drizzleCount } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte, lt, isNull, count as drizzleCount } from "drizzle-orm";
 import { getDb } from "@/src/db/client";
 import { foodCatalog, foodLogs, foodWatchlist, foodMealPlans, timelineEvents } from "@/src/db/schema";
 import { generateId } from "@/src/utils/id";
@@ -246,7 +246,7 @@ export function useMealPlans(babyId?: string, weekStart?: Date) {
           and(
             eq(foodMealPlans.babyId, babyId),
             gte(foodMealPlans.weekStart, weekStart),
-            lte(foodMealPlans.weekStart, end),
+            lt(foodMealPlans.weekStart, end),
           )
         )
         .orderBy(foodMealPlans.dayOfWeek);
@@ -350,7 +350,7 @@ export function useLockedMealPlans(babyId?: string, weekStart?: Date) {
             eq(foodMealPlans.babyId, babyId),
             eq(foodMealPlans.locked, true as any),
             gte(foodMealPlans.weekStart, weekStart),
-            lte(foodMealPlans.weekStart, end),
+            lt(foodMealPlans.weekStart, end),
           )
         );
       return new Map(rows.map((r) => [r.foodId, r]));
@@ -421,7 +421,7 @@ export function useClearMealPlans() {
       ];
       const end = new Date(input.weekStart);
       end.setDate(end.getDate() + 7);
-      conditions.push(lte(foodMealPlans.weekStart, end));
+      conditions.push(lt(foodMealPlans.weekStart, end));
       if (input.dayOfWeek != null) {
         conditions.push(eq(foodMealPlans.dayOfWeek, input.dayOfWeek));
       }

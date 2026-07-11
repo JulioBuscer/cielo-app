@@ -137,6 +137,7 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
   for (const plan of existingPlans) {
     if (days.includes(plan.dayOfWeek)) {
       assigned.get(plan.dayOfWeek)!.push(plan.foodId);
+      if (!consumed.has(plan.foodId)) planIntroduced.add(plan.foodId);
       if (plan.locked || keepExisting) {
         result.push({
           foodId: plan.foodId,
