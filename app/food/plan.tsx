@@ -560,10 +560,17 @@ export default function FoodPlanScreen() {
                           flexDirection: "row", alignItems: "center", gap: 3,
                           backgroundColor: c.card, borderRadius: 8,
                           paddingHorizontal: 8, paddingVertical: 4,
+                          borderWidth: consumed && !consumed.has(food.id) ? 1.5 : 0,
+                          borderColor: consumed && !consumed.has(food.id) ? c.accent : 'transparent',
                         }}
                       >
                         <Text style={{ fontSize: 14 }}>{food.emoji ?? "🍽️"}</Text>
                         <Text style={{ fontSize: 12, fontWeight: "600", color: c.textBody }}>{food.name}</Text>
+                        {consumed && !consumed.has(food.id) && (
+                          <View style={{ backgroundColor: c.accent, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 }}>
+                            <Text style={{ fontSize: 9, fontWeight: "800", color: c.textOnAccent }}>NUEVO</Text>
+                          </View>
+                        )}
                         {isLocked ? (
                           <Text style={{ fontSize: 10, color: c.accent }}>🔒</Text>
                         ) : (

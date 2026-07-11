@@ -216,18 +216,16 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
           f.group === group &&
           !dayFoodIds.includes(f.id) &&
           gapScore(f.id, day, assigned) > -100 &&
-          (consumed.has(f.id) || planIntroduced.has(f.id)),
+          consumed.has(f.id),
       );
       if (pool.length === 0) continue;
       const best = pickBestFill(pool, day, assigned, frequency, dayFoods, watchlist);
       if (best) {
-        const isNew = !consumed.has(best.id) && !planIntroduced.has(best.id);
-        planIntroduced.add(best.id);
         dayFoodIds.push(best.id);
         result.push({
           foodId: best.id,
           dayOfWeek: day,
-          isNew,
+          isNew: false,
           reason: best.effect === 'regulator' || best.property === 'neutral' ? 'tendency' : 'group_fill',
         });
       }
