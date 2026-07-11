@@ -66,10 +66,14 @@ function gapScore(foodId: string, dayOfWeek: number, assigned: Map<number, strin
   const inPrev1 = prev1.includes(foodId) ? 1 : 0;
   const inPrev2 = prev2.includes(foodId) ? 1 : 0;
   const inPrev3 = prev3.includes(foodId) ? 1 : 0;
-  const consecutive = inPrev1 + (inPrev1 > 0 && inPrev2 > 0 ? 1 : 0);
-  if (consecutive >= 2) return -100;
+  const inPrev4 = (assigned.get(dayOfWeek - 4) ?? []).includes(foodId) ? 1 : 0;
+  const cons3 = inPrev1 > 0 && inPrev2 > 0 && inPrev3 > 0 ? 1 : 0;
+  const cons2 = inPrev1 > 0 && inPrev2 > 0 ? 1 : 0;
+  if (cons3) return -30;
+  if (cons2) return -15;
   if (inPrev1 > 0) return -5;
   if (inPrev2 > 0 && inPrev3 > 0) return -3;
+  if (inPrev3 > 0 && inPrev4 > 0) return -2;
   return 0;
 }
 
