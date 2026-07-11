@@ -146,7 +146,7 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
         result.push({
           foodId: plan.foodId,
           dayOfWeek: plan.dayOfWeek,
-          isNew: !consumed.has(plan.foodId),
+          isNew: false,
           reason: plan.locked ? 'locked' : 'existing',
         });
       }
@@ -220,7 +220,7 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
           f.group === group &&
           !dayFoodIds.includes(f.id) &&
           gapScore(f.id, day, assigned) > -100 &&
-          consumed.has(f.id),
+          (consumed.has(f.id) || planIntroduced.has(f.id)),
       );
       if (pool.length === 0) continue;
       const best = pickBestFill(pool, day, assigned, frequency, dayFoods, watchlist);

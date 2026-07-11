@@ -403,6 +403,8 @@ export async function runMigrations() {
     `ALTER TABLE food_meal_plans ADD COLUMN deleted_by TEXT`,
     // lock de alimentos en plan semanal
     `ALTER TABLE food_meal_plans ADD COLUMN locked INTEGER DEFAULT 0`,
+    // is_new flag para el badge NUEVO en plan semanal
+    `ALTER TABLE food_meal_plans ADD COLUMN is_new INTEGER DEFAULT 0`,
     // soft-delete: food_watchlist
     `ALTER TABLE food_watchlist ADD COLUMN deleted_at INTEGER`,
     `ALTER TABLE food_watchlist ADD COLUMN deleted_by TEXT`,

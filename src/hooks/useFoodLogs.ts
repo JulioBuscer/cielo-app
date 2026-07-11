@@ -382,7 +382,7 @@ export function useBatchAddMealPlan() {
     mutationFn: async (input: {
       babyId: string;
       weekStart: Date;
-      items: Array<{ foodId: string; dayOfWeek: number; locked?: boolean }>;
+      items: Array<{ foodId: string; dayOfWeek: number; locked?: boolean; isNew?: boolean }>;
     }) => {
       const db = getDb();
       for (const item of input.items) {
@@ -393,6 +393,7 @@ export function useBatchAddMealPlan() {
           weekStart: input.weekStart,
           dayOfWeek: item.dayOfWeek,
           locked: item.locked ?? false,
+          isNew: item.isNew ?? false,
           createdAt: new Date(),
         }).run();
       }

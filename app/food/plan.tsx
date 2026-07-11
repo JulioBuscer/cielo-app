@@ -254,7 +254,7 @@ export default function FoodPlanScreen() {
             await batchAddMeal.mutateAsync({
               babyId,
               weekStart,
-              items: toInsert.map((s) => ({ foodId: s.foodId, dayOfWeek: s.dayOfWeek })),
+              items: toInsert.map((s) => ({ foodId: s.foodId, dayOfWeek: s.dayOfWeek, isNew: s.isNew })),
             });
             setShowGenerator(false);
           },
@@ -547,10 +547,11 @@ export default function FoodPlanScreen() {
                 </Text>
               ) : (
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                  {dayPlans.map((p) => {
+                      {dayPlans.map((p) => {
                     const food = catalogMap[p.foodId];
                     if (!food) return null;
                     const isLocked = lockedPlans?.has(p.foodId) ?? false;
+                    const isNewFood = p.isNew ?? (consumed ? !consumed.has(food.id) : false);
                     return (
                       <TouchableOpacity
                         key={p.id}
@@ -560,13 +561,13 @@ export default function FoodPlanScreen() {
                           flexDirection: "row", alignItems: "center", gap: 3,
                           backgroundColor: c.card, borderRadius: 8,
                           paddingHorizontal: 8, paddingVertical: 4,
-                          borderWidth: consumed && !consumed.has(food.id) ? 1.5 : 0,
-                          borderColor: consumed && !consumed.has(food.id) ? c.accent : 'transparent',
+                          borderWidth: isNewFood ? 1.5 : 0,
+                          borderColor: isNewFood ? c.accent : 'transparent',
                         }}
                       >
                         <Text style={{ fontSize: 14 }}>{food.emoji ?? "🍽️"}</Text>
                         <Text style={{ fontSize: 12, fontWeight: "600", color: c.textBody }}>{food.name}</Text>
-                        {consumed && !consumed.has(food.id) && (
+                        {isNewFood && (
                           <View style={{ backgroundColor: c.accent, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 }}>
                             <Text style={{ fontSize: 9, fontWeight: "800", color: c.textOnAccent }}>NUEVO</Text>
                           </View>

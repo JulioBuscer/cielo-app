@@ -1,6 +1,6 @@
 {
   "name": "cielo-app",
-  "version": "0.8.11",
+  "version": "0.8.12",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
