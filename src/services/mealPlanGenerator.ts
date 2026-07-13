@@ -1,4 +1,57 @@
-export const FOOD_GROUPS = ['fruit', 'vegetable', 'grain', 'protein', 'fat'] as const;
+/*
+ * ─── Generador de plan semanal de alimentos ─────────────────────────────────
+ *  v0.8.x  —  Algoritmo por día
+ *
+ *  Entradas:
+ *    • foods          – catálogo completo de alimentos con grupo y propiedad
+ *    • consumed       – Set<foodId> de alimentos ya probados por el bebé
+ *    • frequency      – frecuencia de uso (días desde última vez)
+ *    • watchlist      – Set<foodId> de alimentos prioritarios
+ *    • existingPlans  – planes existentes (bloqueados en REPLACE, todos en COMPLEMENTAR)
+ *
+ *  Flujo por día (0=lunes...6=domingo):
+ *
+ *  1. NEW FOOD — elegir 1 alimento NO-consumido del grupo menos cubierto
+ *     ┌─ watchlist (no consumido, no usado) → aleatorio con gapOk
+ *     ├─ catálogo (no consumido, no usado)  → aleatorio con gapOk
+ *     └─ null → no hay new_food para este día
+ *     • Se añade a planIntroduced para que group_fill pueda re-usarlo en DÍAS POSTERIORES
+ *
+ *  2. GROUP FILL — llenar grupos faltantes hasta 5/día
+ *     • Pool: consumidos + introducidos en días < N
+ *     • Filtro: gapScore > -100 (penalización progresiva por repetición)
+ *     • pickBestFill: frecuencia + gapScore + balance lax/ast + ruido ±5
+ *
+ *  Restricciones:
+ *    • Máximo 1 new_food por día  (newFoodsPerDay ≥ 1 → break)
+ *    • isNew=true solo para new_food  (group_fill → isNew=false)
+ *    • planIntroduced para día N contiene:
+ *      – planes existentes NO consumidos
+ *      – new_food picks de días < N  (¡NUNCA de días futuros!)
+ *    • Lock por plan-id (id de fila en food_meal_plans), no por foodId
+ *
+ *  gapScore progresivo:
+ *    4+ días seguidos  → -30
+ *    3 días seguidos   → -15
+ *    día anterior      → -5
+ *    gap de 2-3 días   → -3/-2
+ *    0                 → sin penalizar
+ *
+ *  Referencia visual del flujo:
+ *
+ *  for día in [Lun..Dom]:
+ *    ┌─ missingGroups = grupos sin cubrir en este día
+ *    │  ┌─ sortedGroups = menos cubiertos primero (groupCount)
+ *    │  │  └─ pickNewFood(grupo) si newFoodsPerDay[day] == 0
+ *    │  │      → planIntroduced.add(picked)
+ *    │  └─ break si ya hay 1 new_food
+ *    │
+ *    └─ for grupo in missingGroups:
+ *         pool = consumed ∪ planIntroduced (días < N)
+ *         pickBestFill(pool) si gapScore > -100
+ *           → asigna al día
+ */
+
 export type FoodGroup = (typeof FOOD_GROUPS)[number];
 
 export interface GeneratorFood {
