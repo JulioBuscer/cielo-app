@@ -205,11 +205,11 @@ export default function FoodPlanScreen() {
     const isReplace = keepStrategy === 'none';
     const existingItems: Array<{ foodId: string; dayOfWeek: number; locked: boolean }> =
       (plans ?? [])
-        .filter((p) => isReplace ? (lockedPlans?.has(p.foodId) ?? false) : true)
+        .filter((p) => isReplace ? (lockedPlans?.has(p.id) ?? false) : true)
         .map((p) => ({
           foodId: p.foodId,
           dayOfWeek: p.dayOfWeek,
-          locked: lockedPlans?.has(p.foodId) ?? false,
+          locked: lockedPlans?.has(p.id) ?? false,
         }));
     const generatorFoods: GeneratorFood[] = catalog.map((f: any) => ({
       id: f.id, name: f.name, group: f.group,
@@ -281,7 +281,7 @@ export default function FoodPlanScreen() {
           foodId: p.foodId,
           name: food?.name ?? '?',
           group: food?.group ?? '?',
-          locked: lockedPlans?.has(p.foodId) ?? false,
+          locked: lockedPlans?.has(p.id) ?? false,
           dayOfWeek: p.dayOfWeek,
         };
       });
@@ -320,7 +320,7 @@ export default function FoodPlanScreen() {
   const handleClearDay = useCallback((dayIndex: number) => {
     if (!baby) return;
     const dayPlans = planByDay[dayIndex] ?? [];
-    const hasLocked = dayPlans.some((p) => lockedPlans?.has(p.foodId));
+    const hasLocked = dayPlans.some((p) => lockedPlans?.has(p.id));
     const msg = hasLocked
       ? "¿Eliminar todos los alimentos de este día?\nLos bloqueados 🔒 también se eliminarán."
       : "¿Eliminar todos los alimentos de este día?";
@@ -335,7 +335,7 @@ export default function FoodPlanScreen() {
 
   const handleClearWeek = useCallback(() => {
     if (!baby) return;
-    const hasLocked = (plans ?? []).some((p) => lockedPlans?.has(p.foodId));
+    const hasLocked = (plans ?? []).some((p) => lockedPlans?.has(p.id));
     const msg = hasLocked
       ? "¿Eliminar todos los alimentos de la semana?\nLos bloqueados 🔒 también se eliminarán."
       : "¿Eliminar todos los alimentos de la semana?";
@@ -550,7 +550,7 @@ export default function FoodPlanScreen() {
                       {dayPlans.map((p) => {
                     const food = catalogMap[p.foodId];
                     if (!food) return null;
-                    const isLocked = lockedPlans?.has(p.foodId) ?? false;
+                      const isLocked = lockedPlans?.has(p.id) ?? false;
                     const isNewFood = p.isNew ?? (consumed ? !consumed.has(food.id) : false);
                     return (
                       <TouchableOpacity

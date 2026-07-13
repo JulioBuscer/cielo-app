@@ -353,7 +353,7 @@ export function useLockedMealPlans(babyId?: string, weekStart?: Date) {
             lt(foodMealPlans.weekStart, end),
           )
         );
-      return new Map(rows.map((r) => [r.foodId, r]));
+      return new Set(rows.map((r) => r.id));
     },
     staleTime: 30_000,
   });
