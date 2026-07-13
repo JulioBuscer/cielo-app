@@ -11,7 +11,12 @@
  *
  *  Flujo por día (0=lunes...6=domingo):
  *
- *  1. NEW FOOD — elegir 1 alimento NO-consumido del grupo menos cubierto
+ *  0. LOCKED NEW — alimentos lockeados NO consumidos se marcan isNew=true
+ *     y cuentan contra el presupuesto de new_food del día (lockedNewCount).
+ *     Se agregan a planIntroduced para group_fill en días posteriores.
+ *
+ *  1. NEW FOOD — elegir 1 alimento NO-consumido del grupo menos cubierto,
+ *     solo si maxExtraNew > 0 (maxExtraNew = 1 - lockedNewCount[día], min 0)
  *     ┌─ watchlist (no consumido, no usado) → aleatorio con gapOk
  *     ├─ catálogo (no consumido, no usado)  → aleatorio con gapOk
  *     └─ null → no hay new_food para este día
@@ -23,10 +28,11 @@
  *     • pickBestFill: frecuencia + gapScore + balance lax/ast + ruido ±5
  *
  *  Restricciones:
- *    • Máximo 1 new_food por día  (newFoodsPerDay ≥ 1 → break)
- *    • isNew=true solo para new_food  (group_fill → isNew=false)
+ *    • Máximo 1 new_food extra por día  (maxExtraNew = 1 - lockedNewCount)
+ *    • isNew=true para new_food + locked no consumidos
+ *    • isNew=false para group_fill
  *    • planIntroduced para día N contiene:
- *      – planes existentes NO consumidos
+ *      – planes existentes NO consumidos (incluyendo los que se lockean)
  *      – new_food picks de días < N  (¡NUNCA de días futuros!)
  *    • Lock por plan-id (id de fila en food_meal_plans), no por foodId
  *
@@ -39,12 +45,18 @@
  *
  *  Referencia visual del flujo:
  *
+ *  # Pre-procesamiento
+ *  lockedNewCount = {día: cuenta} para existingPlans.filter(locked && !consumed)
+ *  existingPlans.filter(locked && !consumed) → isNew=true, planIntroduced.add
+ *
  *  for día in [Lun..Dom]:
- *    ┌─ missingGroups = grupos sin cubrir en este día
+ *    ┌─ maxExtraNew = max(0, 1 - lockedNewCount[día])
+ *    │
+ *    │  missingGroups = grupos sin cubrir en este día
  *    │  ┌─ sortedGroups = menos cubiertos primero (groupCount)
- *    │  │  └─ pickNewFood(grupo) si newFoodsPerDay[day] == 0
+ *    │  │  └─ pickNewFood(grupo) si newFoodsPerDay[día] < maxExtraNew
  *    │  │      → planIntroduced.add(picked)
- *    │  └─ break si ya hay 1 new_food
+ *    │  └─ break si newFoodsPerDay[día] >= maxExtraNew
  *    │
  *    └─ for grupo in missingGroups:
  *         pool = consumed ∪ planIntroduced (días < N)
@@ -187,6 +199,7 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
   for (const f of foods) foodMap.set(f.id, f);
 
   const planIntroduced = new Set<string>();
+  const lockedNewCount = new Map<number, number>();
 
   const assigned = new Map<number, string[]>();
   for (const day of days) assigned.set(day, []);
@@ -194,12 +207,18 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
   for (const plan of existingPlans) {
     if (days.includes(plan.dayOfWeek)) {
       assigned.get(plan.dayOfWeek)!.push(plan.foodId);
-      if (!consumed.has(plan.foodId)) planIntroduced.add(plan.foodId);
+      const isNewLocked = plan.locked && !consumed.has(plan.foodId);
+      if (!consumed.has(plan.foodId)) {
+        planIntroduced.add(plan.foodId);
+        if (plan.locked) {
+          lockedNewCount.set(plan.dayOfWeek, (lockedNewCount.get(plan.dayOfWeek) ?? 0) + 1);
+        }
+      }
       if (plan.locked || keepExisting) {
         result.push({
           foodId: plan.foodId,
           dayOfWeek: plan.dayOfWeek,
-          isNew: false,
+          isNew: isNewLocked,
           reason: plan.locked ? 'locked' : 'existing',
         });
       }
@@ -240,10 +259,13 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
     let missingGroups = FOOD_GROUPS.filter((g) => !dayGroups.has(g));
 
     // 1. New food para este día
+    //   lockedNewCount (no consumidos lockeados en este día) cubre parte del presupuesto
+    //   maxExtraNew = 1 - lockedNewCount, mínimo 0
     if (missingGroups.length > 0) {
+      const maxExtraNew = Math.max(0, 1 - (lockedNewCount.get(day) ?? 0));
       const sortedGroups = [...missingGroups].sort((a, b) => (groupCount.get(a) ?? 0) - (groupCount.get(b) ?? 0));
       for (const group of sortedGroups) {
-        if ((newFoodsPerDay.get(day) ?? 0) >= 1) break;
+        if ((newFoodsPerDay.get(day) ?? 0) >= maxExtraNew) break;
         const picked = pickNewFood(group, day, dayFoodIds);
         if (picked) {
           usedNewFoodIds.add(picked.id);
