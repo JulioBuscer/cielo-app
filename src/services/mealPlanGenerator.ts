@@ -183,37 +183,35 @@ export function generateMealPlan(options: GenerateOptions): PlanSuggestion[] {
 
   for (const day of days) {
     const dayFoodIds = assigned.get(day)!;
-    const dayGroups = new Set(dayFoodIds.map((fid) => foodMap.get(fid)?.group).filter(Boolean) as FoodGroup[]);
-    const missingGroups = FOOD_GROUPS.filter((g) => !dayGroups.has(g));
-    if (missingGroups.length === 0) continue;
+    let dayGroups = new Set(dayFoodIds.map((fid) => foodMap.get(fid)?.group).filter(Boolean) as FoodGroup[]);
+    let missingGroups = FOOD_GROUPS.filter((g) => !dayGroups.has(g));
 
-    const sortedGroups = [...missingGroups].sort((a, b) => (groupCount.get(a) ?? 0) - (groupCount.get(b) ?? 0));
-    for (const group of sortedGroups) {
-      if ((newFoodsPerDay.get(day) ?? 0) >= 1) break;
-      const picked = pickNewFood(group, day, dayFoodIds);
-      if (picked) {
-        usedNewFoodIds.add(picked.id);
-        planIntroduced.add(picked.id);
-        newFoodsPerDay.set(day, (newFoodsPerDay.get(day) ?? 0) + 1);
-        dayFoodIds.push(picked.id);
-        groupCount.set(picked.group, (groupCount.get(picked.group) ?? 0) + 1);
-        result.push({
-          foodId: picked.id,
-          dayOfWeek: day,
-          isNew: true,
-          reason: 'new_food',
-        });
+    // 1. New food para este día
+    if (missingGroups.length > 0) {
+      const sortedGroups = [...missingGroups].sort((a, b) => (groupCount.get(a) ?? 0) - (groupCount.get(b) ?? 0));
+      for (const group of sortedGroups) {
+        if ((newFoodsPerDay.get(day) ?? 0) >= 1) break;
+        const picked = pickNewFood(group, day, dayFoodIds);
+        if (picked) {
+          usedNewFoodIds.add(picked.id);
+          planIntroduced.add(picked.id);
+          newFoodsPerDay.set(day, (newFoodsPerDay.get(day) ?? 0) + 1);
+          dayFoodIds.push(picked.id);
+          groupCount.set(picked.group, (groupCount.get(picked.group) ?? 0) + 1);
+          result.push({
+            foodId: picked.id,
+            dayOfWeek: day,
+            isNew: true,
+            reason: 'new_food',
+          });
+        }
       }
     }
-  }
 
-  for (const day of days) {
-    const dayFoodIds = assigned.get(day)!;
+    // 2. Relleno con consumidos + introducidos en DÍAS ANTERIORES
     const dayFoods = dayFoodIds.map((fid) => foodMap.get(fid)).filter(Boolean) as GeneratorFood[];
-    const dayGroups = new Set(dayFoods.map((f) => f.group));
-    const missingGroups = FOOD_GROUPS.filter((g) => !dayGroups.has(g));
-    if (missingGroups.length === 0) continue;
-
+    dayGroups = new Set(dayFoods.map((f) => f.group));
+    missingGroups = FOOD_GROUPS.filter((g) => !dayGroups.has(g));
     for (const group of missingGroups) {
       const pool = foods.filter(
         (f) =>
