@@ -191,9 +191,13 @@ export default function FoodPlanScreen() {
   }, [baby, removeMeal]);
 
   const handleToggleLock = useCallback((planId: string, currentlyLocked: boolean) => {
-    if (!baby) return;
-    toggleLockMeal.mutate({ id: planId, babyId: baby.id, locked: !currentlyLocked });
-  }, [baby, toggleLockMeal]);
+    if (!baby || !consumed || !plans) return;
+    const plan = plans.find(p => p.id === planId);
+    if (!plan) return;
+    const willLock = !currentlyLocked;
+    const isNew = willLock && !consumed.has(plan.foodId) ? true : undefined;
+    toggleLockMeal.mutate({ id: planId, babyId: baby.id, locked: willLock, isNew });
+  }, [baby, toggleLockMeal, plans, consumed]);
 
   // ─── Generator ──────────────────────────────────────────────────────
   const [generatingMode, setGeneratingMode] = useState<'day' | 'week' | null>(null);

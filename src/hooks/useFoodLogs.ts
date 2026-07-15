@@ -362,9 +362,11 @@ export function useLockedMealPlans(babyId?: string, weekStart?: Date) {
 export function useToggleLockMealPlan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; babyId: string; locked: boolean }) => {
+    mutationFn: async (input: { id: string; babyId: string; locked: boolean; isNew?: boolean }) => {
+      const setData: any = { locked: input.locked as any };
+      if (input.isNew !== undefined) setData.isNew = input.isNew as any;
       await getDb().update(foodMealPlans)
-        .set({ locked: input.locked as any })
+        .set(setData)
         .where(eq(foodMealPlans.id, input.id))
         .run();
     },
