@@ -52,6 +52,7 @@
  *           → asigna al día
  */
 
+const FOOD_GROUPS = ['fruit', 'vegetable', 'grain', 'protein', 'fat'] as const;
 export type FoodGroup = (typeof FOOD_GROUPS)[number];
 
 export interface GeneratorFood {

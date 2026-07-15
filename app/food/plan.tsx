@@ -218,16 +218,24 @@ export default function FoodPlanScreen() {
     }));
     const freqMap = new Map<string, number>();
     if (frequency) for (const [k, v] of frequency) freqMap.set(k, v.score);
-    const suggestions = generateMealPlan({
-      mode: generatingMode,
-      targetDay: generatingMode === 'day' ? generatingDay ?? undefined : undefined,
-      keepExisting: !isReplace,
-      foods: generatorFoods,
-      consumed: consumed as Set<string>,
-      frequency: freqMap,
-      watchlist: watchlist ?? new Set<string>(),
-      existingPlans: existingItems,
-    });
+    let suggestions: PlanSuggestion[];
+    try {
+      suggestions = generateMealPlan({
+        mode: generatingMode,
+        targetDay: generatingMode === 'day' ? generatingDay ?? undefined : undefined,
+        keepExisting: !isReplace,
+        foods: generatorFoods,
+        consumed: consumed as Set<string>,
+        frequency: freqMap,
+        watchlist: watchlist ?? new Set<string>(),
+        existingPlans: existingItems,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("❌ Error al generar", msg);
+      setShowGenerator(false);
+      return;
+    }
     const toInsert = suggestions.filter((s) => s.reason !== 'locked' && s.reason !== 'existing');
     if (toInsert.length === 0) {
       Alert.alert("Sin cambios", "El plan ya está completo. No se requieren cambios.");
